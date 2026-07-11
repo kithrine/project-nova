@@ -14,7 +14,7 @@ Create the secure technical foundation.
 | 1.5 | Build authorization context | Done |
 | 1.6 | Configure CI and tests | Ready for Development |
 | 1.7 | Create role-specific protected layouts | Done |
-| 1.8 | Manage funding sources | Ready for Development |
+| 1.8 | Manage funding sources | Done |
 
 > Sequencing note: the epic is numbered 1.1–1.8 for reference, but the safe build order is 1.1 → 1.3 → 1.4 → 1.2 → 1.5 → 1.6 → 1.7, with 1.8 (funding-source reference data) buildable any time after 1.5 and required before Epic 5's Story 5.3. The Clerk user-provisioning write (1.2) depends on the `User` model (1.4); see each story's Dependencies.
 
@@ -356,7 +356,7 @@ The feature pages inside each layout (later epics) and public marketing content 
 ## Story 1.8 — Manage funding sources
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Grant Administrator, I want to create and manage funding sources, so that placements can be funded and hours can be reported against the correct grant.

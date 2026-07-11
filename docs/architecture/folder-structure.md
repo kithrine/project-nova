@@ -17,6 +17,7 @@ src/
   features/
     applications/
     enrollments/
+    funding/
     placements/
     timesheets/
     incidents/

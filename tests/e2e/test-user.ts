@@ -19,5 +19,9 @@ export const E2E_OPS_USER_EMAIL =
 export const E2E_PARTICIPANT_USER_EMAIL =
   process.env.E2E_CLERK_PARTICIPANT_USER_EMAIL ?? "e2e-participant+clerk_test@example.com";
 
+/** Grant Administrator at e2e_org_nova (funding.manage). */
+export const E2E_GRANT_ADMIN_USER_EMAIL =
+  process.env.E2E_CLERK_GRANT_ADMIN_USER_EMAIL ?? "e2e-grant+clerk_test@example.com";
+
 export const E2E_USER_PASSWORD =
   process.env.E2E_CLERK_USER_PASSWORD ?? "Synthetic-Nova-E2E-42!";

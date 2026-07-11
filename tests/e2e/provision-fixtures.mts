@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { ActiveStatus, OrganizationKind, Role } from "../../src/generated/prisma/enums";
 import {
+  E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
   E2E_USER_EMAIL,
@@ -54,6 +55,12 @@ const FIXTURE_USERS: FixtureUser[] = [
     internalId: "e2e_user_participant",
     displayName: "Synthetic E2E Participant",
     membership: { organizationId: "e2e_org_nova", role: Role.PARTICIPANT },
+  },
+  {
+    email: E2E_GRANT_ADMIN_USER_EMAIL,
+    internalId: "e2e_user_grant",
+    displayName: "Synthetic E2E Grant Admin",
+    membership: { organizationId: "e2e_org_nova", role: Role.GRANT_ADMINISTRATOR },
   },
 ];
 
@@ -159,7 +166,18 @@ try {
     }
   }
 
-  console.log(`E2E fixtures ready (${FIXTURE_USERS.length} users, 2 organizations).`);
+  // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
+  // clean only our own synthetic test rows, never truncate). Safe while
+  // funding sources have no dependents; revisit when Story 5.3 adds
+  // funding assignments.
+  const cleaned = await prisma.fundingSource.deleteMany({
+    where: { name: { startsWith: "E2E Synthetic" } },
+  });
+
+  console.log(
+    `E2E fixtures ready (${FIXTURE_USERS.length} users, 2 organizations; ` +
+      `${cleaned.count} prior funding fixtures cleaned).`,
+  );
 } finally {
   await prisma.$disconnect();
 }
