@@ -13,6 +13,7 @@ Agents must review:
 3. `docs/product/prd.md`
 4. `docs/architecture/architecture.md`
 5. The relevant domain document and story
+6. `docs/architecture/git-workflow.md`
 
 ## Project identity
 
@@ -113,6 +114,7 @@ Never expose or log:
 
 ## Working style
 
+- Follow the branch-per-story git workflow in `docs/architecture/git-workflow.md`.
 - Make the smallest coherent change.
 - Preserve approved terminology.
 - Update documentation when behavior changes.

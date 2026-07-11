@@ -11,12 +11,13 @@ This repository-ready documentation bundle is the source of truth for Project No
 5. `docs/ux/ux-spec.md`
 6. `AGENTS.md`
 7. `RULES.md`
+8. `docs/architecture/git-workflow.md`
 
 ## Documentation map
 
 - `docs/planning/` — discovery, assumptions, risks, milestones, roadmap
 - `docs/product/` — PRD, MVP, lifecycles, rules, glossary, future roadmap
-- `docs/architecture/` — stack, domain model, database, services, auth, environments, CI/CD, testing
+- `docs/architecture/` — stack, domain model, database, services, auth, environments, CI/CD, git workflow, testing
 - `docs/ux/` — information architecture, user flows, wireframes, visual system, components, accessibility
 - `docs/ops/` — pilot operations, incident handling, grant operations, shelter onboarding
 - `docs/stories/` — epics and starter user stories

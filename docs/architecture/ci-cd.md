@@ -24,3 +24,5 @@
 ## Deployment ownership
 
 GitHub Actions owns verification. Vercel owns deployment.
+
+The branch-per-story development flow, commit conventions, and merge process are defined in `docs/architecture/git-workflow.md`.

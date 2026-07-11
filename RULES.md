@@ -18,6 +18,7 @@
 - Add tests for business rules and authorization boundaries.
 - Use respectful, plain language in participant-facing copy.
 - Update all affected documentation in the same change set as the behavior change (see Documentation synchronization).
+- Follow the branch-per-story git workflow in `docs/architecture/git-workflow.md` (one branch and pull request per story, squash-merged).
 
 ## Never
 

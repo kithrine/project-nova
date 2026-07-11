@@ -27,3 +27,5 @@ The production custom domain points to the Vercel production project.
 - Prisma: migrations
 - Neon: PostgreSQL
 - Clerk: authentication
+
+Branch naming, the per-story pull-request loop, and merge conventions are defined in `docs/architecture/git-workflow.md`.
