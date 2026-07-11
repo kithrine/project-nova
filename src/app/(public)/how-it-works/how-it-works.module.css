@@ -1,0 +1,199 @@
+/*
+ * How It Works (Story 2.1) — native CSS as a first-class tool (ADR-007).
+ * Public pages may use more expressive motion than the app
+ * (docs/ux/visual-design-reference.md); everything animated here is gated
+ * behind prefers-reduced-motion.
+ */
+
+.page {
+  --paper: #faf7f1;
+  --ink: #172554;
+  background-color: var(--paper);
+  color: var(--ink);
+  position: relative;
+  overflow-x: clip;
+}
+
+/* Soft atmosphere: two color washes + a fine grain, no images required */
+.page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(52rem 30rem at 85% -5%, rgb(15 118 110 / 0.14), transparent 60%),
+    radial-gradient(44rem 28rem at -10% 30%, rgb(29 78 216 / 0.1), transparent 55%),
+    radial-gradient(40rem 26rem at 110% 78%, rgb(180 83 9 / 0.07), transparent 60%);
+}
+
+.page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+.display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.015em;
+}
+
+.heroTitle {
+  font-size: clamp(2.6rem, 7.5vw, 4.75rem);
+  line-height: 1.04;
+  font-weight: 620;
+  font-variation-settings: "SOFT" 60;
+}
+
+.heroTitleAccent {
+  color: #0f766e;
+  font-style: italic;
+  font-variation-settings:
+    "SOFT" 100,
+    "WONK" 1;
+}
+
+/* Staggered hero entrance */
+@media (prefers-reduced-motion: no-preference) {
+  .heroReveal > * {
+    opacity: 0;
+    transform: translateY(18px);
+    animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .heroReveal > *:nth-child(2) {
+    animation-delay: 0.12s;
+  }
+  .heroReveal > *:nth-child(3) {
+    animation-delay: 0.24s;
+  }
+  .heroReveal > *:nth-child(4) {
+    animation-delay: 0.36s;
+  }
+  .heroReveal > *:nth-child(5) {
+    animation-delay: 0.48s;
+  }
+
+  /* The hero trail draws itself like a walked path */
+  .trailPath {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 2s ease-out 0.5s forwards;
+  }
+
+  .trailPaw {
+    opacity: 0;
+    animation: appear 0.45s ease-out forwards;
+  }
+
+  .trailPaw:nth-of-type(1) {
+    animation-delay: 0.9s;
+  }
+  .trailPaw:nth-of-type(2) {
+    animation-delay: 1.3s;
+  }
+  .trailPaw:nth-of-type(3) {
+    animation-delay: 1.7s;
+  }
+  .trailPaw:nth-of-type(4) {
+    animation-delay: 2.1s;
+  }
+
+  /* Scroll-triggered reveals (data-visible applied by the Reveal helper).
+     Hidden ONLY when scripting is available — no-JS visitors (and browsers
+     without the scripting media query) see all content immediately. */
+  @media (scripting: enabled) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition:
+        opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      transition-delay: var(--reveal-delay, 0ms);
+    }
+
+    .reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Journey rail: a dashed walking path down the left side */
+.railList {
+  position: relative;
+  padding-left: 0;
+}
+
+.railList::before {
+  content: "";
+  position: absolute;
+  left: 1.375rem;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 2px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(15 118 110 / 0.55) 0 8px,
+    transparent 8px 18px
+  );
+}
+
+.stepNumber {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.stepCard {
+  border: 1px solid rgb(23 37 84 / 0.1);
+  background: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 1px 2px rgb(23 37 84 / 0.04);
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.3s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stepCard:hover {
+    transform: translateY(-2px);
+    border-color: rgb(15 118 110 / 0.4);
+    box-shadow: 0 10px 30px -12px rgb(23 37 84 / 0.18);
+  }
+}
+
+/* Closing band */
+.closing {
+  background:
+    radial-gradient(40rem 22rem at 80% 0%, rgb(13 148 136 / 0.35), transparent 60%),
+    linear-gradient(160deg, #172554 0%, #1e3a8a 55%, #1d4ed8 130%);
+  color: #f8fafc;
+}
