@@ -112,7 +112,7 @@ Grouped, accessible table with per-funding-source subtotals and a grand total; c
 Automated reimbursement packets, blended/cost-category allocation, and a funder portal (all V3, `docs/ops/grant-operations.md`); payroll; exporting this report (7.5).
 
 ### Dependencies
-Epic 6 (locked timesheets, 6.7) and 5.3 (funding assignment). **Blocked on:** exact grant fields and reporting formats must be validated against actual awards (`docs/ops/grant-operations.md`); record-retention periods are undefined pending legal and grant review (`docs/ops/data-governance.md`).
+Epic 6 (locked timesheets, 6.7), Story 5.3 (funding assignment), and Story 1.8 (funding sources must exist). **Blocked on:** exact grant fields and reporting formats must be validated against actual awards (`docs/ops/grant-operations.md`); record-retention periods are undefined pending legal and grant review (`docs/ops/data-governance.md`).
 
 ---
 

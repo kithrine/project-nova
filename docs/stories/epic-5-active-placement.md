@@ -107,7 +107,7 @@ As a Program Coordinator, I want to assign the host site, supervisor, and work s
 `placement.assign` for Program Coordinators and Nova Administrators, scoped to Nova. `placement.approve` for the Shelter Manager, scoped to their own organization and gated to the Shelter Review lifecycle state. Shelter Supervisors have read-only access to the assignment.
 
 ### Lifecycle rules
-Enacts Draft → Proposed → Shelter Review → Approved, using the exact state names from `docs/product/placement-lifecycle.md`. Each transition writes a lifecycle event (actor, timestamp, from-state, to-state). A change-request response from the shelter returns the placement to the coordinator for revision instead of terminating the flow.
+Enacts Draft → Proposed → Shelter Review → Approved, using the exact state names from `docs/product/placement-lifecycle.md`. This is the placement-level shelter gate — the Shelter Manager approving the specific site, supervisor, and schedule — distinct from the match-level shelter approval in Epic 4 (`docs/decisions/ADR-013-placement-review-model.md`). Each transition writes a lifecycle event (actor, timestamp, from-state, to-state). A change-request response from the shelter returns the placement to the coordinator for revision instead of terminating the flow.
 
 ### Data changes
 Writes to `Placement` (`siteId`, `supervisorUserId`, `coordinatorUserId`) and a `Schedule` record linked to the placement, plus lifecycle events. The one-Onboarding/Active/Paused-placement-per-participant partial unique index (`docs/architecture/database-design.md`) is the database-level backstop to the application-level conflict check.
@@ -159,7 +159,7 @@ As a Grant Administrator, I want to assign exactly one active funding source to 
 The Funding Assignment is a satellite record to Placement, not a placement-lifecycle state itself. It feeds the "active funding assignment" activation prerequisite (5.5/5.6). Ending an assignment on an Active placement does not itself pause or terminate the placement; its absence blocks (re)activation until resolved.
 
 ### Data changes
-Adds `FundingAssignment` (`placementId`, `fundingSourceId`, `status`, `startDate`, `endDate`, optional rate/hour-cap as Decimal), with a partial unique index enforcing one active row per `placementId`. This story assumes `FundingSource` master records already exist; it does not define how they are created (see Out of scope).
+Adds `FundingAssignment` (`placementId`, `fundingSourceId`, `status`, `startDate`, `endDate`, optional rate/hour-cap as Decimal), with a partial unique index enforcing one active row per `placementId`. This story assumes `FundingSource` master records already exist; they are created and managed in Epic 1 Story 1.8 (Manage funding sources).
 
 ### UX and accessibility
 Funding Assignment Card component (`docs/ux/component-guidelines.md`); amounts are right-aligned, formatted, and unit-labeled. Active versus ended assignments are distinguished with text and icon, never color alone. History is presented as an accessible, clearly dated list.
@@ -171,10 +171,10 @@ Funding Assignment Card component (`docs/ux/component-guidelines.md`); amounts a
 - E2E: Grant Administrator assigns funding and the placement's funding-related activation blocker clears.
 
 ### Out of scope
-Funding Source master-record creation and management — no story in the current backlog explicitly owns this; flagged in this epic's delivery notes as a gap to confirm rather than assumed here (see final report). Approved-hours-by-funding-source reporting (Epic 7 Story 7.2). Blended or multiple simultaneous funding sources — explicitly deferred (RULES.md, ADR-010).
+Funding Source master-record creation and management (Epic 1 Story 1.8 — Manage funding sources). Approved-hours-by-funding-source reporting (Epic 7 Story 7.2). Blended or multiple simultaneous funding sources — explicitly deferred (RULES.md, ADR-010).
 
 ### Dependencies
-5.1 (workspace Funding tab). ADR-010. `docs/ops/grant-operations.md`. The partial unique index convention in `docs/architecture/database-design.md`.
+5.1 (workspace Funding tab). Epic 1 Story 1.8 (Funding Source master records must exist). ADR-010. `docs/ops/grant-operations.md`. The partial unique index convention in `docs/architecture/database-design.md`.
 
 ---
 

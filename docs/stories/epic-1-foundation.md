@@ -14,8 +14,9 @@ Create the secure technical foundation.
 | 1.5 | Build authorization context | Ready for Development |
 | 1.6 | Configure CI and tests | Ready for Development |
 | 1.7 | Create role-specific protected layouts | Ready for Development |
+| 1.8 | Manage funding sources | Ready for Development |
 
-> Sequencing note: the epic is numbered 1.1–1.7 for reference, but the safe build order is 1.1 → 1.3 → 1.4 → 1.2 → 1.5 → 1.6 → 1.7. The Clerk user-provisioning write (1.2) depends on the `User` model (1.4); see each story's Dependencies.
+> Sequencing note: the epic is numbered 1.1–1.8 for reference, but the safe build order is 1.1 → 1.3 → 1.4 → 1.2 → 1.5 → 1.6 → 1.7, with 1.8 (funding-source reference data) buildable any time after 1.5 and required before Epic 5's Story 5.3. The Clerk user-provisioning write (1.2) depends on the `User` model (1.4); see each story's Dependencies.
 
 ---
 
@@ -349,3 +350,50 @@ The feature pages inside each layout (later epics) and public marketing content 
 
 ### Dependencies
 1.1 and 1.5; information architecture from `docs/ux/information-architecture.md`.
+
+---
+
+## Story 1.8 — Manage funding sources
+
+### Status
+Ready for Development
+
+### User story
+As a Grant Administrator, I want to create and manage funding sources, so that placements can be funded and hours can be reported against the correct grant.
+
+### Scope
+- Define the `FundingSource` model as Nova-owned reference data: name, kind (grant / contract / other), a human-readable code or identifier, status (`ACTIVE` / `INACTIVE`), optional start and end dates, and optional notes.
+- Provide Operations administration CRUD (create, edit, deactivate) under Operations → Administration (`docs/ux/information-architecture.md`), restricted to Grant Administrator and Nova Administrator.
+- Deactivation archives a funding source (never a hard delete), preserving history and any existing funding assignments.
+- This story establishes the master records that Story 5.3 (Assign funding) attaches to a placement and Story 7.2 (Approved hours by funding source) reports on. In MVP a placement has exactly one active funding assignment (`docs/decisions/ADR-010-funding.md`).
+
+### Acceptance criteria
+1. Given a Grant Administrator with the funding-management permission, when they create a funding source with a name and required fields, then it is saved and becomes available to assign to placements.
+2. Given an existing funding source, when its details are edited, then the change is recorded and reflected wherever the source is referenced.
+3. Given a funding source assigned to one or more placements, when an administrator deactivates it, then it is archived (not hard-deleted) and is no longer selectable for new assignments, while existing assignments and historical reporting remain intact.
+4. Given a user without the funding-management permission (for example, a Program Coordinator or any shelter role), when they attempt to create or edit a funding source, then it is denied with the Permission denied state.
+5. Given the funding sources list, when requested, then only Nova Operations roles with the permission can see it — no shelter or participant access.
+
+### Authorization
+A `funding.manage` permission granted to Grant Administrator and Nova Administrator, Nova organization scope. Server-side only; role-shaped view models. Funding sources are never exposed to shelters or participants.
+
+### Lifecycle rules
+`FundingSource` status (`ACTIVE` / `INACTIVE`) is reversible and historical; a funding source is never hard-deleted because funding assignments and funding reports depend on it.
+
+### Data changes
+Adds `FundingSource` (`id` [`cuid`], `name`, `kind`, `code`, `status`, `startDate`, `endDate`, `notes`, timestamps). No monetary amounts are stored here — allocation amounts and blended funding are out of MVP scope (`docs/decisions/ADR-010-funding.md`).
+
+### UX and accessibility
+Operations Administration list and form; accessible labels above inputs with programmatic error association; status shown as text (`Active` / `Inactive`), never color alone; SVG-only icons; mobile-first layout; Loading, Empty, Error, and Permission denied states (`docs/ux/wireframe-spec.md`).
+
+### Tests
+- Unit: funding-source validation and active/inactive status logic.
+- Integration: create/edit/deactivate persistence; archive-not-delete preserves existing assignments; permission and Nova-scope enforcement.
+- Component: the admin list and form render their states with accessible errors.
+- E2E: a Grant Administrator creates a funding source that then becomes selectable when assigning funding to a placement (Story 5.3).
+
+### Out of scope
+Funding amounts and allocations, blended or multi-source funding (deferred, `docs/decisions/ADR-010-funding.md`), reimbursement packets, and a funder portal (V3). Assigning a funding source to a placement (Story 5.3).
+
+### Dependencies
+1.4 (roles and memberships), 1.5 (authorization context), 1.7 (Operations protected layout). Enables Story 5.3 (Assign funding) and Story 7.2 (Approved hours by funding source).

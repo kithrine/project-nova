@@ -29,6 +29,8 @@ Draft
 → Completed
 ```
 
+The Placement's **Shelter Review** stage is the Shelter Manager's approval of the specific site, supervisor, and schedule package (Epic 5, Story 5.2) — distinct from the shelter's decision on the match itself in the Match lifecycle above. See `docs/decisions/ADR-013-placement-review-model.md`.
+
 Alternate terminal states:
 
 - Converted to Permanent Employment
