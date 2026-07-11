@@ -40,3 +40,7 @@ Motion communicates state. Use subtle transitions in the application and more ex
 ## Dark mode
 
 Design tokens should permit it later, but dark mode is not MVP.
+
+## Token implementation
+
+Tokens are implemented as CSS variables (Story 1.1). Color tokens live in the DaisyUI `nova` theme in `src/app/globals.css` (deep blue primary `#1d4ed8`, muted teal accent `#0f766e`, calm green success `#15803d`, amber warning `#b45309`, muted red danger `#b91c1c`, neutral slate surfaces). Non-color tokens (radii, shadows, focus ring, motion durations with reduced-motion support) live in `src/styles/tokens.css`. The typeface is Inter via `next/font`.

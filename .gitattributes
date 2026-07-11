@@ -1,0 +1,12 @@
+# Normalize all text files to LF in the repository (docs/architecture/git-workflow.md)
+* text=auto eol=lf
+
+# Binary files — never normalize
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
