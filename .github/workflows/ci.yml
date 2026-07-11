@@ -6,9 +6,11 @@
 # quality: static checks + the full Vitest suite (unit, component, and
 #   integration — integration runs against the shared nonproduction Neon
 #   database per ADR-006, with per-run isolation).
-# preview: builds and deploys a Vercel preview (the build IS the Next.js
-#   build), then runs the Playwright smoke + accessibility specs against the
-#   deployed preview URL.
+# preview: waits for Vercel's Git-integration preview deployment of this
+#   commit (Vercel owns deployment; GitHub Actions owns verification —
+#   docs/architecture/deployment.md). A deployment reaching READY is the
+#   "Build Next.js + create preview" check; Playwright smoke + accessibility
+#   specs then run against the deployed preview URL.
 #
 # Production migrations (`prisma migrate deploy`) are wired at launch (Story 7.9).
 name: CI
@@ -69,18 +71,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Pull Vercel preview environment
-        run: npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
-
-      - name: Build (Next.js via Vercel)
-        run: npx vercel build --token="$VERCEL_TOKEN"
-
-      - name: Deploy Vercel preview
+      - name: Wait for the Vercel preview deployment of this commit
         id: deploy
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Waiting for Vercel preview of $HEAD_SHA"
+          for attempt in $(seq 1 60); do
+            result=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=preview&limit=20" \
+              | python3 -c "
+          import json, os, sys
+          sha = os.environ['HEAD_SHA']
+          deployments = json.load(sys.stdin).get('deployments', [])
+          match = [d for d in deployments if d.get('meta', {}).get('githubCommitSha') == sha]
+          print(f\"{match[0]['url']} {match[0]['state']}\" if match else 'NONE PENDING')
+          ")
+            url=$(echo "$result" | cut -d' ' -f1)
+            state=$(echo "$result" | cut -d' ' -f2)
+            echo "attempt $attempt: $state ($url)"
+            if [ "$state" = "READY" ]; then
+              echo "url=https://$url" >> "$GITHUB_OUTPUT"
+              echo "Preview: https://$url" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$state" = "ERROR" ] || [ "$state" = "CANCELED" ]; then
+              echo "::error::Vercel preview deployment failed ($state)"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::Timed out waiting for the Vercel preview deployment"
+          exit 1
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium

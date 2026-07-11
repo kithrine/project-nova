@@ -88,7 +88,7 @@ git pull
 
 - `main` is protected: no direct pushes (admins included), required checks (`quality`, `preview`) must pass, linear history enforced.
 - Merge with `gh pr merge --squash --auto --delete-branch` — the merge completes automatically once checks go green. Use the browser (or `gh pr view --web`) as the fallback when a merge is blocked or a human review is wanted.
-- The pipeline (`.github/workflows/ci.yml`) runs the ten checks from `docs/architecture/ci-cd.md`: the `quality` job (lint, type check, Prisma validate, migration status, full Vitest suite against the shared nonproduction database) and the `preview` job (Vercel preview build + deploy, then Playwright smoke and accessibility tests against the preview URL).
+- The pipeline (`.github/workflows/ci.yml`) runs the ten checks from `docs/architecture/ci-cd.md`: the `quality` job (lint, type check, Prisma validate, migration status, full Vitest suite against the shared nonproduction database) and the `preview` job (waits for Vercel's Git-integration preview deployment of the commit — Vercel owns deployment, GitHub Actions owns verification — then runs Playwright smoke and accessibility tests against the preview URL).
 - Full path: `feature branch → PR → GitHub Actions → Vercel preview → review → merge → production` (`docs/architecture/deployment.md`).
 
 ## Working agreements
