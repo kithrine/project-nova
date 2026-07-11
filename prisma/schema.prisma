@@ -95,6 +95,35 @@ model OrganizationSite {
   @@index([organizationId])
 }
 
+// --- Funding (Story 1.8) ----------------------------------------------------
+
+enum FundingSourceKind {
+  GRANT
+  CONTRACT
+  OTHER
+}
+
+// Nova-owned reference data: the grant, contract, or approved source that
+// funds placements (TERMINOLOGY.md). No monetary amounts here — allocation
+// detail and blended funding are out of MVP scope (ADR-010). Never
+// hard-deleted: funding assignments (Story 5.3) and funding reports
+// (Story 7.2) depend on it.
+model FundingSource {
+  id        String            @id @default(cuid())
+  name      String
+  kind      FundingSourceKind
+  // Human-readable identifier (e.g. an award number). Optional until grant
+  // fields are validated against actual awards (docs/planning/open-questions.md #6).
+  code      String?
+  status    ActiveStatus      @default(ACTIVE)
+  startDate DateTime?         @db.Date
+  endDate   DateTime?         @db.Date
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // A user's role within one organization. Organization scope for authorization
 // derives from ACTIVE memberships only; deactivated memberships are preserved
 // as history and grant nothing.

@@ -58,11 +58,17 @@ describe("navigation models (information-architecture.md)", () => {
     }
   });
 
-  it("each experience has exactly one available destination so far (its dashboard)", () => {
-    for (const items of Object.values(NAV_BY_EXPERIENCE)) {
-      const available = items.filter((i) => i.available);
-      expect(available).toHaveLength(1);
-      expect(available[0].label).toBe("Dashboard");
-    }
+  it("only built destinations are available (dashboards everywhere; Administration for operations)", () => {
+    const availableByExperience = Object.fromEntries(
+      Object.entries(NAV_BY_EXPERIENCE).map(([experience, items]) => [
+        experience,
+        items.filter((i) => i.available).map((i) => i.label),
+      ]),
+    );
+    expect(availableByExperience).toEqual({
+      participant: ["Dashboard"],
+      shelter: ["Dashboard"],
+      operations: ["Dashboard", "Administration"],
+    });
   });
 });
