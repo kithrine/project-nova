@@ -1,7 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3000;
-const BASE_URL = `http://localhost:${PORT}`;
+const LOCAL_URL = `http://localhost:${PORT}`;
+
+// In CI, tests run against the deployed Vercel preview instead of a local
+// dev server (Story 1.6): PLAYWRIGHT_BASE_URL carries the preview URL and
+// no webServer is started.
+const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -11,7 +16,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: BASE_URL,
+    baseURL: externalBaseUrl ?? LOCAL_URL,
     trace: "on-first-retry",
   },
   projects: [
@@ -20,10 +25,12 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run dev",
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: LOCAL_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

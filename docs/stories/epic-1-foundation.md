@@ -12,7 +12,7 @@ Create the secure technical foundation.
 | 1.3 | Configure Neon and Prisma | Done |
 | 1.4 | Create user and organization membership models | Done |
 | 1.5 | Build authorization context | Done |
-| 1.6 | Configure CI and tests | Ready for Development |
+| 1.6 | Configure CI and tests | Done |
 | 1.7 | Create role-specific protected layouts | Done |
 | 1.8 | Manage funding sources | Done |
 
@@ -263,7 +263,7 @@ Domain-specific permissions for later epics (added with their features) and runt
 ## Story 1.6 — Configure CI and tests
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want CI running the full quality pipeline with the test toolchain configured, so that every pull request is verified before merge and `main` stays deployable.

@@ -15,6 +15,12 @@ import { clerkSetup } from "@clerk/testing/playwright";
 export default async function globalSetup() {
   loadEnvConfig(process.cwd(), true, { info: () => {}, error: console.error });
 
+  // Smoke-only mode (CI, Story 1.6): the smoke + a11y specs need no Clerk
+  // session and no database fixtures, so skip both.
+  if (process.env.E2E_SMOKE_ONLY === "1") {
+    return;
+  }
+
   await clerkSetup();
 
   // No shell involved: run tsx's CLI entry directly under the current Node

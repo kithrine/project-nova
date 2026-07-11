@@ -84,10 +84,11 @@ git pull
 - Body (see `.github/pull_request_template.md`): summary, the story's acceptance criteria as a checklist, tests run, and the Documentation-synchronization checkbox.
 - Link the story doc (`docs/stories/epic-<n>-*.md`).
 
-## Branch protection and CI (phasing)
+## Branch protection and CI (active since Story 1.6)
 
-- **Now (pre-CI):** direct commits to `main` are tolerated for planning/docs setup, and story PRs merge immediately via `gh pr merge --squash --delete-branch`.
-- **After Epic 1 Story 1.6 (CI + branch protection):** `main` is protected — no direct pushes, PR required, required checks must pass before merge (`docs/architecture/ci-cd.md`). Use `gh pr merge --squash --auto --delete-branch` so the merge happens automatically once checks go green; rely on the browser fallback when a human review is required.
+- `main` is protected: no direct pushes (admins included), required checks (`quality`, `preview`) must pass, linear history enforced.
+- Merge with `gh pr merge --squash --auto --delete-branch` — the merge completes automatically once checks go green. Use the browser (or `gh pr view --web`) as the fallback when a merge is blocked or a human review is wanted.
+- The pipeline (`.github/workflows/ci.yml`) runs the ten checks from `docs/architecture/ci-cd.md`: the `quality` job (lint, type check, Prisma validate, migration status, full Vitest suite against the shared nonproduction database) and the `preview` job (Vercel preview build + deploy, then Playwright smoke and accessibility tests against the preview URL).
 - Full path: `feature branch → PR → GitHub Actions → Vercel preview → review → merge → production` (`docs/architecture/deployment.md`).
 
 ## Working agreements

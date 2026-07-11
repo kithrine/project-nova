@@ -1,0 +1,92 @@
+# Project Nova CI (Story 1.6) — implements the ten pull-request checks from
+# docs/architecture/ci-cd.md:
+#   install -> lint -> type check -> validate Prisma schema -> unit tests ->
+#   component tests -> build -> Vercel preview -> Playwright smoke -> required checks.
+#
+# quality: static checks + the full Vitest suite (unit, component, and
+#   integration — integration runs against the shared nonproduction Neon
+#   database per ADR-006, with per-run isolation).
+# preview: builds and deploys a Vercel preview (the build IS the Next.js
+#   build), then runs the Playwright smoke + accessibility specs against the
+#   deployed preview URL.
+#
+# Production migrations (`prisma migrate deploy`) are wired at launch (Story 7.9).
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: No unresolved migration failures
+        run: npx prisma migrate status
+
+      - name: Unit, component, and integration tests
+        run: npm test
+
+  preview:
+    name: preview
+    needs: quality
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull Vercel preview environment
+        run: npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Build (Next.js via Vercel)
+        run: npx vercel build --token="$VERCEL_TOKEN"
+
+      - name: Deploy Vercel preview
+        id: deploy
+        run: |
+          url=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke + accessibility tests against the preview
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.deploy.outputs.url }}
+          E2E_SMOKE_ONLY: "1"
+        run: npx playwright test tests/e2e/smoke.spec.ts tests/e2e/a11y.spec.ts
