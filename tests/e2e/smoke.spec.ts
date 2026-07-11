@@ -18,6 +18,17 @@ test("landing page is mobile-first with no horizontal scroll at 360px", async ({
   expect(scrollWidth).toBeLessThanOrEqual(360);
 });
 
+/**
+ * Story 1.3 — the health check reports database connectivity without
+ * exposing secrets.
+ */
+test("health check reports database connectivity", async ({ request }) => {
+  const response = await request.get("/api/health");
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body).toEqual({ status: "ok", database: "connected" });
+});
+
 test("skip link becomes visible on keyboard focus", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
