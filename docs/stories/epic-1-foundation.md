@@ -13,7 +13,7 @@ Create the secure technical foundation.
 | 1.4 | Create user and organization membership models | Done |
 | 1.5 | Build authorization context | Done |
 | 1.6 | Configure CI and tests | Ready for Development |
-| 1.7 | Create role-specific protected layouts | Ready for Development |
+| 1.7 | Create role-specific protected layouts | Done |
 | 1.8 | Manage funding sources | Ready for Development |
 
 > Sequencing note: the epic is numbered 1.1–1.8 for reference, but the safe build order is 1.1 → 1.3 → 1.4 → 1.2 → 1.5 → 1.6 → 1.7, with 1.8 (funding-source reference data) buildable any time after 1.5 and required before Epic 5's Story 5.3. The Clerk user-provisioning write (1.2) depends on the `User` model (1.4); see each story's Dependencies.
@@ -309,7 +309,7 @@ Full end-to-end journey coverage (built per epic) and performance testing.
 ## Story 1.7 — Create role-specific protected layouts
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want role-specific protected layouts for the participant, shelter, and operations route groups, so that each experience has the correct navigation, access gating, and shell.
