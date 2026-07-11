@@ -1,6 +1,7 @@
 # Story: [Title]
 
 ## Status
+<!-- One of: Draft | Ready for Development | Blocked — pending policy validation | In Progress | Done -->
 Draft
 
 ## User story

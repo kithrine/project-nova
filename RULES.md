@@ -19,6 +19,7 @@
 - Use respectful, plain language in participant-facing copy.
 - Update all affected documentation in the same change set as the behavior change (see Documentation synchronization).
 - Follow the branch-per-story git workflow in `docs/architecture/git-workflow.md` (one branch and pull request per story, squash-merged).
+- Ask clarifying questions when requirements, business rules, lifecycle behavior, or acceptance criteria are unclear; do not assume unstated behavior.
 
 ## Never
 
@@ -38,6 +39,7 @@
 - Add blended funding to MVP.
 - Build a generic workflow engine, chat platform, or marketplace in MVP.
 - Treat form submission as emergency response.
+- Invent business rules, eligibility criteria, funding logic, or retention periods — ask instead.
 
 ## Change control
 

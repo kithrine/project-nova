@@ -18,6 +18,9 @@ A proposed relationship between a participant and a host organization.
 ## Placement
 An approved work assignment connecting a participant, enrollment, host organization, site, supervisor, coordinator, schedule, and funding source.
 
+## Shelter Review
+The placement-lifecycle stage where the Shelter Manager approves the specific site, supervisor, and schedule package for a placement — distinct from the shelter's decision on the match itself. See `docs/decisions/ADR-013-placement-review-model.md`.
+
 ## Host Organization
 The organization hosting the work. In MVP, this is usually an animal shelter.
 
