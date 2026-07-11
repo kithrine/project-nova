@@ -45,11 +45,11 @@ test("a user can sign in and reach the authenticated placeholder page", async ({
     { timeout: 15_000 },
   );
 
+  // /dashboard is the role router (Story 1.7): this user holds a shelter
+  // membership, so it redirects to the shelter shell.
   await page.goto("/dashboard");
-  // Dev-instance auth may bounce through Clerk's handshake redirects first.
-  await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
+  await page.waitForURL(/\/shelter/, { timeout: 15_000 });
   await expect(
-    page.getByRole("heading", { level: 1, name: "You're signed in" }),
+    page.getByRole("heading", { level: 1, name: "Shelter workspace" }),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("user-email")).toContainText(E2E_USER_EMAIL);
 });
