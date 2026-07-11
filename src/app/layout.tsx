@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -22,13 +23,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="nova" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
-        {children}
-      </body>
-    </html>
+    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
+      <html lang="en" data-theme="nova" className={`${inter.variable} h-full antialiased`}>
+        <body className="flex min-h-full flex-col">
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

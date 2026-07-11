@@ -8,7 +8,7 @@ Create the secure technical foundation.
 | ID | Story | Status |
 |---|---|---|
 | 1.1 | Initialize Next.js and design tokens | Done |
-| 1.2 | Configure Clerk | Ready for Development |
+| 1.2 | Configure Clerk | Done |
 | 1.3 | Configure Neon and Prisma | Done |
 | 1.4 | Create user and organization membership models | Done |
 | 1.5 | Build authorization context | Ready for Development |
@@ -74,7 +74,7 @@ None. This is the first story.
 ## Story 1.2 — Configure Clerk
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want Clerk authentication wired into the app with a verified user-provisioning webhook, so that people can sign in securely and each Clerk identity maps to an internal Nova `User` record.

@@ -20,6 +20,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.5.17",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "next": "16.2.10",
@@ -27,6 +28,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.7",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
