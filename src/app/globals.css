@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@plugin "daisyui" {
+  themes: false;
+}
+
+/*
+ * "nova" theme — the single source of color truth.
+ * Palette per docs/ux/visual-design-reference.md: neutral-first, deep blue primary,
+ * muted teal accent, calm green success, amber warning, muted red danger.
+ * All pairings meet WCAG 2.2 AA contrast on their intended surfaces.
+ */
+@plugin "daisyui/theme" {
+  name: "nova";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Neutral-first surfaces */
+  --color-base-100: #ffffff;
+  --color-base-200: #f8fafc;
+  --color-base-300: #e2e8f0;
+  --color-base-content: #0f172a;
+
+  /* Deep blue primary */
+  --color-primary: #1d4ed8;
+  --color-primary-content: #ffffff;
+
+  /* Muted teal accent */
+  --color-secondary: #0f766e;
+  --color-secondary-content: #ffffff;
+  --color-accent: #0f766e;
+  --color-accent-content: #ffffff;
+
+  --color-neutral: #334155;
+  --color-neutral-content: #f8fafc;
+
+  --color-info: #1d4ed8;
+  --color-info-content: #ffffff;
+
+  /* Calm green success */
+  --color-success: #15803d;
+  --color-success-content: #ffffff;
+
+  /* Amber warning */
+  --color-warning: #b45309;
+  --color-warning-content: #ffffff;
+
+  /* Muted red danger */
+  --color-error: #b91c1c;
+  --color-error-content: #ffffff;
+
+  /* Moderate radii, minimal depth */
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Semantic base — mobile-first, accessible defaults */
+html {
+  font-family: var(--font-sans);
+}
+
+body {
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus everywhere, keyboard-first (docs/ux/accessibility.md) */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Skip link for keyboard and screen-reader users */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 50;
+  transform: translateY(-200%);
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-fast) ease-out;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}

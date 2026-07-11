@@ -7,7 +7,7 @@ Create the secure technical foundation.
 
 | ID | Story | Status |
 |---|---|---|
-| 1.1 | Initialize Next.js and design tokens | Ready for Development |
+| 1.1 | Initialize Next.js and design tokens | Done |
 | 1.2 | Configure Clerk | Ready for Development |
 | 1.3 | Configure Neon and Prisma | Ready for Development |
 | 1.4 | Create user and organization membership models | Ready for Development |
@@ -23,7 +23,7 @@ Create the secure technical foundation.
 ## Story 1.1 — Initialize Next.js and design tokens
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want an initialized Next.js App Router project with the approved toolchain and base design tokens, so that every later feature is built on a consistent, type-safe, mobile-first foundation.
