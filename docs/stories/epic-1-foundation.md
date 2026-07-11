@@ -10,7 +10,7 @@ Create the secure technical foundation.
 | 1.1 | Initialize Next.js and design tokens | Done |
 | 1.2 | Configure Clerk | Ready for Development |
 | 1.3 | Configure Neon and Prisma | Done |
-| 1.4 | Create user and organization membership models | Ready for Development |
+| 1.4 | Create user and organization membership models | Done |
 | 1.5 | Build authorization context | Ready for Development |
 | 1.6 | Configure CI and tests | Ready for Development |
 | 1.7 | Create role-specific protected layouts | Ready for Development |
@@ -169,7 +169,7 @@ Domain models (1.4) and authorization (1.5).
 ## Story 1.4 — Create user and organization membership models
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want `User`, `Organization`, `Organization Site`, and `Membership` models with roles, so that identities map to organizations and role-scoped access can be enforced.

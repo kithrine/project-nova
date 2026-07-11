@@ -11,8 +11,6 @@
 //
 // Prisma 7: the connection URL lives in prisma.config.ts (CLI/migrations)
 // and in the driver adapter passed to PrismaClient (src/server/database/prisma.ts).
-//
-// Domain models arrive with Story 1.4 (users, organizations, memberships).
 
 generator client {
   provider = "prisma-client"
@@ -21,4 +19,100 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// --- Identity and organizations (Story 1.4) --------------------------------
+
+// All seven roles from docs/architecture/authorization-rbac.md.
+// Roles grant nothing by themselves — authorization is evaluated server-side
+// as Permission + Resource Scope + Lifecycle State (Story 1.5).
+enum Role {
+  PARTICIPANT
+  SHELTER_SUPERVISOR
+  SHELTER_MANAGER
+  PROGRAM_COORDINATOR
+  GRANT_ADMINISTRATOR
+  NOVA_ADMINISTRATOR
+  RESTRICTED_REVIEW_SPECIALIST
+}
+
+enum OrganizationKind {
+  NOVA
+  HOST
+}
+
+// Archive-not-delete: records are deactivated, never hard-deleted (RULES.md).
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id          String  @id @default(cuid())
+  // Clerk identity mapping (Story 1.2). Null until the provisioning webhook
+  // links a Clerk account; synthetic seed users have no Clerk identity.
+  clerkUserId String? @unique
+  email       String  @unique
+  displayName String
+  // Marks synthetic seed data so the launch checklist's "synthetic test data
+  // removed" gate can find it (docs/ops/launch-checklist.md).
+  isSynthetic Boolean @default(false)
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Organization {
+  id          String           @id @default(cuid())
+  name        String
+  kind        OrganizationKind
+  status      ActiveStatus     @default(ACTIVE)
+  isSynthetic Boolean          @default(false)
+
+  sites       OrganizationSite[]
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrganizationSite {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  addressLine1   String?
+  city           String?
+  region         String?
+  postalCode     String?
+  status         ActiveStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+// A user's role within one organization. Organization scope for authorization
+// derives from ACTIVE memberships only; deactivated memberships are preserved
+// as history and grant nothing.
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           Role
+  status         ActiveStatus @default(ACTIVE)
+  deactivatedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One membership row per user + organization + role.
+  @@unique([userId, organizationId, role])
+  @@index([organizationId])
+  @@index([userId])
 }
