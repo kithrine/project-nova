@@ -1,0 +1,114 @@
+# Project Nova CI (Story 1.6) — implements the ten pull-request checks from
+# docs/architecture/ci-cd.md:
+#   install -> lint -> type check -> validate Prisma schema -> unit tests ->
+#   component tests -> build -> Vercel preview -> Playwright smoke -> required checks.
+#
+# quality: static checks + the full Vitest suite (unit, component, and
+#   integration — integration runs against the shared nonproduction Neon
+#   database per ADR-006, with per-run isolation).
+# preview: waits for Vercel's Git-integration preview deployment of this
+#   commit (Vercel owns deployment; GitHub Actions owns verification —
+#   docs/architecture/deployment.md). A deployment reaching READY is the
+#   "Build Next.js + create preview" check; Playwright smoke + accessibility
+#   specs then run against the deployed preview URL.
+#
+# Production migrations (`prisma migrate deploy`) are wired at launch (Story 7.9).
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: No unresolved migration failures
+        run: npx prisma migrate status
+
+      - name: Unit, component, and integration tests
+        run: npm test
+
+  preview:
+    name: preview
+    needs: quality
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for the Vercel preview deployment of this commit
+        id: deploy
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          echo "Waiting for Vercel preview of $HEAD_SHA"
+          for attempt in $(seq 1 60); do
+            result=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=preview&limit=20" \
+              | python3 -c "
+          import json, os, sys
+          sha = os.environ['HEAD_SHA']
+          deployments = json.load(sys.stdin).get('deployments', [])
+          match = [d for d in deployments if d.get('meta', {}).get('githubCommitSha') == sha]
+          print(f\"{match[0]['url']} {match[0]['state']}\" if match else 'NONE PENDING')
+          ")
+            url=$(echo "$result" | cut -d' ' -f1)
+            state=$(echo "$result" | cut -d' ' -f2)
+            echo "attempt $attempt: $state ($url)"
+            if [ "$state" = "READY" ]; then
+              echo "url=https://$url" >> "$GITHUB_OUTPUT"
+              echo "Preview: https://$url" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$state" = "ERROR" ] || [ "$state" = "CANCELED" ]; then
+              echo "::error::Vercel preview deployment failed ($state)"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::Timed out waiting for the Vercel preview deployment"
+          exit 1
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke + accessibility tests against the preview
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.deploy.outputs.url }}
+          E2E_SMOKE_ONLY: "1"
+        run: npx playwright test tests/e2e/smoke.spec.ts tests/e2e/a11y.spec.ts

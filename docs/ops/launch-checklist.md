@@ -17,6 +17,7 @@
 - Migrations applied
 - Custom domain active
 - Branch protection active
+- Vercel Deployment Protection re-enabled (disabled during pre-launch so CI can smoke-test previews)
 - Backups verified
 - Logs and alerts verified
 - E2E smoke tests pass
