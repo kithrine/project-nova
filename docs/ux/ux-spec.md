@@ -24,4 +24,5 @@ An action-oriented case-management workspace emphasizing queues, blockers, lifec
 - Clear primary action
 - Respectful participant-facing tone
 - No color-only status
-- Responsive but desktop-optimized for Operations
+- Mobile-first baseline, then progressive enhancement; Operations is desktop-optimized for density but still built from the mobile-first baseline
+- SVG icons only, never emojis

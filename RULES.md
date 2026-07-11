@@ -11,11 +11,13 @@
 - Write audit events for sensitive actions.
 - Use decimal types for money and hours.
 - Use accessible labels, focus states, and error messages.
+- Design UI mobile-first, then progressively enhance for larger screens. The information-dense Operations experience stays desktop-optimized but is still built from the mobile-first baseline.
 - Keep development, preview, and production secrets separate.
 - Use `prisma migrate dev` locally and `prisma migrate deploy` in deployment workflows.
 - Use Tailwind by default and native CSS when it is the clearer or stronger solution.
 - Add tests for business rules and authorization boundaries.
 - Use respectful, plain language in participant-facing copy.
+- Update all affected documentation in the same change set as the behavior change (see Documentation synchronization).
 
 ## Never
 
@@ -39,3 +41,11 @@
 ## Change control
 
 A change affecting the stack, domain boundaries, data privacy, lifecycle transitions, or authorization model requires an ADR in `docs/decisions/`.
+
+## Documentation synchronization
+
+When behavior changes, the corresponding documentation must be updated in the **same change set** as the implementation. This applies to product docs, architecture docs, UX docs, stories, terminology, and any affected ADRs.
+
+- A task is not complete while its documentation is outdated.
+- Documentation and implementation ship together; never defer a doc update to a follow-up change.
+- A pull request that changes behavior without the matching documentation update is not ready to merge.

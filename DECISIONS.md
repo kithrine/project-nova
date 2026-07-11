@@ -11,6 +11,6 @@
 | ADR-007 | Use Tailwind, DaisyUI, and first-class native CSS | Accepted |
 | ADR-008 | Use Vitest, React Testing Library, and Playwright | Accepted |
 | ADR-009 | Use Server Actions for first-party mutations | Accepted |
-| ADR-010 | Defer messaging to V2 | Accepted |
-| ADR-011 | One active funding source per placement in MVP | Accepted |
-| ADR-012 | Use manual matching assisted by filters, not AI matching | Accepted |
+| ADR-010 | One active funding source per placement | Accepted |
+| ADR-011 | Use manual matching assisted by filters, not AI matching | Accepted |
+| ADR-012 | Defer messaging to V2 | Accepted |
