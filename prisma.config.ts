@@ -8,7 +8,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
-    seed: "tsx prisma/seed.ts",
+    seed: "tsx prisma/seed.mts",
   },
   datasource: {
     // Shared nonproduction Neon database for local + preview (ADR-006);
