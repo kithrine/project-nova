@@ -7,7 +7,7 @@ Allow applicants to apply and track progress.
 
 | ID | Story | Status |
 |---|---|---|
-| 2.1 | Public How It Works page | Ready for Development |
+| 2.1 | Public How It Works page | Done |
 | 2.2 | Applicant account onboarding | Ready for Development |
 | 2.3 | Create and save draft application | Ready for Development |
 | 2.4 | Upload required documents | Ready for Development |
@@ -26,7 +26,7 @@ Allow applicants to apply and track progress.
 ## Story 2.1 — Public How It Works page
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a prospective applicant, I want a public page that plainly explains how Project Nova works and what to expect, so that I can decide whether to start an application without needing an account.

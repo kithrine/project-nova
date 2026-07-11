@@ -26,3 +26,22 @@ test("the landing page keeps its accessibility at a 360px mobile viewport", asyn
     .analyze();
   expect(results.violations).toEqual([]);
 });
+
+test("the how-it-works page has no WCAG A/AA violations", async ({ page }) => {
+  await page.goto("/how-it-works");
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test("the how-it-works page stays accessible at a 360px mobile viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/how-it-works");
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});
