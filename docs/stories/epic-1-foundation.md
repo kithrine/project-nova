@@ -9,7 +9,7 @@ Create the secure technical foundation.
 |---|---|---|
 | 1.1 | Initialize Next.js and design tokens | Done |
 | 1.2 | Configure Clerk | Ready for Development |
-| 1.3 | Configure Neon and Prisma | Ready for Development |
+| 1.3 | Configure Neon and Prisma | Done |
 | 1.4 | Create user and organization membership models | Ready for Development |
 | 1.5 | Build authorization context | Ready for Development |
 | 1.6 | Configure CI and tests | Ready for Development |
@@ -121,7 +121,7 @@ Roles, permissions, memberships, and organization scoping (Stories 1.4 and 1.5).
 ## Story 1.3 — Configure Neon and Prisma
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Nova engineer, I want Prisma connected to a Neon PostgreSQL database with the migration workflow established, so that the app has a reliable, type-safe, versioned data layer.

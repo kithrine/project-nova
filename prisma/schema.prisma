@@ -1,0 +1,24 @@
+// Project Nova — Prisma schema
+//
+// Data conventions (Story 1.3; docs/architecture/database-design.md, RULES.md):
+//   - Internal IDs use cuid(); human-facing references get generated numbers.
+//   - Money and hours use Decimal — never floating point.
+//   - Database enums use SCREAMING_SNAKE_CASE.
+//   - Historical records are archived (status flags), never hard-deleted
+//     through normal workflows.
+//   - Migrations: `prisma migrate dev` locally, `prisma migrate deploy` in
+//     deployment. Never edit the production schema manually.
+//
+// Prisma 7: the connection URL lives in prisma.config.ts (CLI/migrations)
+// and in the driver adapter passed to PrismaClient (src/server/database/prisma.ts).
+//
+// Domain models arrive with Story 1.4 (users, organizations, memberships).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
