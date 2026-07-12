@@ -13,7 +13,7 @@ Allow applicants to apply and track progress.
 | 2.4 | Upload required documents | Done |
 | 2.5 | Submit application | Done |
 | 2.6 | View participant-safe application journey | Done |
-| 2.7 | Operations applications queue | Ready for Development |
+| 2.7 | Operations applications queue | Done |
 | 2.8 | Eligibility review | Blocked — pending policy validation |
 | 2.9 | Interview workflow | Ready for Development |
 | 2.10 | Background decision workflow | Blocked — pending policy validation |
@@ -319,7 +319,7 @@ The internal Application Workspace (2.7), editing at this stage, notifications.
 ## Story 2.7 — Operations applications queue
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Program Coordinator, I want a queue of applications and a workspace for each one, so that I can see what needs attention and work an application through review.

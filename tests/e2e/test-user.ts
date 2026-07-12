@@ -23,6 +23,10 @@ export const E2E_PARTICIPANT_USER_EMAIL =
 export const E2E_GRANT_ADMIN_USER_EMAIL =
   process.env.E2E_CLERK_GRANT_ADMIN_USER_EMAIL ?? "e2e-grant+clerk_test@example.com";
 
+/** Restricted Review Specialist at e2e_org_nova (backgroundReview.view, Story 2.7). */
+export const E2E_RRS_USER_EMAIL =
+  process.env.E2E_CLERK_RRS_USER_EMAIL ?? "e2e-rrs+clerk_test@example.com";
+
 /**
  * Fresh applicant (Story 2.2): exists in Clerk only — the fixture script
  * deletes this user's internal rows each run so every E2E run exercises

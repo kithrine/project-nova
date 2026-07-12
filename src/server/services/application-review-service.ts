@@ -1,0 +1,364 @@
+import { ApplicationStatus } from "@/generated/prisma/client";
+import type { AuthContext } from "@/server/auth/context";
+import { hasPermission, requireNovaScope, requirePermission } from "@/server/auth/authorize";
+import { prisma } from "@/server/database/prisma";
+import { NotFoundError, ValidationError } from "@/server/errors/app-error";
+import { recordAuditEvent } from "@/server/services/audit-service";
+import { APPLICATION_PROMPTS } from "@/features/application/prompts";
+
+/**
+ * Operations-side application review surface (Story 2.7). Everything here is
+ * Nova-internal: `application.view` + active Nova membership gate the queue
+ * and workspace; `backgroundReview.view` separately gates restricted
+ * background content (never implied by a base role), with every authorized
+ * read audited; `caseNote.create` gates internal notes. Drafts are never
+ * visible to Operations (2.3) — the queue reads SUBMITTED onward only.
+ * This story reads and navigates; it performs no lifecycle transitions
+ * (those arrive with 2.8–2.11).
+ */
+
+/** Internal staff-facing labels — real phase names, unlike 2.6's simplified stages. */
+export const OPERATIONS_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  [ApplicationStatus.DRAFT]: "Draft",
+  [ApplicationStatus.SUBMITTED]: "Submitted",
+  [ApplicationStatus.ELIGIBILITY_REVIEW]: "Eligibility review",
+  [ApplicationStatus.INTERVIEW]: "Interview",
+  [ApplicationStatus.BACKGROUND_REVIEW]: "Background review",
+  [ApplicationStatus.ACCEPTED]: "Accepted",
+  [ApplicationStatus.REJECTED]: "Rejected",
+  [ApplicationStatus.DISQUALIFIED]: "Disqualified",
+};
+
+/** Statuses Operations may see — never DRAFT (2.3's privacy rule). */
+export const QUEUE_VISIBLE_STATUSES = [
+  ApplicationStatus.SUBMITTED,
+  ApplicationStatus.ELIGIBILITY_REVIEW,
+  ApplicationStatus.INTERVIEW,
+  ApplicationStatus.BACKGROUND_REVIEW,
+  ApplicationStatus.ACCEPTED,
+  ApplicationStatus.REJECTED,
+  ApplicationStatus.DISQUALIFIED,
+] as const;
+
+/** Needs-attention ordering: submitted and in-review first, decided last. */
+const QUEUE_RANK: Record<ApplicationStatus, number> = {
+  [ApplicationStatus.SUBMITTED]: 0,
+  [ApplicationStatus.ELIGIBILITY_REVIEW]: 1,
+  [ApplicationStatus.INTERVIEW]: 2,
+  [ApplicationStatus.BACKGROUND_REVIEW]: 3,
+  [ApplicationStatus.ACCEPTED]: 4,
+  [ApplicationStatus.REJECTED]: 5,
+  [ApplicationStatus.DISQUALIFIED]: 6,
+  [ApplicationStatus.DRAFT]: 99, // never visible; ranked defensively
+};
+
+export type QueueFilter = ApplicationStatus | "all";
+
+/** Parse a status filter from the URL; anything invalid (including DRAFT) is "all". */
+export function resolveQueueFilter(param: string | undefined): QueueFilter {
+  if (
+    param &&
+    (QUEUE_VISIBLE_STATUSES as readonly string[]).includes(param)
+  ) {
+    return param as ApplicationStatus;
+  }
+  return "all";
+}
+
+export interface QueueEntry {
+  id: string;
+  applicationNumber: string;
+  applicantName: string;
+  status: ApplicationStatus;
+  statusLabel: string;
+  submittedAtLabel: string | null;
+  /** ISO sort key — oldest submission waits longest, so it comes first. */
+  submittedAtIso: string | null;
+}
+
+/** Pure: needs-attention first, then oldest submission first within a group. */
+export function compareQueueEntries(
+  a: Pick<QueueEntry, "status" | "submittedAtIso">,
+  b: Pick<QueueEntry, "status" | "submittedAtIso">,
+): number {
+  const rank = QUEUE_RANK[a.status] - QUEUE_RANK[b.status];
+  if (rank !== 0) return rank;
+  return (a.submittedAtIso ?? "9999").localeCompare(b.submittedAtIso ?? "9999");
+}
+
+function formatDate(date: Date | null): string | null {
+  return date
+    ? date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : null;
+}
+
+function requireOperationsAccess(ctx: AuthContext): void {
+  requirePermission(ctx, "application.view");
+  requireNovaScope(ctx);
+}
+
+/** The Operations queue (AC1): Nova-scoped, filterable, needs-attention first. */
+export async function listApplicationsForOperations(
+  ctx: AuthContext,
+  filter: QueueFilter = "all",
+): Promise<QueueEntry[]> {
+  requireOperationsAccess(ctx);
+
+  const applications = await prisma.application.findMany({
+    where: {
+      status: filter === "all" ? { in: [...QUEUE_VISIBLE_STATUSES] } : filter,
+    },
+    include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+  });
+
+  return applications
+    .map((application) => ({
+      id: application.id,
+      applicationNumber: application.applicationNumber,
+      applicantName: `${application.person.legalFirstName} ${application.person.legalLastName}`,
+      status: application.status,
+      statusLabel: OPERATIONS_STATUS_LABELS[application.status],
+      submittedAtLabel: formatDate(application.submittedAt),
+      submittedAtIso: application.submittedAt?.toISOString() ?? null,
+    }))
+    .sort(compareQueueEntries);
+}
+
+// --- Workspace ---------------------------------------------------------------
+
+export const WORKSPACE_TABS = [
+  "overview",
+  "documents",
+  "eligibility",
+  "interview",
+  "background",
+  "history",
+] as const;
+export type WorkspaceTab = (typeof WORKSPACE_TABS)[number];
+
+export const WORKSPACE_TAB_LABELS: Record<WorkspaceTab, string> = {
+  overview: "Overview",
+  documents: "Documents",
+  eligibility: "Eligibility",
+  interview: "Interview",
+  background: "Background",
+  history: "History",
+};
+
+/** Parse the workspace tab from the URL; anything invalid is Overview. */
+export function resolveWorkspaceTab(param: string | undefined): WorkspaceTab {
+  return (WORKSPACE_TABS as readonly string[]).includes(param ?? "")
+    ? (param as WorkspaceTab)
+    : "overview";
+}
+
+export interface ContextualAction {
+  label: string;
+  /** The story whose workflow enables this action. */
+  arrivesWith: string;
+}
+
+/**
+ * Phase-appropriate entry points (AC2). Mechanics arrive with 2.8–2.11 —
+ * several of those are Blocked pending policy validation
+ * (docs/planning/open-questions.md), so these render as Disabled states,
+ * never live controls.
+ */
+export function contextualActionsFor(status: ApplicationStatus): ContextualAction[] {
+  switch (status) {
+    case ApplicationStatus.SUBMITTED:
+      return [{ label: "Begin Eligibility Review", arrivesWith: "Story 2.8" }];
+    case ApplicationStatus.ELIGIBILITY_REVIEW:
+      return [{ label: "Record Eligibility Outcome", arrivesWith: "Story 2.8" }];
+    case ApplicationStatus.INTERVIEW:
+      return [
+        { label: "Schedule Interview", arrivesWith: "Story 2.9" },
+        { label: "Record Interview Outcome", arrivesWith: "Story 2.9" },
+      ];
+    case ApplicationStatus.BACKGROUND_REVIEW:
+      return [
+        { label: "Record Background Decision", arrivesWith: "Story 2.10" },
+        { label: "Accept Application", arrivesWith: "Story 2.11" },
+        { label: "Reject Application", arrivesWith: "Story 2.11" },
+      ];
+    default:
+      return [];
+  }
+}
+
+export interface WorkspaceView {
+  id: string;
+  applicationNumber: string;
+  applicantName: string;
+  status: ApplicationStatus;
+  statusLabel: string;
+  submittedAtLabel: string | null;
+  createdAtLabel: string;
+  answers: { label: string; value: string | null }[];
+  actions: ContextualAction[];
+}
+
+async function loadVisibleApplication(ctx: AuthContext, applicationId: string) {
+  requireOperationsAccess(ctx);
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+  });
+  // Missing AND draft applications are the same plain 404 to Operations —
+  // a draft's existence is not confirmed (2.3's privacy rule).
+  if (!application || application.status === ApplicationStatus.DRAFT) {
+    throw new NotFoundError();
+  }
+  return application;
+}
+
+/** The workspace (AC2): entity header data, full internal status, answers. */
+export async function getApplicationWorkspace(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<WorkspaceView> {
+  const application = await loadVisibleApplication(ctx, applicationId);
+  return {
+    id: application.id,
+    applicationNumber: application.applicationNumber,
+    applicantName: `${application.person.legalFirstName} ${application.person.legalLastName}`,
+    status: application.status,
+    statusLabel: OPERATIONS_STATUS_LABELS[application.status],
+    submittedAtLabel: formatDate(application.submittedAt),
+    createdAtLabel: formatDate(application.createdAt) ?? "",
+    answers: APPLICATION_PROMPTS.map((prompt) => ({
+      label: prompt.label,
+      value: application[prompt.name],
+    })),
+    actions: contextualActionsFor(application.status),
+  };
+}
+
+export interface HistoryEntry {
+  id: string;
+  fromLabel: string;
+  toLabel: string;
+  atLabel: string;
+  actorName: string;
+}
+
+/** The History tab: the full lifecycle event trail (exactly what 2.6 hides). */
+export async function getApplicationHistory(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<HistoryEntry[]> {
+  await loadVisibleApplication(ctx, applicationId);
+
+  const events = await prisma.applicationEvent.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: "asc" },
+  });
+  const actors = await prisma.user.findMany({
+    where: { id: { in: [...new Set(events.map((e) => e.actorUserId))] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(actors.map((a) => [a.id, a.displayName]));
+
+  return events.map((event) => ({
+    id: event.id,
+    fromLabel: OPERATIONS_STATUS_LABELS[event.fromStatus],
+    toLabel: OPERATIONS_STATUS_LABELS[event.toStatus],
+    atLabel: event.createdAt.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+    actorName: nameById.get(event.actorUserId) ?? "Unknown user",
+  }));
+}
+
+// --- Internal notes (Nova Operations only, AC6) -------------------------------
+
+export interface CaseNoteView {
+  id: string;
+  authorName: string;
+  body: string;
+  atLabel: string;
+}
+
+export async function listCaseNotes(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<CaseNoteView[]> {
+  await loadVisibleApplication(ctx, applicationId);
+
+  const notes = await prisma.caseNote.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: "desc" },
+  });
+  const authors = await prisma.user.findMany({
+    where: { id: { in: [...new Set(notes.map((n) => n.authorUserId))] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(authors.map((a) => [a.id, a.displayName]));
+
+  return notes.map((note) => ({
+    id: note.id,
+    authorName: nameById.get(note.authorUserId) ?? "Unknown user",
+    body: note.body,
+    atLabel: note.createdAt.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+  }));
+}
+
+export async function addCaseNote(
+  ctx: AuthContext,
+  applicationId: string,
+  body: string,
+): Promise<CaseNoteView> {
+  requirePermission(ctx, "caseNote.create");
+  requireNovaScope(ctx);
+  await loadVisibleApplication(ctx, applicationId);
+
+  const trimmed = body.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Write the note before saving it.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep notes under 4,000 characters.");
+  }
+
+  const note = await prisma.caseNote.create({
+    data: { applicationId, authorUserId: ctx.userId, body: trimmed },
+  });
+  return {
+    id: note.id,
+    authorName: ctx.displayName,
+    body: note.body,
+    atLabel: note.createdAt.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+  };
+}
+
+// --- Restricted background access (AC3/AC4) -----------------------------------
+
+/**
+ * Resolve access to the Background tab's CONTENT. The tab itself is always
+ * visible; its content requires `backgroundReview.view`. Authorized access
+ * is written to an AuditEvent in the same request that delivers the
+ * content. Unauthorized callers get `authorized: false` — the caller
+ * renders the Restricted state and no background data enters the payload.
+ */
+export async function openBackgroundTab(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<{ authorized: boolean }> {
+  await loadVisibleApplication(ctx, applicationId);
+
+  if (!hasPermission(ctx, "backgroundReview.view")) {
+    return { authorized: false };
+  }
+  await recordAuditEvent(ctx, "backgroundReview.view", "Application", applicationId);
+  return { authorized: true };
+}

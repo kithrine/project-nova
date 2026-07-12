@@ -178,6 +178,7 @@ model Application {
 
   documents Document[]
   events    ApplicationEvent[]
+  caseNotes CaseNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -208,6 +209,46 @@ model ApplicationEvent {
   createdAt DateTime @default(now())
 
   @@index([applicationId])
+}
+
+// Internal operational note on an Application (Story 2.7). Nova Operations
+// only: never surfaced to the participant journey (2.6) or any shelter
+// experience. Case notes use XOR ownership (database-design.md) — exactly
+// one owning context. Application is the ONLY owning context that exists
+// today, so applicationId is simply required; when enrollment/placement
+// notes arrive (Epics 3/5), expand to nullable columns plus a CHECK
+// constraint per the expand/migrate/contract strategy.
+model CaseNote {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  authorUserId String
+  body         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId])
+}
+
+// Audit event (Story 2.7): who accessed or did something sensitive, when.
+// DISTINCT from lifecycle events (architecture.md): ApplicationEvent records
+// what happened to a workflow record; AuditEvent records access and
+// administrative activity for security review (security-privacy.md). First
+// use: reads of restricted background-review content. Append-only.
+model AuditEvent {
+  id          String @id @default(cuid())
+  actorUserId String
+  // Permission-style action code, e.g. "backgroundReview.view".
+  action      String
+  subjectType String
+  subjectId   String
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([actorUserId])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------

@@ -209,6 +209,35 @@ export async function getDocumentChecklist(
 }
 
 /**
+ * Reviewer-facing document list for the Operations workspace (Story 2.7):
+ * Nova staff with document.view see metadata for the application's ACTIVE
+ * documents. Shelters are never granted document.view. Storage references
+ * stay server-side (toDocumentView); bytes flow only through the
+ * authorizing download route.
+ */
+export async function listDocumentsForReview(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<DocumentView[]> {
+  if (!hasPermission(ctx, "document.view") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { id: true, status: true },
+  });
+  // Drafts are invisible to Operations (2.3) — same plain 404 as missing.
+  if (!application || application.status === ApplicationStatus.DRAFT) {
+    throw new NotFoundError();
+  }
+  const documents = await prisma.document.findMany({
+    where: { applicationId, status: DocumentStatus.ACTIVE },
+    orderBy: { createdAt: "asc" },
+  });
+  return documents.map(toDocumentView);
+}
+
+/**
  * Authorize a download and return the server-side storage location for
  * streaming. Owners always; Nova staff with document.view under Nova scope
  * (Operations review, 2.7/2.8). Shelters: never. The store is PRIVATE
