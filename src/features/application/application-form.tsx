@@ -4,53 +4,16 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { DraftFormState } from "@/features/application/actions";
+import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 import type { ApplicationView } from "@/server/services/application-service";
 
 /**
  * Application Step Card (Story 2.3; docs/ux/component-guidelines.md).
  * A draft-first form: visible progress, an explicit non-destructive
  * Save Draft action, lenient saves, and a Concurrent update state when
- * another tab or device saved first.
+ * another tab or device saved first. Prompts live in prompts.ts so the
+ * submission completeness check (2.5) names fields exactly as shown here.
  */
-
-const PROMPTS: {
-  name: keyof Pick<
-    ApplicationView,
-    | "motivation"
-    | "workExperience"
-    | "animalExperience"
-    | "availabilityNotes"
-    | "transportationNotes"
-  >;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    name: "motivation",
-    label: "Why do you want to join Project Nova?",
-    hint: "There's no right answer — tell us in your own words.",
-  },
-  {
-    name: "workExperience",
-    label: "Work or volunteer experience",
-    hint: "Any kind counts, recent or not.",
-  },
-  {
-    name: "animalExperience",
-    label: "Experience with animals",
-    hint: "Pets, farm work, volunteering — or none yet; that's okay.",
-  },
-  {
-    name: "availabilityNotes",
-    label: "When are you available to work?",
-    hint: "Days and times that could work for you.",
-  },
-  {
-    name: "transportationNotes",
-    label: "How would you get to a shelter site?",
-    hint: "Bus, car, rides, walking — whatever applies.",
-  },
-];
 
 export function ApplicationForm({
   application,
@@ -118,7 +81,7 @@ export function ApplicationForm({
 
       <input type="hidden" name="updatedAtToken" value={token} />
 
-      {PROMPTS.map((prompt) => (
+      {APPLICATION_PROMPTS.map((prompt) => (
         <div key={prompt.name} className="flex flex-col gap-1">
           <label htmlFor={prompt.name} className="text-sm font-medium">
             {prompt.label}
@@ -141,7 +104,8 @@ export function ApplicationForm({
         </div>
       ))}
 
-      <div className="sticky bottom-0 -mx-1 bg-base-100/95 px-1 py-3 backdrop-blur-sm">
+      {/* bottom-16 stacks this above the SubmitPanel's sticky bar (2.5) */}
+      <div className="sticky bottom-16 -mx-1 bg-base-100/95 px-1 py-3 backdrop-blur-sm">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save Draft"}
         </Button>

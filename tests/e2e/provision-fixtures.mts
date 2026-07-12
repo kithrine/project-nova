@@ -173,7 +173,7 @@ try {
   // provision-on-first-sign-in + onboarding run from scratch every time.
   // Each resettable identity is owned by exactly ONE spec file (files run in
   // parallel). Children first (FKs are RESTRICT):
-  // applications -> profile -> person -> user.
+  // events + documents -> applications -> profile -> person -> user.
   for (const email of [E2E_APPLICANT_USER_EMAIL, E2E_DRAFT_USER_EMAIL]) {
     await ensureClerkUser(email);
     // Delete this identity's stored blobs before their metadata rows
@@ -186,6 +186,9 @@ try {
       const { del } = await import("@vercel/blob");
       await del(docs.map((d) => d.storagePathname)).catch(() => {});
     }
+    await prisma.applicationEvent.deleteMany({
+      where: { application: { person: { user: { email } } } },
+    });
     await prisma.document.deleteMany({
       where: { application: { person: { user: { email } } } },
     });

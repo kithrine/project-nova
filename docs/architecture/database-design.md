@@ -18,6 +18,15 @@ PostgreSQL hosted by Neon and accessed through Prisma.
 - Money stored as Decimal
 - Historical records archived, not deleted
 
+## Lifecycle events
+
+Status transitions on workflow records write an append-only lifecycle event
+row (from-status, to-status, actor, timestamp) in the same transaction as the
+status change, so no partial transition can exist. `ApplicationEvent`
+(Story 2.5) is the first of these; later workflow tables follow the same
+pattern. Lifecycle events are distinct from audit events
+(`docs/architecture/architecture.md`) and are never updated or deleted.
+
 ## Migration strategy
 
 - Local: `prisma migrate dev`

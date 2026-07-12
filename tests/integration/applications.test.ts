@@ -3,10 +3,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestRunId, testScopedName } from "../helpers/test-run";
 
 /**
- * Application drafts against Neon (Story 2.3): create/resume, the partial
+ * Applications against Neon (Stories 2.3, 2.5): create/resume, the partial
  * unique index (one non-terminal per person), ownership scoping,
- * reapplication after REJECTED vs blocked after DISQUALIFIED, and
- * optimistic-concurrency conflicts. Shared-nonprod isolation per ADR-006.
+ * reapplication after REJECTED vs blocked after DISQUALIFIED,
+ * optimistic-concurrency conflicts, and submission — completeness
+ * enforcement, the transactional lifecycle event, and replay/stale-tab
+ * rejection. Shared-nonprod isolation per ADR-006.
  */
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const runId = createTestRunId("app23");
@@ -54,6 +56,13 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
   });
 
   afterAll(async () => {
+    // Children first — events and documents hang off applications.
+    await prisma.applicationEvent.deleteMany({
+      where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
+    await prisma.document.deleteMany({
+      where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
     await prisma.application.deleteMany({
       where: { person: { user: { email: { startsWith: `${runId}-` } } } },
     });
@@ -163,6 +172,152 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
     await expect(service.startOrResumeApplication(ctx)).rejects.toMatchObject({
       code: "LIFECYCLE",
       message: expect.not.stringMatching(/disqualif|reject|denied/i),
+    });
+  });
+
+  describe("submission (Story 2.5)", () => {
+    let userCId: string;
+
+    const COMPLETE_ANSWERS = {
+      motivation: "I want steady work and a team.",
+      workExperience: "Warehouse and kitchen shifts.",
+      animalExperience: "Grew up with dogs.",
+      availabilityNotes: "Weekday mornings.",
+      transportationNotes: "Bus line 7.",
+    };
+
+    /** Attach an ACTIVE required document directly — storage isn't under test here. */
+    async function attachRequiredDocument(applicationId: string, uploaderId: string) {
+      await prisma.document.create({
+        data: {
+          applicationId,
+          documentType: enums.DocumentType.GOVERNMENT_ID,
+          fileName: "id.png",
+          contentType: "image/png",
+          sizeBytes: 100,
+          storagePathname: `${runId}-${applicationId}-id`,
+          storageUrl: "https://example.invalid/id",
+          uploadedByUserId: uploaderId,
+        },
+      });
+    }
+
+    beforeAll(async () => {
+      userCId = await createApplicant("c");
+    });
+
+    it("blocks an incomplete draft with every missing item, and writes nothing", async () => {
+      const ctx = await contextFor(userCId);
+      const draft = await service.startOrResumeApplication(ctx);
+      const saved = await service.saveDraft(
+        ctx,
+        draft.id,
+        { motivation: "Only this one is filled in." },
+        draft.updatedAtToken,
+      );
+
+      await expect(
+        service.submitApplication(ctx, draft.id, saved.updatedAtToken),
+      ).rejects.toMatchObject({ code: "VALIDATION" });
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: draft.id } });
+      expect(row.status).toBe(enums.ApplicationStatus.DRAFT);
+      expect(row.submittedAt).toBeNull();
+      expect(await prisma.applicationEvent.count({ where: { applicationId: draft.id } })).toBe(0);
+    });
+
+    it("still blocks when answers are complete but the required document is missing", async () => {
+      const ctx = await contextFor(userCId);
+      const draft = await service.startOrResumeApplication(ctx);
+      const saved = await service.saveDraft(ctx, draft.id, COMPLETE_ANSWERS, draft.updatedAtToken);
+
+      await expect(
+        service.submitApplication(ctx, draft.id, saved.updatedAtToken),
+      ).rejects.toMatchObject({ code: "VALIDATION" });
+    });
+
+    it("never exposes another person's application to submit (ownership -> 404)", async () => {
+      const ctxC = await contextFor(userCId);
+      const ctxA = await contextFor(userAId);
+      const draft = await service.startOrResumeApplication(ctxC);
+
+      await expect(
+        service.submitApplication(ctxA, draft.id, draft.updatedAtToken),
+      ).rejects.toBeInstanceOf(errors.NotFoundError);
+    });
+
+    it("rejects a stale-tab submit as a Conflict — the atomic compare-and-set", async () => {
+      const ctx = await contextFor(userCId);
+      const draft = await service.startOrResumeApplication(ctx);
+      await attachRequiredDocument(draft.id, userCId);
+      const staleToken = draft.updatedAtToken;
+
+      // Another tab saves after this tab loaded the page.
+      await service.saveDraft(ctx, draft.id, COMPLETE_ANSWERS, staleToken);
+
+      await expect(
+        service.submitApplication(ctx, draft.id, staleToken),
+      ).rejects.toBeInstanceOf(errors.ConflictError);
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: draft.id } });
+      expect(row.status).toBe(enums.ApplicationStatus.DRAFT); // nothing half-submitted
+      expect(await prisma.applicationEvent.count({ where: { applicationId: draft.id } })).toBe(0);
+    });
+
+    it("submits a complete draft: DRAFT -> SUBMITTED with its lifecycle event, atomically", async () => {
+      const ctx = await contextFor(userCId);
+      const fresh = await service.startOrResumeApplication(ctx);
+
+      const submitted = await service.submitApplication(ctx, fresh.id, fresh.updatedAtToken);
+      expect(submitted.status).toBe(enums.ApplicationStatus.SUBMITTED);
+      expect(submitted.statusLabel).toBe("Submitted");
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: fresh.id } });
+      expect(row.submittedAt).toBeInstanceOf(Date);
+
+      const events = await prisma.applicationEvent.findMany({
+        where: { applicationId: fresh.id },
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        fromStatus: enums.ApplicationStatus.DRAFT,
+        toStatus: enums.ApplicationStatus.SUBMITTED,
+        actorUserId: userCId,
+      });
+    });
+
+    it("rejects a replayed submit as a lifecycle error — exactly one submission exists", async () => {
+      const ctx = await contextFor(userCId);
+      const apps = await service.getOwnApplications(ctx);
+      const submitted = apps.find((a) => a.status === enums.ApplicationStatus.SUBMITTED);
+      if (!submitted) throw new Error("expected a submitted application");
+
+      await expect(
+        service.submitApplication(ctx, submitted.id, submitted.updatedAtToken),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      expect(
+        await prisma.applicationEvent.count({ where: { applicationId: submitted.id } }),
+      ).toBe(1);
+    });
+
+    it("freezes the submitted form: a stale draft save is rejected, content untouched", async () => {
+      const ctx = await contextFor(userCId);
+      const apps = await service.getOwnApplications(ctx);
+      const submitted = apps.find((a) => a.status === enums.ApplicationStatus.SUBMITTED);
+      if (!submitted) throw new Error("expected a submitted application");
+
+      await expect(
+        service.saveDraft(
+          ctx,
+          submitted.id,
+          { motivation: "Editing after the fact" },
+          submitted.updatedAtToken,
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: submitted.id } });
+      expect(row.motivation).toBe(COMPLETE_ANSWERS.motivation);
     });
   });
 });

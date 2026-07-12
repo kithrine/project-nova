@@ -6,6 +6,9 @@ A person who has started or submitted an application but has not yet been accept
 ## Application
 One attempt by a person to enter Project Nova.
 
+## Lifecycle Event
+An append-only record of one status transition on a workflow record (for example, an `Application` moving from `DRAFT` to `SUBMITTED`), written in the same transaction as the transition itself. Distinct from an audit event, which records access and administrative activity for security review.
+
 ## Participant
 A person accepted into Project Nova.
 

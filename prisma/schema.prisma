@@ -177,6 +177,7 @@ model Application {
   decisionReason String?
 
   documents Document[]
+  events    ApplicationEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +186,28 @@ model Application {
   // One non-terminal application per person is enforced by a partial unique
   // index added in the migration SQL (Prisma cannot express WHERE clauses):
   //   UNIQUE (personId) WHERE status NOT IN ('ACCEPTED','REJECTED','DISQUALIFIED')
+}
+
+// Lifecycle event for one Application status transition (Story 2.5).
+// Lifecycle events are distinct from audit events (architecture.md): this is
+// the domain-facing "what happened to this application" trail, written in the
+// SAME transaction as the status change so no partial transition can exist.
+// Every later transition (2.8-2.11) appends here; rows are never updated or
+// deleted (archive-not-delete applies doubly to history).
+model ApplicationEvent {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  fromStatus ApplicationStatus
+  toStatus   ApplicationStatus
+  // Who performed the transition (the applicant for submit; Operations staff
+  // for review transitions). Plain id, matching Document.uploadedByUserId.
+  actorUserId String
+
+  createdAt DateTime @default(now())
+
+  @@index([applicationId])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------

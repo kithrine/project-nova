@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { ApplicationStatus } from "@/generated/prisma/client";
+import { ApplicationStatus, DocumentType } from "@/generated/prisma/client";
 import type { Application } from "@/generated/prisma/client";
+import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 import {
   APPLICATION_STATUS_LABELS,
   generateApplicationNumber,
+  missingSubmissionItems,
   resolveApplicationGateway,
   toApplicationView,
 } from "./application-service";
@@ -92,5 +94,86 @@ describe("toApplicationView", () => {
       expect(label, `missing label for ${status}`).toBeTruthy();
       expect(label).not.toMatch(/reject|disqualif|fail/i);
     }
+  });
+});
+
+describe("missingSubmissionItems (Story 2.5 completeness)", () => {
+  const complete: Application = {
+    id: "app_1",
+    applicationNumber: "APP-2026-ABC234",
+    personId: "person_1",
+    status: S.DRAFT,
+    motivation: "I want steady work.",
+    workExperience: "Warehouse shifts.",
+    animalExperience: "Two dogs at home.",
+    availabilityNotes: "Weekdays",
+    transportationNotes: "Bus line 7",
+    submittedAt: null,
+    decidedAt: null,
+    decisionReason: null,
+    createdAt: new Date("2026-07-01T00:00:00Z"),
+    updatedAt: new Date("2026-07-02T03:04:05.678Z"),
+  };
+  const view = (overrides: Partial<Application> = {}) =>
+    toApplicationView({ ...complete, ...overrides });
+
+  it("returns nothing when every answer and required document is present", () => {
+    expect(missingSubmissionItems(view(), [DocumentType.GOVERNMENT_ID])).toEqual([]);
+  });
+
+  it("flags a blank answer with the exact label the applicant sees on the form", () => {
+    const items = missingSubmissionItems(view({ motivation: null }), [
+      DocumentType.GOVERNMENT_ID,
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      kind: "field",
+      label: "Why do you want to join Project Nova?",
+      anchor: "motivation",
+    });
+  });
+
+  it("treats whitespace-only answers as blank (same rule as draft progress)", () => {
+    const items = missingSubmissionItems(view({ animalExperience: "   " }), [
+      DocumentType.GOVERNMENT_ID,
+    ]);
+    expect(items.map((i) => i.anchor)).toEqual(["animalExperience"]);
+  });
+
+  it("flags the required document, anchored to its upload control", () => {
+    const items = missingSubmissionItems(view(), []);
+    expect(items).toEqual([
+      expect.objectContaining({
+        kind: "document",
+        label: "Government-issued ID",
+        anchor: `upload-${DocumentType.GOVERNMENT_ID}`,
+      }),
+    ]);
+  });
+
+  it("lists every missing item at once — fields in form order, then documents", () => {
+    const items = missingSubmissionItems(
+      view({ motivation: null, transportationNotes: "" }),
+      [],
+    );
+    expect(items.map((i) => i.anchor)).toEqual([
+      "motivation",
+      "transportationNotes",
+      `upload-${DocumentType.GOVERNMENT_ID}`,
+    ]);
+  });
+
+  it("covers every form prompt — a new prompt is automatically required", () => {
+    const blank = view({
+      motivation: null,
+      workExperience: null,
+      animalExperience: null,
+      availabilityNotes: null,
+      transportationNotes: null,
+    });
+    const fieldItems = missingSubmissionItems(blank, [DocumentType.GOVERNMENT_ID]);
+    expect(fieldItems.map((i) => i.anchor)).toEqual(
+      APPLICATION_PROMPTS.map((p) => p.name),
+    );
   });
 });
