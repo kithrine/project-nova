@@ -6,9 +6,9 @@ Unresolved legal, grant, payroll, screening, and retention questions that block 
 
 | # | Question to resolve | Blocks | Source | Status |
 |---|---|---|---|---|
-| 1 | Exact eligibility / screening criteria; is offense screening categorical or case-by-case? | Story 2.8 | `docs/planning/assumptions.md` | Open |
-| 2 | Background-check legal obligations; who may view background detail (restricted permission) | Story 2.10 | `docs/architecture/security-privacy.md`, `assumptions.md` | Open |
-| 3 | Permanent-disqualification policy wording | Stories 2.10, 2.11 | `docs/planning/assumptions.md` | Open |
+| 1 | Exact eligibility / screening criteria; is offense screening categorical or case-by-case? | Story 2.8 | `docs/planning/assumptions.md` | Resolved — individualized assessment + narrow animal-care nexus screen (`ADR-015`; counsel-review launch gate) |
+| 2 | Background-check legal obligations; who may view background detail (restricted permission) | Story 2.10 | `docs/architecture/security-privacy.md`, `assumptions.md` | Resolved — FCRA/RCW 49.94 obligations codified; restricted viewer = Restricted Review Specialist (`ADR-015`) |
+| 3 | Permanent-disqualification policy wording | Stories 2.10, 2.11 | `docs/planning/assumptions.md` | Resolved — three narrow categories, 30-day reapplication window, approved templates (`ADR-016`) |
 | 4 | Who may terminate a placement | Story 5.8 | `docs/planning/assumptions.md` | Open |
 | 5 | Participant access to evaluations | Story 5.10 | `docs/planning/assumptions.md` | Open |
 | 6 | Exact grant fields and reporting formats (validate against actual awards) | Stories 7.2, 7.5 | `docs/ops/grant-operations.md` | Open |

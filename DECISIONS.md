@@ -16,3 +16,5 @@
 | ADR-012 | Defer messaging to V2 | Accepted |
 | ADR-013 | Placement approved at two gates: match approval and placement shelter review | Accepted |
 | ADR-014 | Document storage on Vercel Blob behind DocumentService | Accepted |
+| ADR-015 | Individualized offense screening with a narrow animal-care nexus screen | Accepted (working policy; counsel review gated at launch) |
+| ADR-016 | Narrow permanent disqualification, 30-day reapplication window, approved decision templates | Accepted (working policy; counsel review gated at launch) |

@@ -3,9 +3,9 @@
 ## Applications
 
 - A person may submit multiple applications over time.
-- Reapplication creates a new record.
+- Reapplication creates a new record, allowed 30 days after an ordinary rejection (`ADR-016`).
 - Terminal applications are not reopened.
-- Permanent disqualification blocks future applications under approved policy.
+- Permanent disqualification blocks future applications under the three narrow categories in `ADR-016`.
 - Background decisions require restricted permission.
 
 ## Enrollment
