@@ -32,6 +32,15 @@ const SEED_USERS: { id: string; role: Role; displayName: string; email: string }
   { id: "seed_user_restricted", role: Role.RESTRICTED_REVIEW_SPECIALIST, displayName: "Synthetic Restricted Review Specialist", email: "restricted-review@synthetic.example" },
 ];
 
+
+const NOVA_TE_TASKS = [
+  { id: "nova_te_task_01", title: "Attend orientation session", description: "Join the Project Nova orientation and meet your coordinator.", required: true, participantCompletable: false, sortOrder: 1 },
+  { id: "nova_te_task_02", title: "Complete employment paperwork", description: "I-9 and W-4 forms, completed and verified with your coordinator.", required: true, participantCompletable: false, sortOrder: 2 },
+  { id: "nova_te_task_03", title: "Set up direct deposit or pay card", description: "Choose how you'd like to be paid.", required: true, participantCompletable: true, sortOrder: 3 },
+  { id: "nova_te_task_04", title: "Add an emergency contact", description: "Someone we can reach if anything comes up at a work site.", required: true, participantCompletable: true, sortOrder: 4 },
+  { id: "nova_te_task_05", title: "Review the program handbook", description: "The plain-language guide to how the program works.", required: true, participantCompletable: true, sortOrder: 5 },
+];
+
 async function main() {
   // Organizations
   const nova = await prisma.organization.upsert({
@@ -113,8 +122,17 @@ async function main() {
     },
   });
 
+  // Required-task catalog (Story 3.2): reference data like the program.
+  for (const task of NOVA_TE_TASKS) {
+    await prisma.onboardingTaskTemplate.upsert({
+      where: { id: task.id },
+      update: { ...task, programId: "program_nova_te" },
+      create: { ...task, programId: "program_nova_te" },
+    });
+  }
+
   console.log(
-    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic), 1 program (reference data).`,
+    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic), 1 program + ${NOVA_TE_TASKS.length} onboarding task templates (reference data).`,
   );
 }
 

@@ -81,6 +81,15 @@ const FIXTURE_USERS: FixtureUser[] = [
   },
 ];
 
+
+const NOVA_TE_TASKS = [
+  { id: "nova_te_task_01", title: "Attend orientation session", description: "Join the Project Nova orientation and meet your coordinator.", required: true, participantCompletable: false, sortOrder: 1 },
+  { id: "nova_te_task_02", title: "Complete employment paperwork", description: "I-9 and W-4 forms, completed and verified with your coordinator.", required: true, participantCompletable: false, sortOrder: 2 },
+  { id: "nova_te_task_03", title: "Set up direct deposit or pay card", description: "Choose how you'd like to be paid.", required: true, participantCompletable: true, sortOrder: 3 },
+  { id: "nova_te_task_04", title: "Add an emergency contact", description: "Someone we can reach if anything comes up at a work site.", required: true, participantCompletable: true, sortOrder: 4 },
+  { id: "nova_te_task_05", title: "Review the program handbook", description: "The plain-language guide to how the program works.", required: true, participantCompletable: true, sortOrder: 5 },
+];
+
 async function ensureClerkUser(email: string): Promise<string> {
   const createResponse = await fetch("https://api.clerk.com/v1/users", {
     method: "POST",
@@ -431,6 +440,15 @@ try {
     },
   });
 
+  // Required-task catalog (Story 3.2) — same reference rows the seed keeps.
+  for (const task of NOVA_TE_TASKS) {
+    await prisma.onboardingTaskTemplate.upsert({
+      where: { id: task.id },
+      update: { ...task, programId: "program_nova_te" },
+      create: { ...task, programId: "program_nova_te" },
+    });
+  }
+
   // Background fixture (Story 2.10): an application in BACKGROUND_REVIEW the
   // operations E2E clears (RRS) and then accepts (PC) each run. Fully reset.
   const backgroundUser = await prisma.user.upsert({
@@ -471,6 +489,9 @@ try {
     select: { id: true },
   });
   if (priorEnrollment) {
+    await prisma.onboardingTask.deleteMany({
+      where: { enrollmentId: priorEnrollment.id },
+    });
     await prisma.enrollmentEvent.deleteMany({
       where: { enrollmentId: priorEnrollment.id },
     });
