@@ -67,6 +67,8 @@ export interface ApplicationView {
   progressPercent: number;
   /** Optimistic-concurrency token for draft saves. */
   updatedAtToken: string;
+  /** Human-friendly submission date, e.g. "July 11, 2026" (journey view, 2.6). */
+  submittedAtLabel: string | null;
 }
 
 /** Pure: what may this person do next, given their application history? */
@@ -117,6 +119,13 @@ export function toApplicationView(application: Application): ApplicationView {
     transportationNotes: application.transportationNotes,
     progressPercent: Math.round((filled / DRAFT_FIELDS.length) * 100),
     updatedAtToken: application.updatedAt.toISOString(),
+    submittedAtLabel: application.submittedAt
+      ? application.submittedAt.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null,
   };
 }
 

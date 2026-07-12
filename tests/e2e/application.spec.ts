@@ -55,11 +55,20 @@ test("an applicant starts a draft and saves partial answers", async ({ page }) =
     page.getByRole("progressbar", { name: "Application progress" }),
   ).toBeVisible();
 
+  // Journey (Story 2.6): Prepare is the current step, and the Next Step Card
+  // offers Continue Application anchored to the form.
+  await expect(page.locator('[aria-current="step"]')).toContainText("Prepare");
+  await expect(
+    page.getByRole("link", { name: /Continue Application/ }),
+  ).toHaveAttribute("href", "#application-form");
+
   await page
     .getByLabel("Why do you want to join Project Nova?")
     .fill("I want steady work and a team.");
   await page.getByRole("button", { name: "Save Draft" }).click();
-  await expect(page.getByRole("status")).toHaveText(/draft saved/i, { timeout: 15_000 });
+  await expect(
+    page.getByRole("status").filter({ hasText: /draft saved/i }),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("uploading a required document updates the checklist (Story 2.4)", async ({ page }) => {
@@ -134,7 +143,9 @@ test("submit unlocks only when complete, then confirms and freezes (Story 2.5)",
     .getByLabel("How would you get to a shelter site?")
     .fill("Bus line 7, or a ride.");
   await page.getByRole("button", { name: "Save Draft" }).click();
-  await expect(page.getByRole("status")).toHaveText(/draft saved/i, { timeout: 15_000 });
+  await expect(
+    page.getByRole("status").filter({ hasText: /draft saved/i }),
+  ).toBeVisible({ timeout: 15_000 });
 
   // The panel refreshes from the server: everything complete, Submit unlocks.
   await expect(submitButton).toBeEnabled({ timeout: 20_000 });
@@ -154,11 +165,17 @@ test("submit unlocks only when complete, then confirms and freezes (Story 2.5)",
   await page.getByText("Your submitted answers").click();
   await expect(page.getByText("I want steady work and a team.")).toBeVisible();
 
-  // A fresh visit shows in-review — still exactly one application, no way
-  // to submit again (the replay path is covered at the service layer).
+  // A fresh visit shows the journey in review (Story 2.6) — still exactly
+  // one application, no way to submit again (the replay path is covered at
+  // the service layer).
   await page.goto("/participant/application");
-  await expect(page.getByText("Submitted", { exact: true })).toBeVisible({
+  await expect(page.locator('[aria-current="step"]')).toContainText("Review", {
     timeout: 20_000,
   });
+  await expect(
+    page.getByRole("heading", { name: "Your application is under review" }),
+  ).toBeVisible();
+  await expect(page.getByText(/No action is needed right now/)).toBeVisible();
+  await expect(page.getByText(/· Submitted /)).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit Application" })).toBeHidden();
 });

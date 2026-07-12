@@ -8,12 +8,16 @@ import {
 } from "@/features/application/actions";
 import { ApplicationForm } from "@/features/application/application-form";
 import { DocumentChecklist } from "@/features/application/document-checklist";
+import { JourneyTimeline } from "@/features/application/journey-timeline";
+import { NextStepCard } from "@/features/application/next-step-card";
 import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 import { SubmitPanel } from "@/features/application/submit-panel";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
+import { toJourneyView } from "@/server/services/application-journey";
 import {
   getOwnApplications,
   missingSubmissionItems,
+  NON_TERMINAL_STATUSES,
   resolveApplicationGateway,
 } from "@/server/services/application-service";
 import { getDocumentChecklist } from "@/server/services/document-service";
@@ -23,11 +27,13 @@ import { ApplicationStatus } from "@/generated/prisma/client";
 export const metadata = { title: "My Application" };
 
 /**
- * My Application (Stories 2.3, 2.5). Gateway states: start fresh, resume a
- * draft (now with the submit panel), watch an in-review application, reapply
- * after an ordinary closure, or a respectful blocked state after permanent
- * disqualification (set by 2.11). Arriving with ?submitted=1 (2.5's redirect)
- * shows the post-submission confirmation.
+ * My Application (Stories 2.3, 2.5, 2.6) — built around the Journey Timeline
+ * and Next Step Card. The journey is a participant-safe projection: internal
+ * review phases collapse into simplified stages, and restricted review
+ * detail is structurally absent from the view model. Gateway states from 2.3
+ * still drive what renders below the journey: the draft form, the in-review
+ * documents, a reapplication start, or a respectful closed state. Arriving
+ * with ?submitted=1 (2.5's redirect) shows the post-submission confirmation.
  */
 export default async function MyApplicationPage({
   searchParams,
@@ -48,94 +54,119 @@ export default async function MyApplicationPage({
   const active = applications.find(
     (a) =>
       a.status !== ApplicationStatus.DRAFT &&
-      a.status !== ApplicationStatus.ACCEPTED &&
-      a.status !== ApplicationStatus.REJECTED &&
-      a.status !== ApplicationStatus.DISQUALIFIED,
+      (NON_TERMINAL_STATUSES as readonly ApplicationStatus[]).includes(a.status),
   );
-  const draftChecklist = draft ? await getDocumentChecklist(ctx, draft.id) : null;
+
+  // The journey follows the one in-flight application, or the most recent
+  // terminal one (applications come newest first).
+  const journeyApp = draft ?? active ?? applications[0];
+  const journeyChecklist =
+    journeyApp &&
+    (NON_TERMINAL_STATUSES as readonly ApplicationStatus[]).includes(journeyApp.status)
+      ? await getDocumentChecklist(ctx, journeyApp.id)
+      : null;
+  const journey = journeyApp
+    ? toJourneyView(
+        journeyApp,
+        journeyChecklist
+          ? journeyChecklist.filter((i) => i.current).map((i) => i.documentType)
+          : undefined,
+      )
+    : null;
+  const previous = applications.filter((a) => a.id !== journeyApp?.id);
 
   return (
     <section className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold tracking-tight">My Application</h1>
 
-      {gateway.kind === "blocked" ? (
-        <div className="max-w-prose rounded-md border border-base-300 bg-base-200/60 p-6">
-          <p className="text-base leading-relaxed text-base-content/85">
-            A new application can&apos;t be started on this account. If you have questions
-            or think this is a mistake, please contact Project Nova — we&apos;re glad to
-            talk it through with you.
-          </p>
+      {justSubmitted && active ? (
+        <div
+          role="status"
+          className="max-w-prose rounded-md border border-success/40 bg-success/5 p-6"
+        >
+          <div className="flex items-start gap-3">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mt-0.5 size-6 shrink-0 text-success"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+            </svg>
+            <div>
+              <h2 className="text-lg font-semibold">
+                Your application is submitted — thank you
+              </h2>
+              <p className="mt-2 text-base leading-relaxed text-base-content/80">
+                Here&apos;s what happens next: our team reads every application, and
+                we&apos;ll reach out if we need anything more from you. There&apos;s
+                nothing you need to do right now — this page will always show where
+                things stand.
+              </p>
+            </div>
+          </div>
         </div>
       ) : null}
 
-      {gateway.kind === "resume-draft" && draft && draftChecklist ? (
+      {journey && journeyApp ? (
+        <div className="flex flex-col gap-5">
+          {journeyApp.status !== ApplicationStatus.DRAFT ? (
+            <p className="text-sm font-medium text-base-content/70">
+              Application {journeyApp.applicationNumber}
+              {journey.submittedAtLabel ? ` · Submitted ${journey.submittedAtLabel}` : ""}
+            </p>
+          ) : null}
+          <JourneyTimeline steps={journey.steps} />
+          <NextStepCard step={journey.nextStep} stageLabel={journey.stageLabel} />
+        </div>
+      ) : null}
+
+      {gateway.kind === "resume-draft" && draft && journeyChecklist ? (
         <>
-          <ApplicationForm
-            application={draft}
-            action={saveDraftAction.bind(null, draft.id)}
-          />
-          <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+          <div id="application-form" className="scroll-mt-6 border-t border-base-300 pt-6">
+            <ApplicationForm
+              application={draft}
+              action={saveDraftAction.bind(null, draft.id)}
+            />
+          </div>
+          <div
+            id="documents"
+            className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6"
+          >
             <h2 className="text-lg font-semibold">Your documents</h2>
             <p className="max-w-prose text-sm text-base-content/70">
               Required documents must be uploaded before you can submit. Photos are fine.
             </p>
-            <DocumentChecklist applicationId={draft.id} items={draftChecklist} />
+            <DocumentChecklist applicationId={draft.id} items={journeyChecklist} />
           </div>
           <SubmitPanel
             updatedAtToken={draft.updatedAtToken}
             missingItems={missingSubmissionItems(
               draft,
-              draftChecklist.filter((i) => i.current).map((i) => i.documentType),
+              journeyChecklist.filter((i) => i.current).map((i) => i.documentType),
             )}
             action={submitApplicationAction.bind(null, draft.id)}
           />
         </>
       ) : null}
 
-      {gateway.kind === "in-review" && active ? (
+      {gateway.kind === "in-review" && active && journeyChecklist ? (
         <>
-          {justSubmitted ? (
-            <div
-              role="status"
-              className="max-w-prose rounded-md border border-success/40 bg-success/5 p-6"
-            >
-              <div className="flex items-start gap-3">
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mt-0.5 size-6 shrink-0 text-success"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="m8.5 12.5 2.5 2.5 4.5-5" />
-                </svg>
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    Your application is submitted — thank you
-                  </h2>
-                  <p className="mt-2 text-base leading-relaxed text-base-content/80">
-                    Here&apos;s what happens next: our team reads every application, and
-                    we&apos;ll reach out if we need anything more from you. There&apos;s
-                    nothing you need to do right now — this page will always show where
-                    things stand.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          <div className="max-w-prose rounded-md border border-base-300 bg-base-100 p-6">
-            <p className="text-sm font-medium text-base-content/70">
-              Application {active.applicationNumber}
+          <div
+            id="documents"
+            className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6"
+          >
+            <h2 className="text-lg font-semibold">Your documents</h2>
+            <p className="max-w-prose text-sm text-base-content/70">
+              If our team asks for another document during review, you can add or replace
+              it here.
             </p>
-            <p className="mt-1 text-lg font-semibold">{active.statusLabel}</p>
-            <p className="mt-2 text-base leading-relaxed text-base-content/80">
-              Your application is with our team. No action is needed right now — we&apos;ll
-              keep you informed at every step.
-            </p>
+            <DocumentChecklist applicationId={active.id} items={journeyChecklist} />
           </div>
           <details className="max-w-prose rounded-md border border-base-300 bg-base-100">
             <summary className="cursor-pointer px-6 py-4 text-sm font-medium">
@@ -154,28 +185,13 @@ export default async function MyApplicationPage({
               ))}
             </dl>
           </details>
-          <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
-            <h2 className="text-lg font-semibold">Your documents</h2>
-            <p className="max-w-prose text-sm text-base-content/70">
-              If our team asks for another document during review, you can add or replace
-              it here.
-            </p>
-            <DocumentChecklist
-              applicationId={active.id}
-              items={await getDocumentChecklist(ctx, active.id)}
-            />
-          </div>
         </>
       ) : null}
 
-      {gateway.kind === "can-apply" ? (
-        <div className="flex max-w-prose flex-col items-start gap-4">
-          {gateway.reapplying ? (
-            <p className="text-base leading-relaxed text-base-content/80">
-              You may apply again — a fresh application, reviewed with fresh eyes. Your
-              earlier application stays on record but doesn&apos;t limit this one.
-            </p>
-          ) : (
+      {gateway.kind === "can-apply" &&
+      journeyApp?.status !== ApplicationStatus.ACCEPTED ? (
+        <div className="flex max-w-prose flex-col items-start gap-4 border-t border-base-300 pt-6">
+          {gateway.reapplying ? null : (
             <p className="text-base leading-relaxed text-base-content/80">
               Plain questions, at your pace. Your answers save as a draft, and nothing is
               sent to our team until you choose to submit.
@@ -184,6 +200,28 @@ export default async function MyApplicationPage({
           <form action={startApplicationAction}>
             <Button type="submit">Start Your Application</Button>
           </form>
+        </div>
+      ) : null}
+
+      {previous.length > 0 ? (
+        <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+          <h2 className="text-lg font-semibold">Previous applications</h2>
+          <ul className="flex max-w-prose flex-col gap-2">
+            {previous.map((application) => (
+              <li
+                key={application.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-md border border-base-300 bg-base-100 px-4 py-3 text-sm"
+              >
+                <span className="font-medium">{application.applicationNumber}</span>
+                <span className="text-base-content/70">
+                  {application.statusLabel}
+                  {application.submittedAtLabel
+                    ? ` · Submitted ${application.submittedAtLabel}`
+                    : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </section>

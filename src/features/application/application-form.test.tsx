@@ -18,6 +18,7 @@ const application: ApplicationView = {
   transportationNotes: null,
   progressPercent: 20,
   updatedAtToken: "2026-07-02T03:04:05.678Z",
+  submittedAtLabel: null,
 };
 
 const noopAction = async (): Promise<DraftFormState> => ({ status: "idle" });
