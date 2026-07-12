@@ -186,6 +186,7 @@ model Application {
   caseNotes         CaseNote[]
   eligibilityReview EligibilityReview?
   interviews        Interview[]
+  backgroundReview  BackgroundReview?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -278,6 +279,33 @@ model Interview {
   updatedAt DateTime @updatedAt
 
   @@index([applicationId])
+}
+
+// --- Background review (Story 2.10; ADR-015/ADR-016) --------------------------
+
+enum BackgroundOutcome {
+  CLEAR
+  DISQUALIFYING
+}
+
+// Records the outcome of a background check conducted through an EXTERNAL
+// process (no vendor integration in MVP). One per application. The
+// rationale is Highly Restricted (security-privacy.md): never logged,
+// excluded from every view model except the restricted internal one, and
+// every access and decision writes an AuditEvent. Only holders of the
+// restricted backgroundReview permissions may read or write this — never
+// implied by any base role, including Program Coordinator.
+model BackgroundReview {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  reviewerId String
+  outcome    BackgroundOutcome
+  rationale  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Internal operational note on an Application (Story 2.7). Nova Operations

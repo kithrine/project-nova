@@ -49,13 +49,12 @@ describe("permissionsForRoles (deny-by-default)", () => {
     expect(merged.has("funding.manage")).toBe(true);
   });
 
-  it("never grants backgroundReview.view through any base role — RRS only (Story 2.7)", () => {
+  it("never grants restricted background permissions through any base role — RRS only (2.7/2.10)", () => {
     for (const role of Object.values(Role)) {
       const expected = role === Role.RESTRICTED_REVIEW_SPECIALIST;
-      expect(
-        permissionsForRoles([role]).has("backgroundReview.view"),
-        `role ${role}`,
-      ).toBe(expected);
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("backgroundReview.view"), `view for ${role}`).toBe(expected);
+      expect(granted.has("backgroundReview.decide"), `decide for ${role}`).toBe(expected);
     }
   });
 

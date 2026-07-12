@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  BackgroundOutcome,
   EligibilityOutcome,
   InterviewFormat,
   InterviewOutcome,
@@ -13,11 +14,14 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   acceptApplication,
   addCaseNote,
+  BACKGROUND_REJECTION_CATEGORIES,
   beginEligibilityReview,
+  recordBackgroundDecision,
   recordEligibilityOutcome,
   recordInterviewOutcome,
   rejectApplication,
   scheduleInterview,
+  type BackgroundRejectionCategory,
 } from "@/server/services/application-review-service";
 
 /**
@@ -187,6 +191,44 @@ export async function recordInterviewOutcomeAction(
       applicationId,
       outcomeRaw as InterviewOutcome,
       String(formData.get("notes") ?? ""),
+    );
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/applications/${applicationId}`);
+  revalidatePath("/operations/applications");
+  return { status: "decided" };
+}
+
+export async function recordBackgroundDecisionAction(
+  applicationId: string,
+  _prev: DecisionFormState,
+  formData: FormData,
+): Promise<DecisionFormState> {
+  const outcomeRaw = String(formData.get("outcome") ?? "");
+  if (!Object.values(BackgroundOutcome).includes(outcomeRaw as BackgroundOutcome)) {
+    return { status: "error", formError: "Choose an outcome." };
+  }
+  const categoryRaw = String(formData.get("rejectionCategory") ?? "");
+  const rejectionCategory = (
+    BACKGROUND_REJECTION_CATEGORIES as readonly string[]
+  ).includes(categoryRaw)
+    ? (categoryRaw as BackgroundRejectionCategory)
+    : undefined;
+
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordBackgroundDecision(
+      ctx,
+      applicationId,
+      outcomeRaw as BackgroundOutcome,
+      String(formData.get("rationale") ?? ""),
+      rejectionCategory,
     );
   } catch (error) {
     if (error instanceof AppError) {

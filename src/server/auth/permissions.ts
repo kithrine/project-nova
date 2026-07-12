@@ -42,6 +42,9 @@ export const PERMISSIONS = [
   // Interview workflow (Story 2.9): standard Coordinator tier.
   "interview.schedule",
   "interview.record",
+  // Recording a background decision (Story 2.10): restricted, like
+  // backgroundReview.view — never implied by any base role except RRS.
+  "backgroundReview.decide",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -85,6 +88,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "document.view",
     "application.view",
     "backgroundReview.view",
+    "backgroundReview.decide",
   ],
 };
 

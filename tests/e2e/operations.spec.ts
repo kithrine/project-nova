@@ -172,6 +172,44 @@ test("a coordinator schedules an interview, reschedules with history, and advanc
   });
 });
 
+test("the specialist clears the background check and the coordinator accepts (Stories 2.10 + 2.11)", async ({
+  page,
+}) => {
+  // The Restricted Review Specialist records the Clear outcome.
+  await signIn(page, E2E_RRS_USER_EMAIL);
+  await page.goto("/operations/applications/e2e_app_background?tab=background");
+  await expect(
+    page.getByText(/viewing restricted background review content/i),
+  ).toBeVisible({ timeout: 20_000 });
+
+  const record = page.getByRole("button", { name: "Record Background Decision" });
+  await expect(record).toBeDisabled();
+  await page.getByRole("radio", { name: /Clear — the application/ }).check();
+  await page
+    .getByLabel("Restricted rationale")
+    .fill("Synthetic: external check complete, no concerns.");
+  await page.getByRole("checkbox", { name: /final and audited/i }).check();
+  await record.click();
+  await expect(page.getByText("Outcome: Clear")).toBeVisible({ timeout: 20_000 });
+
+  // Still BACKGROUND_REVIEW — never auto-accepted.
+  await expect(page.getByText(/· Background review/)).toBeVisible();
+  await clerk.signOut({ page });
+
+  // The coordinator's Accept is now live — the full pipeline completes.
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/applications/e2e_app_background");
+  const accept = page.getByRole("button", { name: "Accept Application" });
+  await expect(accept).toBeEnabled({ timeout: 20_000 });
+  await accept.click();
+
+  await expect(page.getByText(/· Accepted/)).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page.getByText("Background review → Accepted")).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {
   await signIn(page, E2E_USER_EMAIL);
 

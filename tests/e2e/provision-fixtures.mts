@@ -419,6 +419,60 @@ try {
     },
   });
 
+  // Background fixture (Story 2.10): an application in BACKGROUND_REVIEW the
+  // operations E2E clears (RRS) and then accepts (PC) each run. Fully reset.
+  const backgroundUser = await prisma.user.upsert({
+    where: { id: "e2e_user_background" },
+    update: {},
+    create: {
+      id: "e2e_user_background",
+      email: "e2e-background-applicant@synthetic.example",
+      displayName: "Synthetic E2E Background Applicant",
+      isSynthetic: true,
+    },
+  });
+  const backgroundPerson = await prisma.person.upsert({
+    where: { userId: backgroundUser.id },
+    update: { disqualifiedAt: null },
+    create: {
+      id: "e2e_person_background",
+      userId: backgroundUser.id,
+      legalFirstName: "Blair",
+      legalLastName: "Synthetic-Background",
+      dateOfBirth: new Date("1994-04-04T00:00:00Z"),
+    },
+  });
+  await prisma.backgroundReview.deleteMany({
+    where: { applicationId: "e2e_app_background" },
+  });
+  await prisma.applicationEvent.deleteMany({
+    where: { applicationId: "e2e_app_background" },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: { subjectType: "Application", subjectId: "e2e_app_background" },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_background" },
+    update: {
+      status: ApplicationStatus.BACKGROUND_REVIEW,
+      submittedAt: new Date(),
+      decidedAt: null,
+      decisionReason: null,
+    },
+    create: {
+      id: "e2e_app_background",
+      personId: backgroundPerson.id,
+      applicationNumber: "APP-E2E-BCKGRD",
+      status: ApplicationStatus.BACKGROUND_REVIEW,
+      submittedAt: new Date(),
+      motivation: "Synthetic background fixture.",
+      workExperience: "Synthetic.",
+      animalExperience: "Synthetic.",
+      availabilityNotes: "Synthetic.",
+      transportationNotes: "Synthetic.",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

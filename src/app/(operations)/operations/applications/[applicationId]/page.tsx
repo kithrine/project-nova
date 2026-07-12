@@ -7,11 +7,13 @@ import {
   acceptApplicationAction,
   addCaseNoteAction,
   beginEligibilityReviewAction,
+  recordBackgroundDecisionAction,
   recordEligibilityOutcomeAction,
   recordInterviewOutcomeAction,
   rejectApplicationAction,
   scheduleInterviewAction,
 } from "@/features/review/actions";
+import { BackgroundPanel } from "@/features/review/background-panel";
 import { CaseNotes } from "@/features/review/case-notes";
 import { DecisionPanel } from "@/features/review/decision-panel";
 import { EligibilityPanel } from "@/features/review/eligibility-panel";
@@ -24,6 +26,7 @@ import {
   acceptPrerequisiteFailures,
   getApplicationHistory,
   getApplicationWorkspace,
+  getBackgroundReview,
   getEligibilityReview,
   listCaseNotes,
   listInterviews,
@@ -279,16 +282,17 @@ export default async function ApplicationWorkspacePage({
 
         {tab === "background" ? (
           (await openBackgroundTab(ctx, workspace.id)).authorized ? (
-            <div className="flex max-w-prose flex-col gap-3">
+            <div className="flex max-w-prose flex-col gap-4">
               <p className="rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
                 You are viewing restricted background review content. This access has
                 been recorded in the audit log.
               </p>
-              <p className="text-sm text-base-content/70">
-                No background review has been recorded for this application. The
-                background decision workflow arrives with Story 2.10 and remains
-                disabled pending policy validation.
-              </p>
+              <BackgroundPanel
+                status={workspace.status}
+                review={await getBackgroundReview(ctx, workspace.id)}
+                canDecide={hasPermission(ctx, "backgroundReview.decide")}
+                recordAction={recordBackgroundDecisionAction.bind(null, workspace.id)}
+              />
             </div>
           ) : (
             <Restricted
