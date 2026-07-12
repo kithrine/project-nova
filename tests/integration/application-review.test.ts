@@ -162,6 +162,9 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     });
     const userIds = runUsers.map((u) => u.id);
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: userIds } } });
+    await prisma.backgroundReview.deleteMany({
+      where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
     await prisma.interview.deleteMany({
       where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
     });
@@ -676,6 +679,149 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
           enums.InterviewFormat.IN_PERSON,
         ),
       ).rejects.toBeInstanceOf(errors.AuthorizationError);
+    });
+
+    it("completes the FULL pipeline: Clear background decision unlocks Accept (Stories 2.10 + 2.11)", async () => {
+      const { userId, applicationId } = await createSubmittedApplicant("bg-a");
+      const coordinatorCtx = await contextFor(coordinatorId);
+      const specialistCtx = await contextFor(specialistId);
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+
+      // A coordinator can neither read nor record background detail (AC2).
+      await expect(
+        review.getBackgroundReview(coordinatorCtx, applicationId),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
+      await expect(
+        review.recordBackgroundDecision(
+          coordinatorCtx,
+          applicationId,
+          enums.BackgroundOutcome.CLEAR,
+          "should never save",
+        ),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
+
+      // Before the decision, Accept correctly reports the missing prerequisite.
+      await expect(
+        review.acceptApplication(coordinatorCtx, applicationId),
+      ).rejects.toMatchObject({
+        code: "LIFECYCLE",
+        message: expect.stringMatching(/background outcome/i),
+      });
+
+      // The specialist records Clear: row + distinct decide audit; the
+      // application stays in BACKGROUND_REVIEW — never auto-accepted (AC3).
+      await review.recordBackgroundDecision(
+        specialistCtx,
+        applicationId,
+        enums.BackgroundOutcome.CLEAR,
+        "External check complete; no job-related concerns (six factors documented).",
+      );
+      let row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.BACKGROUND_REVIEW);
+      const decideAudit = await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "backgroundReview.decide", subjectId: applicationId },
+      });
+      expect(decideAudit.detail).toBe(enums.BackgroundOutcome.CLEAR);
+
+      // Recording twice is a lifecycle error.
+      await expect(
+        review.recordBackgroundDecision(
+          specialistCtx,
+          applicationId,
+          enums.BackgroundOutcome.CLEAR,
+          "again",
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      expect(await review.acceptPrerequisiteFailures(applicationId)).toEqual([]);
+
+      // The coordinator now accepts — the 2.11 transaction completes.
+      await review.acceptApplication(coordinatorCtx, applicationId);
+      row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.ACCEPTED);
+      expect(row.decidedAt).toBeInstanceOf(Date);
+
+      // The restricted rationale reaches no other payload: not the
+      // workspace, not the queue, not the participant journey (AC5).
+      const workspace = await review.getApplicationWorkspace(coordinatorCtx, applicationId);
+      const queue = await review.listApplicationsForOperations(coordinatorCtx);
+      expect(JSON.stringify({ workspace, queue })).not.toContain("six factors documented");
+
+      const applicantCtx = await contextFor(userId);
+      const views = await applications.getOwnApplications(applicantCtx);
+      const participantPayload = JSON.stringify({
+        views,
+        journeys: views.map((v) => journey.toJourneyView(v)),
+      });
+      expect(participantPayload).not.toContain("six factors documented");
+      expect(participantPayload).not.toMatch(/backgroundReview|rationale/i);
+    });
+
+    it("routes a Disqualifying outcome by its ADR-016 category (Story 2.10)", async () => {
+      const specialistCtx = await contextFor(specialistId);
+
+      // Ordinary: BACKGROUND category -> REJECTED, reapplication possible.
+      const ordinary = await createSubmittedApplicant("bg-b");
+      await prisma.application.update({
+        where: { id: ordinary.applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      await review.recordBackgroundDecision(
+        specialistCtx,
+        ordinary.applicationId,
+        enums.BackgroundOutcome.DISQUALIFYING,
+        "Job-related concern after individualized assessment.",
+        "BACKGROUND",
+      );
+      const ordinaryRow = await prisma.application.findUniqueOrThrow({
+        where: { id: ordinary.applicationId },
+      });
+      expect(ordinaryRow.status).toBe(enums.ApplicationStatus.REJECTED);
+      expect(ordinaryRow.decisionReason).toBe("BACKGROUND");
+      const ordinaryPerson = await prisma.person.findUniqueOrThrow({
+        where: { id: ordinary.personId },
+      });
+      expect(ordinaryPerson.disqualifiedAt).toBeNull();
+
+      // Permanent: the possession-ban category -> DISQUALIFIED + Person marker.
+      const permanent = await createSubmittedApplicant("bg-c");
+      await prisma.application.update({
+        where: { id: permanent.applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      await review.recordBackgroundDecision(
+        specialistCtx,
+        permanent.applicationId,
+        enums.BackgroundOutcome.DISQUALIFYING,
+        "Active permanent possession ban verified via court record.",
+        "PERMANENT_POSSESSION_BAN",
+      );
+      const permanentRow = await prisma.application.findUniqueOrThrow({
+        where: { id: permanent.applicationId },
+      });
+      expect(permanentRow.status).toBe(enums.ApplicationStatus.DISQUALIFIED);
+      const permanentPerson = await prisma.person.findUniqueOrThrow({
+        where: { id: permanent.personId },
+      });
+      expect(permanentPerson.disqualifiedAt).toBeInstanceOf(Date);
+
+      // A Disqualifying outcome without its category never records.
+      const missing = await createSubmittedApplicant("bg-d");
+      await prisma.application.update({
+        where: { id: missing.applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      await expect(
+        review.recordBackgroundDecision(
+          specialistCtx,
+          missing.applicationId,
+          enums.BackgroundOutcome.DISQUALIFYING,
+          "no category chosen",
+        ),
+      ).rejects.toBeInstanceOf(errors.ValidationError);
     });
 
     it("keeps the decision category out of the participant payload", async () => {

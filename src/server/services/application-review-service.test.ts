@@ -86,19 +86,9 @@ describe("resolveWorkspaceTab", () => {
   });
 });
 
-describe("contextualActionsFor (entry points for unbuilt workflows)", () => {
-  it("stubs only the workflows that are not built yet (2.10)", () => {
-    // Eligibility (2.8), interviews (2.9), and decisions (2.11) are live panels.
-    expect(contextualActionsFor(S.SUBMITTED)).toEqual([]);
-    expect(contextualActionsFor(S.ELIGIBILITY_REVIEW)).toEqual([]);
-    expect(contextualActionsFor(S.INTERVIEW)).toEqual([]);
-    expect(contextualActionsFor(S.BACKGROUND_REVIEW).map((a) => a.label)).toEqual([
-      "Record Background Decision",
-    ]);
-  });
-
-  it("offers nothing for decided applications or drafts", () => {
-    for (const status of [S.ACCEPTED, S.REJECTED, S.DISQUALIFIED, S.DRAFT]) {
+describe("contextualActionsFor", () => {
+  it("stubs nothing — every Epic 2 workflow is live on its own panel", () => {
+    for (const status of Object.values(S)) {
       expect(contextualActionsFor(status)).toEqual([]);
     }
   });

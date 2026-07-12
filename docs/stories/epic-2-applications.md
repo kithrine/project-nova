@@ -16,7 +16,7 @@ Allow applicants to apply and track progress.
 | 2.7 | Operations applications queue | Done |
 | 2.8 | Eligibility review | Done |
 | 2.9 | Interview workflow | Done |
-| 2.10 | Background decision workflow | Ready for Development |
+| 2.10 | Background decision workflow | Done |
 | 2.11 | Acceptance and rejection | Done |
 
 > Sequencing note: the epic is numbered 2.1–2.11 for reference, but Stories 2.8, 2.9, and 2.10 each hand off negative outcomes to the shared reject action specified in 2.11 — build 2.11's rejection path alongside or before 2.8 rather than strictly last. Story 2.6 depends only on the `Application` status enum introduced in 2.3, so it can be built in parallel with the Operations-side stories (2.7–2.11).
@@ -469,7 +469,7 @@ Video-conferencing integration, calendar sync or reminder notifications (messagi
 ## Story 2.10 — Background decision workflow
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As an authorized restricted reviewer, I want to record the outcome of an applicant's background check, so that only applicants who clear it can be accepted, while keeping the details away from anyone without clearance.
@@ -521,11 +521,10 @@ Background-check vendor/API integration (explicitly deferred, `docs/product/mvp.
 Done
 
 > Built note: the reject/disqualify path (including the 30-day gateway
-> window and Person-level marker) is fully live. Accept's mechanics,
-> lifecycle guard, and transaction (the 3.1 handoff boundary) are in place;
-> its Clear-outcome business prerequisite correctly reports as unmet until
-> Story 2.10 introduces `BackgroundReview`, at which point 2.10 wires the
-> real check and the full accept path (AC1) is verified end to end.
+> window and Person-level marker) shipped with this story; Accept's
+> Clear-outcome prerequisite was wired to the real `BackgroundReview`
+> check when Story 2.10 shipped, completing the full accept path (AC1) —
+> verified end to end in integration and E2E.
 
 ### User story
 As a Program Coordinator, I want to accept or reject an application with a single, auditable decision action, so that the outcome is recorded consistently and the applicant is told respectfully and correctly what it means for them.

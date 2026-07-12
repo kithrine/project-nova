@@ -1,5 +1,6 @@
 import {
   ApplicationStatus,
+  BackgroundOutcome,
   EligibilityOutcome,
   InterviewFormat,
   InterviewOutcome,
@@ -7,6 +8,7 @@ import {
 import type { Prisma } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import {
+  hasNovaScope,
   hasPermission,
   requireLifecycleState,
   requireNovaScope,
@@ -15,6 +17,7 @@ import {
 } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
 import {
+  AuthorizationError,
   ConflictError,
   LifecycleError,
   NotFoundError,
@@ -177,17 +180,13 @@ export interface ContextualAction {
 
 /**
  * Phase-appropriate entry points for review workflows that are not yet
- * built — rendered as Disabled states naming the story that enables them.
- * Live workflows (decisions 2.11, eligibility 2.8) render through their
- * own panels, not here.
+ * built. Every Epic 2 workflow is live (2.8–2.11 render through their own
+ * panels), so this returns nothing today — later epics' workspace actions
+ * (e.g. enrollment handoffs) plug in here.
  */
-export function contextualActionsFor(status: ApplicationStatus): ContextualAction[] {
-  switch (status) {
-    case ApplicationStatus.BACKGROUND_REVIEW:
-      return [{ label: "Record Background Decision", arrivesWith: "Story 2.10" }];
-    default:
-      return [];
-  }
+export function contextualActionsFor(_status: ApplicationStatus): ContextualAction[] {
+  void _status;
+  return [];
 }
 
 export interface WorkspaceView {
@@ -777,20 +776,148 @@ export async function recordInterviewOutcome(
   });
 }
 
+// --- Background decision (Story 2.10; ADR-015/ADR-016) -------------------------
+
+export const BACKGROUND_OUTCOME_LABELS: Record<BackgroundOutcome, string> = {
+  [BackgroundOutcome.CLEAR]: "Clear",
+  [BackgroundOutcome.DISQUALIFYING]: "Disqualifying",
+};
+
 /**
- * Accept's business prerequisites (AC1). A recorded Clear background outcome
- * is required beyond lifecycle state. The BackgroundReview model arrives with
- * Story 2.10 — until it exists, no Clear outcome can be recorded, so this
- * correctly reports the missing prerequisite. 2.10 replaces the body with the
- * real BackgroundReview query; the accept flow below needs no other change.
+ * The only rejection categories a Disqualifying background outcome may
+ * carry (ADR-016): ordinary "not cleared", or the single permanent case —
+ * an active PERMANENT court-ordered animal-possession ban. Program-conduct
+ * categories belong to the Decision Panel, not this path.
+ */
+export const BACKGROUND_REJECTION_CATEGORIES = [
+  "BACKGROUND",
+  "PERMANENT_POSSESSION_BAN",
+] as const;
+export type BackgroundRejectionCategory = (typeof BACKGROUND_REJECTION_CATEGORIES)[number];
+
+export interface BackgroundReviewView {
+  reviewerName: string;
+  outcome: BackgroundOutcome;
+  outcomeLabel: string;
+  /** Highly Restricted — only ever rendered inside the audited background tab. */
+  rationale: string;
+  recordedAtLabel: string;
+}
+
+/**
+ * The restricted internal view (AC5): requires backgroundReview.view under
+ * Nova scope — denied server-side for everyone else, including Program
+ * Coordinators (AC2). Callers render it only inside the audited tab gate.
+ */
+export async function getBackgroundReview(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<BackgroundReviewView | null> {
+  await loadVisibleApplication(ctx, applicationId);
+  if (!hasPermission(ctx, "backgroundReview.view") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const review = await prisma.backgroundReview.findUnique({ where: { applicationId } });
+  if (!review) return null;
+  const reviewer = await prisma.user.findUnique({
+    where: { id: review.reviewerId },
+    select: { displayName: true },
+  });
+  return {
+    reviewerName: reviewer?.displayName ?? "Unknown user",
+    outcome: review.outcome,
+    outcomeLabel: BACKGROUND_OUTCOME_LABELS[review.outcome],
+    rationale: review.rationale,
+    recordedAtLabel: formatDate(review.createdAt) ?? "",
+  };
+}
+
+/**
+ * Record the background decision (AC1/AC3/AC4): one step, since the check
+ * itself happens through an external process. CLEAR leaves the application
+ * in BACKGROUND_REVIEW, now accept-eligible (never auto-accepted).
+ * DISQUALIFYING invokes the SHARED rejection in the same transaction with
+ * the reviewer's chosen category — ordinary BACKGROUND, or
+ * PERMANENT_POSSESSION_BAN for the one ADR-016 permanent case. The decision
+ * itself is audited distinctly from lifecycle events (AC6).
+ */
+export async function recordBackgroundDecision(
+  ctx: AuthContext,
+  applicationId: string,
+  outcome: BackgroundOutcome,
+  rationale: string,
+  rejectionCategory?: BackgroundRejectionCategory,
+): Promise<void> {
+  requirePermission(ctx, "backgroundReview.decide");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (application.status !== ApplicationStatus.BACKGROUND_REVIEW) {
+    throw new LifecycleError(
+      "A background decision can be recorded only during background review.",
+    );
+  }
+  const existing = await prisma.backgroundReview.findUnique({ where: { applicationId } });
+  if (existing) {
+    throw new LifecycleError("A background decision has already been recorded.");
+  }
+  const trimmed = rationale.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Record the restricted rationale for this decision.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep the rationale under 4,000 characters.");
+  }
+  if (
+    outcome === BackgroundOutcome.DISQUALIFYING &&
+    (!rejectionCategory || !BACKGROUND_REJECTION_CATEGORIES.includes(rejectionCategory))
+  ) {
+    throw new ValidationError(
+      "Choose whether this is an ordinary background rejection or the permanent possession-ban case (ADR-016).",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.backgroundReview.create({
+      data: {
+        applicationId,
+        reviewerId: ctx.userId,
+        outcome,
+        rationale: trimmed,
+      },
+    });
+    // Distinct, high-sensitivity audit event for the decision itself (AC6);
+    // detail carries the outcome only — never the rationale.
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "backgroundReview.decide",
+        subjectType: "Application",
+        subjectId: applicationId,
+        detail: outcome,
+      },
+    });
+    if (outcome === BackgroundOutcome.DISQUALIFYING && rejectionCategory) {
+      await applyRejectionInTx(tx, application, rejectionCategory, ctx.userId);
+    }
+  });
+}
+
+/**
+ * Accept's business prerequisites (2.11 AC1): a recorded CLEAR background
+ * outcome, checked against the BackgroundReview record.
  */
 export async function acceptPrerequisiteFailures(
-  _applicationId: string,
+  applicationId: string,
 ): Promise<string[]> {
-  void _applicationId; // 2.10 queries BackgroundReview by this id
-  return [
-    "a recorded Clear background outcome is required before acceptance (arrives with Story 2.10)",
-  ];
+  const review = await prisma.backgroundReview.findUnique({
+    where: { applicationId },
+    select: { outcome: true },
+  });
+  if (review?.outcome === BackgroundOutcome.CLEAR) {
+    return [];
+  }
+  return ["a recorded Clear background outcome is required before acceptance"];
 }
 
 /**
