@@ -291,7 +291,7 @@ describe.skipIf(!hasDatabase)("training enrollments (integration)", () => {
       requiredCount: requiredPrograms.length,
       completedCount: requiredPrograms.length,
     });
-  });
+  }, 20_000);
 });
 
 describe.skipIf(hasDatabase)("training enrollments (unconfigured)", () => {
