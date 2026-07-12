@@ -17,6 +17,10 @@ export const PERMISSIONS = [
   "organization.view",
   // Funding-source reference data (Story 1.8).
   "funding.manage",
+  // Application documents (Story 2.4): Operations reviewers only — shelters
+  // are never granted this (business-rules.md Privacy). Applicant owners
+  // access their own documents via ownership, not this permission.
+  "document.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -29,10 +33,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [Role.PARTICIPANT]: ["organization.view"],
   [Role.SHELTER_SUPERVISOR]: ["organization.view"],
   [Role.SHELTER_MANAGER]: ["organization.view"],
-  [Role.PROGRAM_COORDINATOR]: ["organization.view"],
+  [Role.PROGRAM_COORDINATOR]: ["organization.view", "document.view"],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
-  [Role.NOVA_ADMINISTRATOR]: ["organization.view", "funding.manage"],
-  [Role.RESTRICTED_REVIEW_SPECIALIST]: ["organization.view"],
+  [Role.NOVA_ADMINISTRATOR]: ["organization.view", "funding.manage", "document.view"],
+  [Role.RESTRICTED_REVIEW_SPECIALIST]: ["organization.view", "document.view"],
 };
 
 export function permissionsForRoles(roles: readonly Role[]): Set<Permission> {

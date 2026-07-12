@@ -14,6 +14,7 @@
 
 - Production Clerk configured
 - Production Neon configured
+- Production Blob store configured (separate from the nonproduction store; ADR-014)
 - Migrations applied
 - Custom domain active
 - Branch protection active

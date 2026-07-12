@@ -15,3 +15,4 @@
 | ADR-011 | Use manual matching assisted by filters, not AI matching | Accepted |
 | ADR-012 | Defer messaging to V2 | Accepted |
 | ADR-013 | Placement approved at two gates: match approval and placement shelter review | Accepted |
+| ADR-014 | Document storage on Vercel Blob behind DocumentService | Accepted |

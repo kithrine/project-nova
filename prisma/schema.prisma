@@ -176,6 +176,8 @@ model Application {
   decidedAt      DateTime?
   decisionReason String?
 
+  documents Document[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -183,6 +185,51 @@ model Application {
   // One non-terminal application per person is enforced by a partial unique
   // index added in the migration SQL (Prisma cannot express WHERE clauses):
   //   UNIQUE (personId) WHERE status NOT IN ('ACCEPTED','REJECTED','DISQUALIFIED')
+}
+
+// --- Documents (Story 2.4) --------------------------------------------------
+
+enum DocumentType {
+  GOVERNMENT_ID
+  OTHER
+}
+
+enum DocumentStatus {
+  ACTIVE
+  SUPERSEDED
+  ARCHIVED
+}
+
+// Uploaded-document METADATA only — file contents live in secure object
+// storage (Vercel Blob, ADR-014) and are Highly Restricted
+// (docs/architecture/security-privacy.md): never logged, never in view
+// models, never exposed to shelters. One owning context per document
+// (database-design.md); Application is the only owner that exists today.
+// Replacement supersedes (archive-not-delete); exactly one ACTIVE document
+// per (application, type) via a partial unique index in the migration SQL.
+model Document {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  documentType DocumentType
+  status       DocumentStatus @default(ACTIVE)
+
+  fileName    String
+  contentType String
+  sizeBytes   Int
+
+  // Blob pathname + URL are server-side secrets, excluded from every view model.
+  storagePathname String @unique
+  storageUrl      String
+
+  uploadedByUserId String
+  supersededAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId])
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------
