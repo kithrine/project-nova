@@ -1,8 +1,22 @@
+import { DocumentType } from "@/generated/prisma/enums";
+
 /**
  * Pure document constants and validation (Story 2.4) — shared by the client
  * upload widget (pre-flight hints) and the server (enforcement). No server
  * imports here.
  */
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  [DocumentType.GOVERNMENT_ID]: "Government-issued ID",
+  [DocumentType.OTHER]: "Other supporting document",
+};
+
+/** Which document types an application requires (admin tooling later).
+ *  Lives here (not in document-service) so submission completeness (2.5)
+ *  can consume the same policy without a service-to-service cycle. */
+export const REQUIRED_DOCUMENT_TYPES: readonly DocumentType[] = [
+  DocumentType.GOVERNMENT_ID,
+];
 
 export const ALLOWED_CONTENT_TYPES = [
   "image/jpeg",

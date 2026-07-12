@@ -22,22 +22,18 @@ import { NON_TERMINAL_STATUSES } from "@/server/services/application-service";
  * shelters are never granted access to application documents.
  */
 
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  [DocumentType.GOVERNMENT_ID]: "Government-issued ID",
-  [DocumentType.OTHER]: "Other supporting document",
-};
-
-/** Which document types an application requires (admin tooling later). */
-export const REQUIRED_DOCUMENT_TYPES: readonly DocumentType[] = [
-  DocumentType.GOVERNMENT_ID,
-];
-
 export {
   ALLOWED_CONTENT_TYPES,
+  DOCUMENT_TYPE_LABELS,
   MAX_DOCUMENT_BYTES,
+  REQUIRED_DOCUMENT_TYPES,
   validateDocumentFile,
 } from "@/lib/documents";
-import { validateDocumentFile } from "@/lib/documents";
+import {
+  DOCUMENT_TYPE_LABELS,
+  REQUIRED_DOCUMENT_TYPES,
+  validateDocumentFile,
+} from "@/lib/documents";
 
 export interface DocumentView {
   id: string;

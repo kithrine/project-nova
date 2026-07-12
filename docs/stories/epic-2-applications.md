@@ -11,7 +11,7 @@ Allow applicants to apply and track progress.
 | 2.2 | Applicant account onboarding | Done |
 | 2.3 | Create and save draft application | Done |
 | 2.4 | Upload required documents | Done |
-| 2.5 | Submit application | Ready for Development |
+| 2.5 | Submit application | Done |
 | 2.6 | View participant-safe application journey | Ready for Development |
 | 2.7 | Operations applications queue | Ready for Development |
 | 2.8 | Eligibility review | Blocked — pending policy validation |
@@ -222,7 +222,7 @@ Reviewer-facing document viewing UI (2.7/2.8), configuration of which document t
 ## Story 2.5 — Submit application
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As an applicant, I want to submit my completed application, so that Nova Operations can begin reviewing it.

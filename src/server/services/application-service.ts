@@ -1,23 +1,27 @@
 import { randomInt } from "node:crypto";
 
-import { ApplicationStatus } from "@/generated/prisma/client";
-import type { Application } from "@/generated/prisma/client";
+import { ApplicationStatus, DocumentStatus } from "@/generated/prisma/client";
+import type { Application, DocumentType } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import { prisma } from "@/server/database/prisma";
 import {
   ConflictError,
   LifecycleError,
   NotFoundError,
+  ValidationError,
 } from "@/server/errors/app-error";
+import { DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from "@/lib/documents";
+import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 import type { DraftInput } from "@/features/application/validation";
 
 /**
- * Application service (Story 2.3). Applicant-tier authorization per the
- * story: `application.create`/`application.edit` resolve for any
- * authenticated user with a Person — ownership-scoped (Application.personId
- * must belong to the requester), lifecycle-gated (editing only in DRAFT).
- * No Membership or Role is involved; drafts are never visible to Operations
- * or shelters (2.7 reads SUBMITTED onward only).
+ * Application service (Stories 2.3, 2.5). Applicant-tier authorization per
+ * the stories: `application.create`/`application.edit`/`application.submit`
+ * resolve for any authenticated user with a Person — ownership-scoped
+ * (Application.personId must belong to the requester), lifecycle-gated
+ * (editing and submitting only in DRAFT). No Membership or Role is involved;
+ * drafts are never visible to Operations or shelters (2.7 reads SUBMITTED
+ * onward only).
  */
 
 export const NON_TERMINAL_STATUSES = [
@@ -246,4 +250,128 @@ export async function saveDraft(
 
   const saved = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
   return toApplicationView(saved);
+}
+
+// --- Submission (Story 2.5) --------------------------------------------------
+
+/** One thing still standing between a draft and submission. */
+export interface MissingSubmissionItem {
+  kind: "field" | "document";
+  /** The label exactly as the applicant sees it on the form or checklist. */
+  label: string;
+  message: string;
+  /** In-page anchor id of the control that resolves this item. */
+  anchor: string;
+}
+
+/**
+ * Pure completeness check: every form answer filled in, every required
+ * document uploaded. Evaluated against the SAVED draft and its ACTIVE
+ * documents — stored truth, never client-supplied form data.
+ */
+export function missingSubmissionItems(
+  application: ApplicationView,
+  activeDocumentTypes: readonly DocumentType[],
+): MissingSubmissionItem[] {
+  const items: MissingSubmissionItem[] = [];
+  for (const prompt of APPLICATION_PROMPTS) {
+    const value = application[prompt.name];
+    if (typeof value !== "string" || value.trim().length === 0) {
+      items.push({
+        kind: "field",
+        label: prompt.label,
+        message: "This answer is still blank — a sentence or two is plenty.",
+        anchor: prompt.name,
+      });
+    }
+  }
+  for (const documentType of REQUIRED_DOCUMENT_TYPES) {
+    if (!activeDocumentTypes.includes(documentType)) {
+      items.push({
+        kind: "document",
+        label: DOCUMENT_TYPE_LABELS[documentType],
+        message: "This document still needs to be uploaded.",
+        anchor: `upload-${documentType}`,
+      });
+    }
+  }
+  return items;
+}
+
+/**
+ * Submit a complete draft: DRAFT -> SUBMITTED, stamp submittedAt, and write
+ * the lifecycle event — all in ONE transaction, so no partial submission can
+ * exist (AC5). The status + concurrency token in the UPDATE's WHERE clause
+ * make a replayed submit (stale tab) a lifecycle error and a concurrent edit
+ * a conflict, never a duplicate (AC4/AC6). After this, the applicant's form
+ * is frozen; only Operations-initiated requests (2.8) or document
+ * replacement (2.4) add information.
+ */
+export async function submitApplication(
+  ctx: AuthContext,
+  applicationId: string,
+  expectedUpdatedAtToken: string,
+): Promise<ApplicationView> {
+  const personId = await requireOwnPersonId(ctx);
+
+  const application = await prisma.application.findUnique({ where: { id: applicationId } });
+  if (!application || application.personId !== personId) {
+    throw new NotFoundError();
+  }
+  if (application.status !== ApplicationStatus.DRAFT) {
+    throw new LifecycleError(
+      "This application has already been submitted — there's nothing more you need to send.",
+    );
+  }
+
+  const activeDocuments = await prisma.document.findMany({
+    where: { applicationId, status: DocumentStatus.ACTIVE },
+    select: { documentType: true },
+  });
+  const missing = missingSubmissionItems(
+    toApplicationView(application),
+    activeDocuments.map((d) => d.documentType),
+  );
+  if (missing.length > 0) {
+    throw new ValidationError(
+      "Your application isn't quite complete. Finish the items listed on the page, then submit.",
+    );
+  }
+
+  const submitted = await prisma.$transaction(async (tx) => {
+    const result = await tx.application.updateMany({
+      where: {
+        id: applicationId,
+        status: ApplicationStatus.DRAFT,
+        updatedAt: new Date(expectedUpdatedAtToken),
+      },
+      data: { status: ApplicationStatus.SUBMITTED, submittedAt: new Date() },
+    });
+    if (result.count === 0) {
+      // Atomic compare-and-set failed: either another request submitted
+      // first (lifecycle) or another tab saved newer content (conflict).
+      const current = await tx.application.findUniqueOrThrow({
+        where: { id: applicationId },
+      });
+      if (current.status !== ApplicationStatus.DRAFT) {
+        throw new LifecycleError(
+          "This application has already been submitted — there's nothing more you need to send.",
+        );
+      }
+      throw new ConflictError(
+        "This application was updated somewhere else (another tab or device). Review the latest version, then submit.",
+      );
+    }
+    await tx.applicationEvent.create({
+      data: {
+        applicationId,
+        fromStatus: ApplicationStatus.DRAFT,
+        toStatus: ApplicationStatus.SUBMITTED,
+        actorUserId: ctx.userId,
+      },
+    });
+    return tx.application.findUniqueOrThrow({ where: { id: applicationId } });
+  });
+
+  return toApplicationView(submitted);
 }

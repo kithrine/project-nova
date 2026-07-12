@@ -44,6 +44,7 @@ Person
 - Funding Assignment
 - Employment Outcome
 - Document
+- Lifecycle Event (per workflow record, e.g. Application Event)
 - Audit Event
 
 ## Aggregate boundaries

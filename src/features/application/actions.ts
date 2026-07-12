@@ -6,10 +6,14 @@ import { redirect } from "next/navigation";
 import { draftInputSchema, fieldErrorsFromZod } from "@/features/application/validation";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
-import { saveDraft, startOrResumeApplication } from "@/server/services/application-service";
+import {
+  saveDraft,
+  startOrResumeApplication,
+  submitApplication,
+} from "@/server/services/application-service";
 
 /**
- * Draft application Server Actions (Story 2.3; ADR-009). Thin: parse,
+ * Application Server Actions (Stories 2.3, 2.5; ADR-009). Thin: parse,
  * delegate, map typed errors to form state. Redirects stay outside
  * try/catch so NEXT_REDIRECT propagates.
  */
@@ -61,11 +65,51 @@ export async function saveDraftAction(
     };
   } catch (error) {
     if (error instanceof AppError) {
-      if (error.code === "CONFLICT") {
+      // LIFECYCLE here means the application was submitted from another tab
+      // while this one still showed the form — the Concurrent update state
+      // (with its reload affordance) is the honest response, not a dead-end
+      // error (Story 2.5, AC6).
+      if (error.code === "CONFLICT" || error.code === "LIFECYCLE") {
         return { status: "conflict", formError: error.message };
       }
       return { status: "error", formError: error.message };
     }
     throw error;
   }
+}
+
+export interface SubmitFormState {
+  status: "idle" | "error" | "conflict" | "lifecycle";
+  formError?: string;
+}
+
+export async function submitApplicationAction(
+  applicationId: string,
+  _prev: SubmitFormState,
+  formData: FormData,
+): Promise<SubmitFormState> {
+  const expectedToken = String(formData.get("updatedAtToken") ?? "");
+
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await submitApplication(ctx, applicationId, expectedToken);
+  } catch (error) {
+    if (error instanceof AppError) {
+      if (error.code === "CONFLICT") {
+        return { status: "conflict", formError: error.message };
+      }
+      if (error.code === "LIFECYCLE") {
+        return { status: "lifecycle", formError: error.message };
+      }
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/participant/application");
+  // The page renders the success confirmation from this flag (role="status",
+  // announced to assistive technology) — it survives a reload, unlike
+  // client-side state that revalidation would unmount.
+  redirect("/participant/application?submitted=1");
 }

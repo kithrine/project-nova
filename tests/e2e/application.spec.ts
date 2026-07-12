@@ -4,9 +4,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { E2E_DRAFT_USER_EMAIL } from "./test-user";
 
 /**
- * Draft application journey (Story 2.3). Uses its OWN resettable identity —
- * spec files run in parallel, so sharing a mutable user with onboarding.spec
- * would race. Serial within the file: one continuous journey.
+ * Application journey, draft through submission (Stories 2.3, 2.5). Uses its
+ * OWN resettable identity — spec files run in parallel, so sharing a mutable
+ * user with onboarding.spec would race. Serial within the file: one
+ * continuous journey.
  */
 test.describe.configure({ mode: "serial" });
 
@@ -108,4 +109,56 @@ test("the draft survives sign-out and resumes on the next visit", async ({ page 
     "I want steady work and a team.",
     { timeout: 20_000 },
   );
+});
+
+test("submit unlocks only when complete, then confirms and freezes (Story 2.5)", async ({
+  page,
+}) => {
+  await signInAsApplicant(page);
+  await page.goto("/participant/application");
+
+  // Four answers are still blank, so Submit is disabled — with the reason
+  // and each missing item linked to its field.
+  const submitButton = page.getByRole("button", { name: "Submit Application" });
+  await expect(submitButton).toBeDisabled({ timeout: 20_000 });
+  await expect(page.getByText(/4 items left to finish/i)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Work or volunteer experience" }),
+  ).toHaveAttribute("href", "#workExperience");
+
+  // Finish the remaining answers and save.
+  await page.getByLabel("Work or volunteer experience").fill("Warehouse shifts.");
+  await page.getByLabel("Experience with animals").fill("Grew up with dogs.");
+  await page.getByLabel("When are you available to work?").fill("Weekday mornings.");
+  await page
+    .getByLabel("How would you get to a shelter site?")
+    .fill("Bus line 7, or a ride.");
+  await page.getByRole("button", { name: "Save Draft" }).click();
+  await expect(page.getByRole("status")).toHaveText(/draft saved/i, { timeout: 15_000 });
+
+  // The panel refreshes from the server: everything complete, Submit unlocks.
+  await expect(submitButton).toBeEnabled({ timeout: 20_000 });
+  await expect(page.getByText(/Ready when you are/i)).toBeVisible();
+
+  // Submit — the respectful confirmation appears, announced as a status.
+  await submitButton.click();
+  await page.waitForURL(/submitted=1/, { timeout: 20_000 });
+  await expect(
+    page.getByRole("heading", { name: /Your application is submitted/i }),
+  ).toBeVisible();
+  await expect(page.getByText(/what happens next/i)).toBeVisible();
+
+  // The form is gone; the submitted answers are read-only.
+  await expect(page.getByRole("button", { name: "Submit Application" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Save Draft" })).toBeHidden();
+  await page.getByText("Your submitted answers").click();
+  await expect(page.getByText("I want steady work and a team.")).toBeVisible();
+
+  // A fresh visit shows in-review — still exactly one application, no way
+  // to submit again (the replay path is covered at the service layer).
+  await page.goto("/participant/application");
+  await expect(page.getByText("Submitted", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("button", { name: "Submit Application" })).toBeHidden();
 });
