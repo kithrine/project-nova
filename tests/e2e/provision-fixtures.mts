@@ -6,6 +6,7 @@ import { PrismaClient } from "../../src/generated/prisma/client";
 import { ActiveStatus, OrganizationKind, Role } from "../../src/generated/prisma/enums";
 import {
   E2E_APPLICANT_USER_EMAIL,
+  E2E_DRAFT_USER_EMAIL,
   E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
@@ -170,14 +171,20 @@ try {
   // The fresh-applicant identity (Story 2.2) exists in Clerk only — ensure
   // the Clerk user, then delete any internal rows a previous run created so
   // provision-on-first-sign-in + onboarding run from scratch every time.
-  await ensureClerkUser(E2E_APPLICANT_USER_EMAIL);
-  await prisma.applicantProfile.deleteMany({
-    where: { person: { user: { email: E2E_APPLICANT_USER_EMAIL } } },
-  });
-  await prisma.person.deleteMany({
-    where: { user: { email: E2E_APPLICANT_USER_EMAIL } },
-  });
-  await prisma.user.deleteMany({ where: { email: E2E_APPLICANT_USER_EMAIL } });
+  // Each resettable identity is owned by exactly ONE spec file (files run in
+  // parallel). Children first (FKs are RESTRICT):
+  // applications -> profile -> person -> user.
+  for (const email of [E2E_APPLICANT_USER_EMAIL, E2E_DRAFT_USER_EMAIL]) {
+    await ensureClerkUser(email);
+    await prisma.application.deleteMany({
+      where: { person: { user: { email } } },
+    });
+    await prisma.applicantProfile.deleteMany({
+      where: { person: { user: { email } } },
+    });
+    await prisma.person.deleteMany({ where: { user: { email } } });
+    await prisma.user.deleteMany({ where: { email } });
+  }
 
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while

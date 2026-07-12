@@ -9,7 +9,7 @@ Allow applicants to apply and track progress.
 |---|---|---|
 | 2.1 | Public How It Works page | Done |
 | 2.2 | Applicant account onboarding | Done |
-| 2.3 | Create and save draft application | Ready for Development |
+| 2.3 | Create and save draft application | Done |
 | 2.4 | Upload required documents | Ready for Development |
 | 2.5 | Submit application | Ready for Development |
 | 2.6 | View participant-safe application journey | Ready for Development |
@@ -124,7 +124,7 @@ The application form itself (2.3), document upload (2.4), `Membership`/`Role` cr
 ## Story 2.3 — Create and save draft application
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As an applicant, I want to start an application and save my progress as a draft, so that I can complete it over multiple visits without losing my work.

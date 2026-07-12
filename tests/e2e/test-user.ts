@@ -31,5 +31,12 @@ export const E2E_GRANT_ADMIN_USER_EMAIL =
 export const E2E_APPLICANT_USER_EMAIL =
   process.env.E2E_CLERK_APPLICANT_USER_EMAIL ?? "e2e-applicant+clerk_test@example.com";
 
+/**
+ * Second fresh applicant (Story 2.3), owned exclusively by application.spec —
+ * spec files run in parallel, so each file gets its own resettable identity.
+ */
+export const E2E_DRAFT_USER_EMAIL =
+  process.env.E2E_CLERK_DRAFT_USER_EMAIL ?? "e2e-draft+clerk_test@example.com";
+
 export const E2E_USER_PASSWORD =
   process.env.E2E_CLERK_USER_PASSWORD ?? "Synthetic-Nova-E2E-42!";
