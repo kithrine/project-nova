@@ -15,7 +15,7 @@ Allow applicants to apply and track progress.
 | 2.6 | View participant-safe application journey | Done |
 | 2.7 | Operations applications queue | Done |
 | 2.8 | Eligibility review | Done |
-| 2.9 | Interview workflow | Ready for Development |
+| 2.9 | Interview workflow | Done |
 | 2.10 | Background decision workflow | Ready for Development |
 | 2.11 | Acceptance and rejection | Done |
 
@@ -416,7 +416,11 @@ Changing the eligibility rubric itself (governed by `ADR-015`; changes require a
 ## Story 2.9 — Interview workflow
 
 ### Status
-Ready for Development
+Done
+
+> Built note: MVP records the scheduling coordinator as the interviewer
+> (a separate interviewer picker was deferred — the AC's "interviewer" is
+> captured as the scheduling user).
 
 ### User story
 As a Program Coordinator, I want to schedule an interview and record its outcome, so that eligible applicants who are a good fit advance toward a background review.

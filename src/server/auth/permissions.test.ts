@@ -80,6 +80,8 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("eligibilityReview.decide"), `eligibility for ${role}`).toBe(
         expected,
       );
+      expect(granted.has("interview.schedule"), `schedule for ${role}`).toBe(expected);
+      expect(granted.has("interview.record"), `record for ${role}`).toBe(expected);
     }
   });
 

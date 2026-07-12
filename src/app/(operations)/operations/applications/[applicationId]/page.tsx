@@ -8,11 +8,14 @@ import {
   addCaseNoteAction,
   beginEligibilityReviewAction,
   recordEligibilityOutcomeAction,
+  recordInterviewOutcomeAction,
   rejectApplicationAction,
+  scheduleInterviewAction,
 } from "@/features/review/actions";
 import { CaseNotes } from "@/features/review/case-notes";
 import { DecisionPanel } from "@/features/review/decision-panel";
 import { EligibilityPanel } from "@/features/review/eligibility-panel";
+import { InterviewPanel } from "@/features/review/interview-panel";
 import { WorkspaceTabs } from "@/features/review/workspace-tabs";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
@@ -23,6 +26,7 @@ import {
   getApplicationWorkspace,
   getEligibilityReview,
   listCaseNotes,
+  listInterviews,
   openBackgroundTab,
   resolveWorkspaceTab,
   WORKSPACE_TAB_LABELS,
@@ -263,10 +267,14 @@ export default async function ApplicationWorkspacePage({
         ) : null}
 
         {tab === "interview" ? (
-          <p className="max-w-prose text-sm text-base-content/70">
-            No interview has been scheduled. The interview workflow arrives with
-            Story 2.9.
-          </p>
+          <InterviewPanel
+            status={workspace.status}
+            interviews={await listInterviews(ctx, workspace.id)}
+            canSchedule={hasPermission(ctx, "interview.schedule")}
+            canRecord={hasPermission(ctx, "interview.record")}
+            scheduleAction={scheduleInterviewAction.bind(null, workspace.id)}
+            recordAction={recordInterviewOutcomeAction.bind(null, workspace.id)}
+          />
         ) : null}
 
         {tab === "background" ? (

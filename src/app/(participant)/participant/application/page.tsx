@@ -16,6 +16,7 @@ import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { toJourneyView } from "@/server/services/application-journey";
 import {
   getOwnApplications,
+  getOwnUpcomingAppointment,
   missingSubmissionItems,
   NON_TERMINAL_STATUSES,
   resolveApplicationGateway,
@@ -65,12 +66,17 @@ export default async function MyApplicationPage({
     (NON_TERMINAL_STATUSES as readonly ApplicationStatus[]).includes(journeyApp.status)
       ? await getDocumentChecklist(ctx, journeyApp.id)
       : null;
+  const appointment =
+    journeyApp && journeyApp.status === ApplicationStatus.INTERVIEW
+      ? await getOwnUpcomingAppointment(ctx, journeyApp.id)
+      : null;
   const journey = journeyApp
     ? toJourneyView(
         journeyApp,
         journeyChecklist
           ? journeyChecklist.filter((i) => i.current).map((i) => i.documentType)
           : undefined,
+        appointment,
       )
     : null;
   const previous = applications.filter((a) => a.id !== journeyApp?.id);

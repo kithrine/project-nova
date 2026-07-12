@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { EligibilityOutcome } from "@/generated/prisma/enums";
+import {
+  EligibilityOutcome,
+  InterviewFormat,
+  InterviewOutcome,
+} from "@/generated/prisma/enums";
 import { isDecisionCategory } from "@/features/review/decision-categories";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
@@ -11,7 +15,9 @@ import {
   addCaseNote,
   beginEligibilityReview,
   recordEligibilityOutcome,
+  recordInterviewOutcome,
   rejectApplication,
+  scheduleInterview,
 } from "@/server/services/application-review-service";
 
 /**
@@ -118,6 +124,69 @@ export async function recordEligibilityOutcomeAction(
       applicationId,
       outcomeRaw as EligibilityOutcome,
       String(formData.get("rationale") ?? ""),
+    );
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/applications/${applicationId}`);
+  revalidatePath("/operations/applications");
+  return { status: "decided" };
+}
+
+export async function scheduleInterviewAction(
+  applicationId: string,
+  _prev: DecisionFormState,
+  formData: FormData,
+): Promise<DecisionFormState> {
+  const scheduledAtRaw = String(formData.get("scheduledAt") ?? "");
+  const formatRaw = String(formData.get("format") ?? "");
+  if (!Object.values(InterviewFormat).includes(formatRaw as InterviewFormat)) {
+    return { status: "error", formError: "Choose an interview format." };
+  }
+  // datetime-local sends a zone-less value; interpret it as the program's
+  // wall-clock time in UTC so it round-trips identically everywhere.
+  const scheduledAt = new Date(`${scheduledAtRaw}:00.000Z`);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return { status: "error", formError: "Choose a valid date and time." };
+  }
+
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await scheduleInterview(ctx, applicationId, scheduledAt, formatRaw as InterviewFormat);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/applications/${applicationId}`);
+  return { status: "decided" };
+}
+
+export async function recordInterviewOutcomeAction(
+  applicationId: string,
+  _prev: DecisionFormState,
+  formData: FormData,
+): Promise<DecisionFormState> {
+  const outcomeRaw = String(formData.get("outcome") ?? "");
+  if (!Object.values(InterviewOutcome).includes(outcomeRaw as InterviewOutcome)) {
+    return { status: "error", formError: "Choose an outcome." };
+  }
+
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordInterviewOutcome(
+      ctx,
+      applicationId,
+      outcomeRaw as InterviewOutcome,
+      String(formData.get("notes") ?? ""),
     );
   } catch (error) {
     if (error instanceof AppError) {

@@ -265,6 +265,56 @@ export async function startOrResumeApplication(ctx: AuthContext): Promise<Applic
 }
 
 /**
+ * The applicant's own upcoming interview appointment (Story 2.9): date,
+ * time, and format ONLY — interviewer, notes, and the recommendation are
+ * internal and never leave the server. Ownership-scoped; surfaces only
+ * while the application is in the interview phase with no recorded outcome.
+ */
+export interface UpcomingAppointment {
+  scheduledAtLabel: string;
+  formatLabel: string;
+}
+
+export async function getOwnUpcomingAppointment(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<UpcomingAppointment | null> {
+  const personId = await requireOwnPersonId(ctx);
+  const application = await prisma.application.findUnique({
+    where: { id: applicationId },
+    select: { personId: true, status: true },
+  });
+  if (!application || application.personId !== personId) {
+    throw new NotFoundError();
+  }
+  if (application.status !== ApplicationStatus.INTERVIEW) {
+    return null;
+  }
+  const current = await prisma.interview.findFirst({
+    where: { applicationId },
+    orderBy: { createdAt: "desc" },
+    select: { scheduledAt: true, format: true, outcome: true },
+  });
+  if (!current || current.outcome) {
+    return null;
+  }
+  const { INTERVIEW_FORMAT_LABELS } = await import(
+    "@/server/services/application-review-service"
+  );
+  return {
+    scheduledAtLabel: current.scheduledAt.toLocaleString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }),
+    formatLabel: INTERVIEW_FORMAT_LABELS[current.format],
+  };
+}
+
+/**
  * Save partial draft content. Ownership + DRAFT lifecycle gate + optimistic
  * concurrency: a stale token (another tab or device saved first) is rejected
  * with a Conflict so nothing is silently overwritten.

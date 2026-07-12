@@ -99,11 +99,27 @@ function reapplyOnLabel(application: ApplicationView): string | null {
   });
 }
 
+/** Participant-safe appointment info (Story 2.9): date/time/format only. */
+export interface JourneyAppointment {
+  scheduledAtLabel: string;
+  formatLabel: string;
+}
+
 function buildNextStep(
   application: ApplicationView,
   missingRequiredDocument: boolean,
+  appointment: JourneyAppointment | null,
 ): JourneyNextStep {
   const status = application.status;
+  if (status === ApplicationStatus.INTERVIEW && appointment && !missingRequiredDocument) {
+    return {
+      headline: "Your interview is scheduled",
+      description: `${appointment.scheduledAtLabel} · ${appointment.formatLabel}. We're looking forward to meeting you — if you need to change the time, contact Project Nova and we'll work it out together.`,
+      actionLabel: null,
+      actionHref: null,
+      tone: "waiting",
+    };
+  }
   switch (status) {
     case ApplicationStatus.DRAFT:
       return {
@@ -177,6 +193,7 @@ function buildNextStep(
 export function toJourneyView(
   application: ApplicationView,
   activeDocumentTypes: readonly DocumentType[] = REQUIRED_DOCUMENT_TYPES,
+  appointment: JourneyAppointment | null = null,
 ): ApplicationJourneyView {
   const isTerminal = TERMINAL_STATUSES.includes(application.status);
   const missingRequiredDocument =
@@ -189,7 +206,7 @@ export function toJourneyView(
     stageLabel: APPLICATION_STATUS_LABELS[application.status],
     submittedAtLabel: application.submittedAtLabel,
     steps: buildSteps(application.status),
-    nextStep: buildNextStep(application, missingRequiredDocument),
+    nextStep: buildNextStep(application, missingRequiredDocument, appointment),
     isTerminal,
     canReapply: isTerminal ? application.status === ApplicationStatus.REJECTED : null,
   };

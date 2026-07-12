@@ -1,4 +1,9 @@
-import { ApplicationStatus, EligibilityOutcome } from "@/generated/prisma/client";
+import {
+  ApplicationStatus,
+  EligibilityOutcome,
+  InterviewFormat,
+  InterviewOutcome,
+} from "@/generated/prisma/client";
 import type { Prisma } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import {
@@ -178,11 +183,6 @@ export interface ContextualAction {
  */
 export function contextualActionsFor(status: ApplicationStatus): ContextualAction[] {
   switch (status) {
-    case ApplicationStatus.INTERVIEW:
-      return [
-        { label: "Schedule Interview", arrivesWith: "Story 2.9" },
-        { label: "Record Interview Outcome", arrivesWith: "Story 2.9" },
-      ];
     case ApplicationStatus.BACKGROUND_REVIEW:
       return [{ label: "Record Background Decision", arrivesWith: "Story 2.10" }];
     default:
@@ -602,6 +602,177 @@ export async function recordEligibilityOutcome(
       });
     } else {
       await applyRejectionInTx(tx, application, "ELIGIBILITY", ctx.userId);
+    }
+  });
+}
+
+// --- Interview workflow (Story 2.9) --------------------------------------------
+
+export const INTERVIEW_FORMAT_LABELS: Record<InterviewFormat, string> = {
+  [InterviewFormat.IN_PERSON]: "In person",
+  [InterviewFormat.VIRTUAL]: "Virtual",
+};
+
+export const INTERVIEW_OUTCOME_LABELS: Record<InterviewOutcome, string> = {
+  [InterviewOutcome.ADVANCE]: "Advance",
+  [InterviewOutcome.DO_NOT_ADVANCE]: "Do not advance",
+};
+
+function formatDateTime(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+export interface InterviewView {
+  id: string;
+  scheduledAtLabel: string;
+  formatLabel: string;
+  interviewerName: string;
+  outcome: InterviewOutcome | null;
+  outcomeLabel: string | null;
+  /** Internal notes — never in participant or shelter payloads. */
+  notes: string | null;
+  /** The newest row is the current appointment; earlier rows are history. */
+  isCurrent: boolean;
+}
+
+/** All appointments, newest first — rescheduling preserves prior rows (AC2). */
+export async function listInterviews(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<InterviewView[]> {
+  await loadVisibleApplication(ctx, applicationId);
+  const interviews = await prisma.interview.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: "desc" },
+  });
+  const interviewers = await prisma.user.findMany({
+    where: { id: { in: [...new Set(interviews.map((i) => i.interviewerId))] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(interviewers.map((u) => [u.id, u.displayName]));
+
+  return interviews.map((interview, index) => ({
+    id: interview.id,
+    scheduledAtLabel: formatDateTime(interview.scheduledAt),
+    formatLabel: INTERVIEW_FORMAT_LABELS[interview.format],
+    interviewerName: nameById.get(interview.interviewerId) ?? "Unknown user",
+    outcome: interview.outcome,
+    outcomeLabel: interview.outcome ? INTERVIEW_OUTCOME_LABELS[interview.outcome] : null,
+    notes: interview.notes,
+    isCurrent: index === 0,
+  }));
+}
+
+/**
+ * Schedule (or reschedule) the interview (AC1/AC2). Rescheduling creates a
+ * NEW row so the prior time stays in history. MVP records the scheduling
+ * coordinator as the interviewer. The applicant's journey (2.6) surfaces
+ * date/time/format only.
+ */
+export async function scheduleInterview(
+  ctx: AuthContext,
+  applicationId: string,
+  scheduledAt: Date,
+  format: InterviewFormat,
+): Promise<void> {
+  requirePermission(ctx, "interview.schedule");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (application.status !== ApplicationStatus.INTERVIEW) {
+    throw new LifecycleError(
+      "An interview can be scheduled only while the application is in the interview phase.",
+    );
+  }
+  if (Number.isNaN(scheduledAt.getTime())) {
+    throw new ValidationError("Choose a valid date and time for the interview.");
+  }
+  if (!Object.values(InterviewFormat).includes(format)) {
+    throw new ValidationError("Choose an interview format from the list.");
+  }
+
+  await prisma.interview.create({
+    data: {
+      applicationId,
+      scheduledAt,
+      format,
+      interviewerId: ctx.userId,
+    },
+  });
+}
+
+/**
+ * Record the interview outcome (AC3/AC4) on the current appointment.
+ * Advance transitions to BACKGROUND_REVIEW; Do Not Advance invokes the
+ * SHARED rejection action (2.11) with the interview reason category —
+ * outcome, notes, and the transition commit in ONE transaction. Notes and
+ * the recommendation are internal-only (AC5).
+ */
+export async function recordInterviewOutcome(
+  ctx: AuthContext,
+  applicationId: string,
+  outcome: InterviewOutcome,
+  notes: string,
+): Promise<void> {
+  requirePermission(ctx, "interview.record");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (application.status !== ApplicationStatus.INTERVIEW) {
+    throw new LifecycleError(
+      "An outcome can be recorded only while the application is in the interview phase.",
+    );
+  }
+  const current = await prisma.interview.findFirst({
+    where: { applicationId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!current) {
+    throw new LifecycleError("Schedule the interview before recording an outcome.");
+  }
+  if (current.outcome) {
+    throw new LifecycleError("This interview already has a recorded outcome.");
+  }
+  const trimmed = notes.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Record the internal notes for this outcome.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep notes under 4,000 characters.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.interview.update({
+      where: { id: current.id },
+      data: { outcome, notes: trimmed, decidedAt: new Date() },
+    });
+    if (outcome === InterviewOutcome.ADVANCE) {
+      const result = await tx.application.updateMany({
+        where: { id: applicationId, status: ApplicationStatus.INTERVIEW },
+        data: { status: ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      if (result.count === 0) {
+        throw new ConflictError(
+          "This application changed while you were working. Review the latest state.",
+        );
+      }
+      await tx.applicationEvent.create({
+        data: {
+          applicationId,
+          fromStatus: ApplicationStatus.INTERVIEW,
+          toStatus: ApplicationStatus.BACKGROUND_REVIEW,
+          actorUserId: ctx.userId,
+        },
+      });
+    } else {
+      await applyRejectionInTx(tx, application, "INTERVIEW", ctx.userId);
     }
   });
 }
