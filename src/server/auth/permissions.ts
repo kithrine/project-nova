@@ -21,6 +21,16 @@ export const PERMISSIONS = [
   // are never granted this (business-rules.md Privacy). Applicant owners
   // access their own documents via ownership, not this permission.
   "document.view",
+  // Operations applications queue + workspace (Story 2.7). Applicants view
+  // their OWN application via ownership (2.3/2.6), never this permission.
+  "application.view",
+  // Restricted background-review content (Story 2.7): NOT implied by any
+  // base role — "a coordinator may not view detailed background data
+  // without explicit restricted permission" (authorization-rbac.md). Every
+  // authorized read is written to an AuditEvent.
+  "backgroundReview.view",
+  // Internal case notes on an application (Story 2.7): Nova Operations only.
+  "caseNote.create",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -33,10 +43,28 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [Role.PARTICIPANT]: ["organization.view"],
   [Role.SHELTER_SUPERVISOR]: ["organization.view"],
   [Role.SHELTER_MANAGER]: ["organization.view"],
-  [Role.PROGRAM_COORDINATOR]: ["organization.view", "document.view"],
+  [Role.PROGRAM_COORDINATOR]: [
+    "organization.view",
+    "document.view",
+    "application.view",
+    "caseNote.create",
+  ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
-  [Role.NOVA_ADMINISTRATOR]: ["organization.view", "funding.manage", "document.view"],
-  [Role.RESTRICTED_REVIEW_SPECIALIST]: ["organization.view", "document.view"],
+  [Role.NOVA_ADMINISTRATOR]: [
+    "organization.view",
+    "funding.manage",
+    "document.view",
+    "application.view",
+    "caseNote.create",
+  ],
+  // The optional restricted role (authorization-rbac.md): the ONLY role
+  // that carries backgroundReview.view by default.
+  [Role.RESTRICTED_REVIEW_SPECIALIST]: [
+    "organization.view",
+    "document.view",
+    "application.view",
+    "backgroundReview.view",
+  ],
 };
 
 export function permissionsForRoles(roles: readonly Role[]): Set<Permission> {

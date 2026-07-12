@@ -27,6 +27,14 @@ status change, so no partial transition can exist. `ApplicationEvent`
 pattern. Lifecycle events are distinct from audit events
 (`docs/architecture/architecture.md`) and are never updated or deleted.
 
+## Audit events
+
+Access to restricted content writes an append-only `AuditEvent` row (actor,
+permission-style action code, subject reference, timestamp) in the same
+request that delivers the content — first use: reads of restricted
+background-review content (Story 2.7). The audit record itself carries no
+sensitive content, so the trail is safe to review.
+
 ## Migration strategy
 
 - Local: `prisma migrate dev`

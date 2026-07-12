@@ -48,4 +48,36 @@ describe("permissionsForRoles (deny-by-default)", () => {
     expect(merged.has("organization.view")).toBe(true);
     expect(merged.has("funding.manage")).toBe(true);
   });
+
+  it("never grants backgroundReview.view through any base role — RRS only (Story 2.7)", () => {
+    for (const role of Object.values(Role)) {
+      const expected = role === Role.RESTRICTED_REVIEW_SPECIALIST;
+      expect(
+        permissionsForRoles([role]).has("backgroundReview.view"),
+        `role ${role}`,
+      ).toBe(expected);
+    }
+  });
+
+  it("keeps the applications workspace to Nova operational roles", () => {
+    for (const role of Object.values(Role)) {
+      const expected =
+        role === Role.PROGRAM_COORDINATOR ||
+        role === Role.NOVA_ADMINISTRATOR ||
+        role === Role.RESTRICTED_REVIEW_SPECIALIST;
+      expect(permissionsForRoles([role]).has("application.view"), `role ${role}`).toBe(
+        expected,
+      );
+    }
+  });
+
+  it("never grants shelter roles any application, document, or note permission", () => {
+    for (const role of [Role.SHELTER_SUPERVISOR, Role.SHELTER_MANAGER]) {
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("application.view")).toBe(false);
+      expect(granted.has("document.view")).toBe(false);
+      expect(granted.has("caseNote.create")).toBe(false);
+      expect(granted.has("backgroundReview.view")).toBe(false);
+    }
+  });
 });

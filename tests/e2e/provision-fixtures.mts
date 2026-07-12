@@ -3,13 +3,19 @@ import nextEnv from "@next/env";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../../src/generated/prisma/client";
-import { ActiveStatus, OrganizationKind, Role } from "../../src/generated/prisma/enums";
+import {
+  ActiveStatus,
+  ApplicationStatus,
+  OrganizationKind,
+  Role,
+} from "../../src/generated/prisma/enums";
 import {
   E2E_APPLICANT_USER_EMAIL,
   E2E_DRAFT_USER_EMAIL,
   E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
+  E2E_RRS_USER_EMAIL,
   E2E_USER_EMAIL,
   E2E_USER_PASSWORD,
 } from "./test-user";
@@ -63,6 +69,15 @@ const FIXTURE_USERS: FixtureUser[] = [
     internalId: "e2e_user_grant",
     displayName: "Synthetic E2E Grant Admin",
     membership: { organizationId: "e2e_org_nova", role: Role.GRANT_ADMINISTRATOR },
+  },
+  {
+    email: E2E_RRS_USER_EMAIL,
+    internalId: "e2e_user_rrs",
+    displayName: "Synthetic E2E Review Specialist",
+    membership: {
+      organizationId: "e2e_org_nova",
+      role: Role.RESTRICTED_REVIEW_SPECIALIST,
+    },
   },
 ];
 
@@ -202,6 +217,49 @@ try {
     await prisma.user.deleteMany({ where: { email } });
   }
 
+  // Deterministic Operations-queue fixture (Story 2.7): a SUBMITTED
+  // application owned by an internal-only synthetic person — no Clerk
+  // account; Operations E2E only reads it. Upserted (and its status reset)
+  // so every run sees the same workspace at
+  // /operations/applications/e2e_app_queue.
+  const queueUser = await prisma.user.upsert({
+    where: { id: "e2e_user_queue" },
+    update: {},
+    create: {
+      id: "e2e_user_queue",
+      email: "e2e-queue-applicant@synthetic.example",
+      displayName: "Synthetic E2E Queue Applicant",
+      isSynthetic: true,
+    },
+  });
+  const queuePerson = await prisma.person.upsert({
+    where: { userId: queueUser.id },
+    update: {},
+    create: {
+      id: "e2e_person_queue",
+      userId: queueUser.id,
+      legalFirstName: "Quinn",
+      legalLastName: "Synthetic-Queue",
+      dateOfBirth: new Date("1990-04-04T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_queue" },
+    update: { status: ApplicationStatus.SUBMITTED, submittedAt: new Date() },
+    create: {
+      id: "e2e_app_queue",
+      personId: queuePerson.id,
+      applicationNumber: "APP-E2E-QUEUE",
+      status: ApplicationStatus.SUBMITTED,
+      submittedAt: new Date(),
+      motivation: "Synthetic queue fixture.",
+      workExperience: "Synthetic.",
+      animalExperience: "Synthetic.",
+      availabilityNotes: "Synthetic.",
+      transportationNotes: "Synthetic.",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds
@@ -211,8 +269,8 @@ try {
   });
 
   console.log(
-    `E2E fixtures ready (${FIXTURE_USERS.length + 1} users, 2 organizations; ` +
-      `applicant reset; ${cleaned.count} prior funding fixtures cleaned).`,
+    `E2E fixtures ready (${FIXTURE_USERS.length + 2} Clerk users, 2 organizations, ` +
+      `1 queue application; applicants reset; ${cleaned.count} prior funding fixtures cleaned).`,
   );
 } finally {
   await prisma.$disconnect();
