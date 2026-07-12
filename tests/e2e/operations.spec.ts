@@ -225,8 +225,42 @@ test("the specialist clears the background check and the coordinator accepts (St
 
   // Story 3.2: the onboarding checklist generated with the enrollment —
   // populated with no manual setup, every task Not started.
-  await expect(page.getByText("Attend orientation session")).toBeVisible();
-  await expect(page.getByText("Review the program handbook")).toBeVisible();
+  await expect(
+    page.getByText("Attend orientation session", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Review the program handbook", { exact: true }),
+  ).toBeVisible();
+
+  // Retry-safety: if a prior flaky attempt completed the orientation task,
+  // restore it before asserting the clean-slate counts.
+  const leftoverReopen = page.getByRole("button", {
+    name: "Reopen: Attend orientation session",
+  });
+  if (await leftoverReopen.isVisible().catch(() => false)) {
+    await leftoverReopen.click();
+    await expect(
+      page.getByRole("button", { name: "Complete: Attend orientation session" }),
+    ).toBeVisible({ timeout: 20_000 });
+  }
+  expect(await page.getByText("Not started", { exact: true }).count()).toBe(5);
+  await expect(page.getByText("0 of 5 complete · 5 remaining")).toBeVisible();
+
+  // Story 3.3: the coordinator completes a staff task, then reopens it —
+  // the corrective loop, each control named after its task.
+  await page
+    .getByRole("button", { name: "Complete: Attend orientation session" })
+    .click();
+  const reopen = page.getByRole("button", {
+    name: "Reopen: Attend orientation session",
+  });
+  await expect(reopen).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Completed .* by Synthetic E2E Coordinator/)).toBeVisible();
+
+  await reopen.click();
+  await expect(
+    page.getByRole("button", { name: "Complete: Attend orientation session" }),
+  ).toBeVisible({ timeout: 20_000 });
   expect(await page.getByText("Not started", { exact: true }).count()).toBe(5);
 });
 

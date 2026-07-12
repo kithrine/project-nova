@@ -153,6 +153,9 @@ export interface OnboardingTaskView {
   participantCompletable: boolean;
   status: OnboardingTaskStatus;
   statusLabel: string;
+  completedAtLabel: string | null;
+  /** Ops list only — who recorded the completion. */
+  completedByName: string | null;
 }
 
 export async function listOnboardingTasks(
@@ -174,6 +177,15 @@ export async function listOnboardingTasks(
     where: { enrollmentId },
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
   });
+  const completerIds = [
+    ...new Set(tasks.map((t) => t.completedByUserId).filter((id): id is string => !!id)),
+  ];
+  const completers = await prisma.user.findMany({
+    where: { id: { in: completerIds } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(completers.map((u) => [u.id, u.displayName]));
+
   return tasks.map((task) => ({
     id: task.id,
     title: task.title,
@@ -182,7 +194,277 @@ export async function listOnboardingTasks(
     participantCompletable: task.participantCompletable,
     status: task.status,
     statusLabel: ONBOARDING_TASK_STATUS_LABELS[task.status],
+    completedAtLabel: task.completedAt
+      ? task.completedAt.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        })
+      : null,
+    completedByName: task.completedByUserId
+      ? (nameById.get(task.completedByUserId) ?? "Unknown user")
+      : null,
   }));
+}
+
+// --- Task completion (Story 3.3) ------------------------------------------------
+
+/**
+ * Pure: why a PARTICIPANT may not complete a task, or null when they may.
+ * Staff-only tasks are pending-with-explanation, never a broken control.
+ */
+export function participantCompletionBlockReason(task: {
+  participantCompletable: boolean;
+  status: OnboardingTaskStatus;
+}): "staff-only" | "already-complete" | null {
+  if (!task.participantCompletable) return "staff-only";
+  if (task.status !== OnboardingTaskStatus.NOT_STARTED) return "already-complete";
+  return null;
+}
+
+/** Pure: the staff completion transition rule — only Not Started completes. */
+export function staffCompletionBlockReason(status: OnboardingTaskStatus): string | null {
+  return status === OnboardingTaskStatus.NOT_STARTED
+    ? null
+    : "This task is already complete.";
+}
+
+/** Pure: the reopen transition rule — only Complete reopens. */
+export function reopenBlockReason(status: OnboardingTaskStatus): string | null {
+  return status === OnboardingTaskStatus.COMPLETE
+    ? null
+    : "Only a completed task can be reopened.";
+}
+
+/**
+ * A participant completes their OWN participant-completable task (AC1).
+ * Ownership-scoped like the applicant tier: the task's enrollment must
+ * belong to the requester's Person -> Participant chain — a foreign task is
+ * a plain 404 (AC5). The compare-and-set on status makes double-completion
+ * a lifecycle error, never a silent overwrite.
+ */
+export async function completeOwnOnboardingTask(
+  ctx: AuthContext,
+  taskId: string,
+): Promise<void> {
+  const task = await prisma.onboardingTask.findUnique({
+    where: { id: taskId },
+    include: {
+      enrollment: {
+        select: { participant: { select: { person: { select: { userId: true } } } } },
+      },
+    },
+  });
+  // Foreign or placement-owned tasks are the same plain 404 — existence
+  // is not confirmed to non-owners.
+  if (!task || task.enrollment?.participant.person.userId !== ctx.userId) {
+    throw new NotFoundError();
+  }
+  const blocked = participantCompletionBlockReason(task);
+  if (blocked === "staff-only") {
+    throw new AuthorizationError();
+  }
+  if (blocked === "already-complete") {
+    throw new LifecycleError("This task is already complete — nothing more to do.");
+  }
+
+  const result = await prisma.onboardingTask.updateMany({
+    where: { id: taskId, status: OnboardingTaskStatus.NOT_STARTED },
+    data: {
+      status: OnboardingTaskStatus.COMPLETE,
+      completedAt: new Date(),
+      completedByUserId: ctx.userId,
+    },
+  });
+  if (result.count === 0) {
+    throw new LifecycleError("This task is already complete — nothing more to do.");
+  }
+}
+
+/**
+ * A coordinator completes any enrollment task on the participant's behalf,
+ * including staff-only tasks (AC3). Audited — staff completions are the
+ * corrective/administrative record.
+ */
+export async function completeOnboardingTaskAsStaff(
+  ctx: AuthContext,
+  taskId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "onboardingTask.complete")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+  const task = await prisma.onboardingTask.findUnique({
+    where: { id: taskId },
+    select: { id: true, status: true, enrollmentId: true },
+  });
+  if (!task || !task.enrollmentId) {
+    throw new NotFoundError();
+  }
+  const blocked = staffCompletionBlockReason(task.status);
+  if (blocked) {
+    throw new LifecycleError(blocked);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.onboardingTask.updateMany({
+      where: { id: taskId, status: OnboardingTaskStatus.NOT_STARTED },
+      data: {
+        status: OnboardingTaskStatus.COMPLETE,
+        completedAt: new Date(),
+        completedByUserId: ctx.userId,
+      },
+    });
+    if (result.count === 0) {
+      throw new LifecycleError("This task is already complete.");
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "onboardingTask.complete",
+        subjectType: "OnboardingTask",
+        subjectId: taskId,
+      },
+    });
+  });
+}
+
+/**
+ * Reopen a task completed in error (AC4): COMPLETE -> NOT_STARTED. The
+ * completion columns are working state; the HISTORY lives in the audit
+ * trail — the reopen event snapshots the prior completer and timestamp
+ * into its detail, so the correction never destroys the record of who
+ * completed the task and when (participant self-completions have no other
+ * record; lifecycle history is preserved per RULES.md).
+ */
+export async function reopenOnboardingTask(
+  ctx: AuthContext,
+  taskId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "onboardingTask.reopen")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+  const task = await prisma.onboardingTask.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true,
+      status: true,
+      enrollmentId: true,
+      completedAt: true,
+      completedByUserId: true,
+    },
+  });
+  if (!task || !task.enrollmentId) {
+    throw new NotFoundError();
+  }
+  const blocked = reopenBlockReason(task.status);
+  if (blocked) {
+    throw new LifecycleError(blocked);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.onboardingTask.updateMany({
+      where: { id: taskId, status: OnboardingTaskStatus.COMPLETE },
+      data: {
+        status: OnboardingTaskStatus.NOT_STARTED,
+        completedAt: null,
+        completedByUserId: null,
+      },
+    });
+    if (result.count === 0) {
+      throw new LifecycleError("Only a completed task can be reopened.");
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "onboardingTask.reopen",
+        subjectType: "OnboardingTask",
+        subjectId: taskId,
+        // Snapshot of what was corrected — ids and a timestamp only,
+        // nothing sensitive (AuditEvent.detail contract).
+        detail: `was-complete by=${task.completedByUserId ?? "unknown"} at=${task.completedAt?.toISOString() ?? "unknown"}`,
+      },
+    });
+  });
+}
+
+// --- Participant-facing onboarding (Story 3.3) -----------------------------------
+
+export interface ParticipantTaskView {
+  id: string;
+  title: string;
+  description: string;
+  required: boolean;
+  participantCompletable: boolean;
+  status: OnboardingTaskStatus;
+  statusLabel: string;
+  completedAtLabel: string | null;
+}
+
+export interface ParticipantOnboardingSummary {
+  enrollmentId: string;
+  programName: string;
+  completeCount: number;
+  totalCount: number;
+  tasks: ParticipantTaskView[];
+}
+
+/**
+ * The participant's own onboarding checklist and progress, ownership-scoped
+ * through Person -> Participant. Null when the person has no ONBOARDING
+ * enrollment (nothing to show on the dashboard).
+ */
+export async function getOwnOnboardingSummary(
+  ctx: AuthContext,
+): Promise<ParticipantOnboardingSummary | null> {
+  const person = await prisma.person.findUnique({
+    where: { userId: ctx.userId },
+    select: { participant: { select: { id: true } } },
+  });
+  if (!person?.participant) {
+    return null;
+  }
+  const enrollment = await prisma.programEnrollment.findFirst({
+    where: {
+      participantId: person.participant.id,
+      status: EnrollmentStatus.ONBOARDING,
+    },
+    orderBy: { enrolledAt: "desc" },
+    include: { program: { select: { name: true } } },
+  });
+  if (!enrollment) {
+    return null;
+  }
+  const tasks = await prisma.onboardingTask.findMany({
+    where: { enrollmentId: enrollment.id },
+    orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+  });
+  const views: ParticipantTaskView[] = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    required: task.required,
+    participantCompletable: task.participantCompletable,
+    status: task.status,
+    statusLabel: ONBOARDING_TASK_STATUS_LABELS[task.status],
+    completedAtLabel: task.completedAt
+      ? task.completedAt.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "UTC",
+        })
+      : null,
+  }));
+  return {
+    enrollmentId: enrollment.id,
+    programName: enrollment.program.name,
+    completeCount: views.filter((t) => t.status === OnboardingTaskStatus.COMPLETE).length,
+    totalCount: views.length,
+    tasks: views,
+  };
 }
 
 // --- Operations reads ----------------------------------------------------------

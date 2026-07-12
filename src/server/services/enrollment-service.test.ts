@@ -5,6 +5,9 @@ import {
   DEFAULT_PROGRAM_CODE,
   ENROLLMENT_STATUS_LABELS,
   ONBOARDING_TASK_STATUS_LABELS,
+  participantCompletionBlockReason,
+  reopenBlockReason,
+  staffCompletionBlockReason,
   taskDataFromTemplate,
 } from "./enrollment-service";
 
@@ -45,6 +48,46 @@ describe("taskDataFromTemplate (Story 3.2)", () => {
 
   it("never sets a placement owner — enrollment is the single owning context here", () => {
     expect("placementId" in taskDataFromTemplate(template, "enr_1")).toBe(false);
+  });
+});
+
+describe("participantCompletionBlockReason (Story 3.3 eligibility rules)", () => {
+  it("allows a participant-completable task that is Not Started", () => {
+    expect(
+      participantCompletionBlockReason({
+        participantCompletable: true,
+        status: OnboardingTaskStatus.NOT_STARTED,
+      }),
+    ).toBeNull();
+  });
+
+  it("blocks staff-only tasks regardless of status", () => {
+    for (const status of Object.values(OnboardingTaskStatus)) {
+      expect(
+        participantCompletionBlockReason({ participantCompletable: false, status }),
+      ).toBe("staff-only");
+    }
+  });
+
+  it("blocks an already-complete task", () => {
+    expect(
+      participantCompletionBlockReason({
+        participantCompletable: true,
+        status: OnboardingTaskStatus.COMPLETE,
+      }),
+    ).toBe("already-complete");
+  });
+});
+
+describe("staff transition rules (Story 3.3)", () => {
+  it("staff completion applies only to Not Started tasks", () => {
+    expect(staffCompletionBlockReason(OnboardingTaskStatus.NOT_STARTED)).toBeNull();
+    expect(staffCompletionBlockReason(OnboardingTaskStatus.COMPLETE)).toBeTruthy();
+  });
+
+  it("reopen applies only to Complete tasks", () => {
+    expect(reopenBlockReason(OnboardingTaskStatus.COMPLETE)).toBeNull();
+    expect(reopenBlockReason(OnboardingTaskStatus.NOT_STARTED)).toBeTruthy();
   });
 });
 

@@ -14,6 +14,8 @@ const tasks: OnboardingTaskView[] = [
     participantCompletable: false,
     status: OnboardingTaskStatus.NOT_STARTED,
     statusLabel: "Not started",
+    completedAtLabel: null,
+    completedByName: null,
   },
   {
     id: "task_2",
@@ -23,10 +25,14 @@ const tasks: OnboardingTaskView[] = [
     participantCompletable: true,
     status: OnboardingTaskStatus.COMPLETE,
     statusLabel: "Complete",
+    completedAtLabel: "July 12, 2026",
+    completedByName: "Casey Coordinator",
   },
 ];
 
-describe("TaskList (Story 3.2)", () => {
+const ops = { enrollmentId: "enr_1", canComplete: true, canReopen: true };
+
+describe("TaskList (Stories 3.2/3.3)", () => {
   it("renders every task with status as text, never color alone", () => {
     render(<TaskList tasks={tasks} />);
 
@@ -42,6 +48,36 @@ describe("TaskList (Story 3.2)", () => {
     expect(screen.getAllByText("Required")).toHaveLength(2);
     expect(screen.getByText("Recorded by Nova staff")).toBeInTheDocument();
     expect(screen.getByText("Participant can complete")).toBeInTheDocument();
+  });
+
+  it("shows no transition controls without ops permissions", () => {
+    render(<TaskList tasks={tasks} />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("names each staff control after its specific task — never a bare Complete (3.3)", () => {
+    render(<TaskList tasks={tasks} ops={ops} />);
+
+    expect(
+      screen.getByRole("button", { name: "Complete: Attend orientation session" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Reopen: Add an emergency contact" }),
+    ).toBeEnabled();
+  });
+
+  it("shows who completed a task and when in the ops view (3.3)", () => {
+    render(<TaskList tasks={tasks} ops={ops} />);
+    expect(
+      screen.getByText("Completed July 12, 2026 by Casey Coordinator"),
+    ).toBeInTheDocument();
+  });
+
+  it("respects granular permissions — view without complete or reopen", () => {
+    render(
+      <TaskList tasks={tasks} ops={{ ...ops, canComplete: false, canReopen: false }} />,
+    );
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("shows a calm empty state when no tasks exist", () => {

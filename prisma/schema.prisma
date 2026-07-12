@@ -510,6 +510,11 @@ model OnboardingTask {
   sortOrder              Int                  @default(0)
   status                 OnboardingTaskStatus @default(NOT_STARTED)
 
+  // Who completed it and when (Story 3.3). Cleared on reopen; the
+  // correction history lives in the audit trail, not these columns.
+  completedAt       DateTime?
+  completedByUserId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
