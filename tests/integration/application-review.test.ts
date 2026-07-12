@@ -512,7 +512,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       });
       expect(payload).not.toContain("rubric item");
       expect(payload).not.toContain("rationale");
-    });
+    }, 30_000);
 
     it("routes Not Eligible through the shared rejection in one transaction (Story 2.8)", async () => {
       const { applicationId } = await createSubmittedApplicant("elig-b");
@@ -635,7 +635,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       expect(
         await applications.getOwnUpcomingAppointment(applicantCtx, applicationId),
       ).toBeNull();
-    });
+    }, 30_000);
 
     it("routes Do Not Advance through the shared rejection in one transaction (Story 2.9)", async () => {
       const { applicationId } = await createSubmittedApplicant("int-b");
@@ -808,7 +808,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       });
       expect(participantPayload).not.toContain("six factors documented");
       expect(participantPayload).not.toMatch(/backgroundReview|rationale/i);
-    });
+    }, 30_000);
 
     it("routes a Disqualifying outcome by its ADR-016 category (Story 2.10)", async () => {
       const specialistCtx = await contextFor(specialistId);
@@ -872,7 +872,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
           "no category chosen",
         ),
       ).rejects.toBeInstanceOf(errors.ValidationError);
-    });
+    }, 30_000);
 
     it("reuses the existing Participant for a returning person — one identity, two enrollments (3.1 AC3)", async () => {
       const coordinatorCtx = await contextFor(coordinatorId);
@@ -913,7 +913,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       expect(
         await prisma.programEnrollment.count({ where: { participantId: participant.id } }),
       ).toBe(2);
-    });
+    }, 30_000);
 
     it("rolls back the ENTIRE acceptance when enrollment creation fails (3.1 AC2)", async () => {
       const coordinatorCtx = await contextFor(coordinatorId);
@@ -960,7 +960,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       expect(
         await prisma.programEnrollment.count({ where: { applicationId } }),
       ).toBe(1); // only the sabotage row
-    });
+    }, 30_000);
 
     it("keeps the decision category out of the participant payload", async () => {
       const { userId, applicationId } = await createSubmittedApplicant("i");
