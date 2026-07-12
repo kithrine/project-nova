@@ -76,15 +76,17 @@ describe("permissionsForRoles (deny-by-default)", () => {
       const granted = permissionsForRoles([role]);
       expect(granted.has("application.accept"), `accept for ${role}`).toBe(expected);
       expect(granted.has("application.reject"), `reject for ${role}`).toBe(expected);
-      expect(granted.has("eligibilityReview.decide"), `eligibility for ${role}`).toBe(
-        expected,
-      );
+      expect(granted.has("eligibilityReview.decide"), `eligibility for ${role}`).toBe(expected);
       expect(granted.has("interview.schedule"), `schedule for ${role}`).toBe(expected);
       expect(granted.has("interview.record"), `record for ${role}`).toBe(expected);
       expect(granted.has("onboardingTask.complete"), `task complete for ${role}`).toBe(
         expected,
       );
-      expect(granted.has("onboardingTask.reopen"), `task reopen for ${role}`).toBe(
+      expect(granted.has("onboardingTask.reopen"), `task reopen for ${role}`).toBe(expected);
+      expect(granted.has("trainingEnrollment.create"), `training create for ${role}`).toBe(
+        expected,
+      );
+      expect(granted.has("trainingEnrollment.update"), `training update for ${role}`).toBe(
         expected,
       );
     }

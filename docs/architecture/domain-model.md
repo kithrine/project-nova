@@ -57,3 +57,5 @@ Person
 - Incident
 
 Placement is a hub, not a god object.
+
+Training Program and Training Enrollment cover portable pre-matching preparation. Site-specific training and competency are Placement-owned onboarding records (`ADR-017`).

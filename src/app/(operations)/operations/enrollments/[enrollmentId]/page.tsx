@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { TaskList } from "@/features/enrollment/task-list";
+import { TrainingList } from "@/features/training/training-list";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import { NotFoundError } from "@/server/errors/app-error";
 import { getEnrollment, listOnboardingTasks } from "@/server/services/enrollment-service";
+import { listTrainingForEnrollment } from "@/server/services/training-service";
 
 export const metadata = { title: "Enrollment" };
 
@@ -42,8 +44,9 @@ export default async function EnrollmentPage({
         <p className="text-sm text-base-content/60">Enrollment</p>
         <h1 className="text-2xl font-bold tracking-tight">{enrollment.participantName}</h1>
         <p className="text-sm text-base-content/70">
-          {enrollment.programName} · <span className="font-medium">{enrollment.statusLabel}</span>{" "}
-          · Enrolled {enrollment.enrolledAtLabel} ·{" "}
+          {enrollment.programName} ·{" "}
+          <span className="font-medium">{enrollment.statusLabel}</span> · Enrolled{" "}
+          {enrollment.enrolledAtLabel} ·{" "}
           <Link
             href={`/operations/applications/${enrollment.applicationId}`}
             className="underline underline-offset-2"
@@ -56,9 +59,9 @@ export default async function EnrollmentPage({
       <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
         <h2 className="text-lg font-semibold">Onboarding tasks</h2>
         <p className="max-w-prose text-sm text-base-content/70">
-          Generated automatically from the program&apos;s required-task catalog the
-          moment the enrollment was created. Reopening a completed task is a
-          corrective action and is audited.
+          Generated automatically from the program&apos;s required-task catalog the moment the
+          enrollment was created. Reopening a completed task is a corrective action and is
+          audited.
         </p>
         {hasPermission(ctx, "onboardingTask.view") ? (
           await (async () => {
@@ -69,8 +72,7 @@ export default async function EnrollmentPage({
                 {/* Live progress (AC: both surfaces); role=status announces
                     changes to assistive technology after each action. */}
                 <p role="status" className="text-sm font-medium text-base-content/80">
-                  {complete} of {tasks.length} complete · {tasks.length - complete}{" "}
-                  remaining
+                  {complete} of {tasks.length} complete · {tasks.length - complete} remaining
                 </p>
                 <TaskList
                   tasks={tasks}
@@ -86,6 +88,29 @@ export default async function EnrollmentPage({
         ) : (
           <p className="max-w-prose text-sm text-base-content/70">
             You don&apos;t have access to the onboarding task list.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+        <h2 className="text-lg font-semibold">Training</h2>
+        <p className="max-w-prose text-sm text-base-content/70">
+          Portable preparation required before matching. Completing these programs does not
+          replace a shelter&apos;s site-specific safety orientation or supervisor competency
+          confirmation.
+        </p>
+        {hasPermission(ctx, "trainingEnrollment.create") ||
+        hasPermission(ctx, "trainingEnrollment.update") ? (
+          <TrainingList
+            enrollmentId={enrollment.id}
+            programs={await listTrainingForEnrollment(ctx, enrollment.id)}
+            canCreate={hasPermission(ctx, "trainingEnrollment.create")}
+            canUpdate={hasPermission(ctx, "trainingEnrollment.update")}
+            today={new Date().toISOString().slice(0, 10)}
+          />
+        ) : (
+          <p className="max-w-prose text-sm text-base-content/70">
+            You don&apos;t have access to training records.
           </p>
         )}
       </div>

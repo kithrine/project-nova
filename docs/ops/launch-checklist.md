@@ -8,6 +8,7 @@
 - Screening policy approved (working policy `ADR-015`; Washington employment-counsel review required before review workflows run against real applicants)
 - Background-check and adverse-action process reviewed by Washington employment counsel (`ADR-015`; includes the "unsupervised access to vulnerable persons" exemption question)
 - Permanent-disqualification criteria and applicant-facing wording reviewed by counsel (`ADR-016`)
+- Employer-of-record/host training responsibilities reviewed against WAC 296-801 and related WISHA rules; shelter agreement and record-confirmation process approved (`ADR-017`)
 - Incident procedures approved
 - Grant requirements mapped
 - Payroll process confirmed

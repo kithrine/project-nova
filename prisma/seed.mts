@@ -23,22 +23,121 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" 
 const prisma = new PrismaClient({ adapter });
 
 const SEED_USERS: { id: string; role: Role; displayName: string; email: string }[] = [
-  { id: "seed_user_participant", role: Role.PARTICIPANT, displayName: "Synthetic Participant", email: "participant@synthetic.example" },
-  { id: "seed_user_supervisor", role: Role.SHELTER_SUPERVISOR, displayName: "Synthetic Shelter Supervisor", email: "supervisor@synthetic.example" },
-  { id: "seed_user_manager", role: Role.SHELTER_MANAGER, displayName: "Synthetic Shelter Manager", email: "manager@synthetic.example" },
-  { id: "seed_user_coordinator", role: Role.PROGRAM_COORDINATOR, displayName: "Synthetic Program Coordinator", email: "coordinator@synthetic.example" },
-  { id: "seed_user_grant_admin", role: Role.GRANT_ADMINISTRATOR, displayName: "Synthetic Grant Administrator", email: "grant-admin@synthetic.example" },
-  { id: "seed_user_nova_admin", role: Role.NOVA_ADMINISTRATOR, displayName: "Synthetic Nova Administrator", email: "nova-admin@synthetic.example" },
-  { id: "seed_user_restricted", role: Role.RESTRICTED_REVIEW_SPECIALIST, displayName: "Synthetic Restricted Review Specialist", email: "restricted-review@synthetic.example" },
+  {
+    id: "seed_user_participant",
+    role: Role.PARTICIPANT,
+    displayName: "Synthetic Participant",
+    email: "participant@synthetic.example",
+  },
+  {
+    id: "seed_user_supervisor",
+    role: Role.SHELTER_SUPERVISOR,
+    displayName: "Synthetic Shelter Supervisor",
+    email: "supervisor@synthetic.example",
+  },
+  {
+    id: "seed_user_manager",
+    role: Role.SHELTER_MANAGER,
+    displayName: "Synthetic Shelter Manager",
+    email: "manager@synthetic.example",
+  },
+  {
+    id: "seed_user_coordinator",
+    role: Role.PROGRAM_COORDINATOR,
+    displayName: "Synthetic Program Coordinator",
+    email: "coordinator@synthetic.example",
+  },
+  {
+    id: "seed_user_grant_admin",
+    role: Role.GRANT_ADMINISTRATOR,
+    displayName: "Synthetic Grant Administrator",
+    email: "grant-admin@synthetic.example",
+  },
+  {
+    id: "seed_user_nova_admin",
+    role: Role.NOVA_ADMINISTRATOR,
+    displayName: "Synthetic Nova Administrator",
+    email: "nova-admin@synthetic.example",
+  },
+  {
+    id: "seed_user_restricted",
+    role: Role.RESTRICTED_REVIEW_SPECIALIST,
+    displayName: "Synthetic Restricted Review Specialist",
+    email: "restricted-review@synthetic.example",
+  },
 ];
 
-
 const NOVA_TE_TASKS = [
-  { id: "nova_te_task_01", title: "Attend orientation session", description: "Join the Project Nova orientation and meet your coordinator.", required: true, participantCompletable: false, sortOrder: 1 },
-  { id: "nova_te_task_02", title: "Complete employment paperwork", description: "I-9 and W-4 forms, completed and verified with your coordinator.", required: true, participantCompletable: false, sortOrder: 2 },
-  { id: "nova_te_task_03", title: "Set up direct deposit or pay card", description: "Choose how you'd like to be paid.", required: true, participantCompletable: true, sortOrder: 3 },
-  { id: "nova_te_task_04", title: "Add an emergency contact", description: "Someone we can reach if anything comes up at a work site.", required: true, participantCompletable: true, sortOrder: 4 },
-  { id: "nova_te_task_05", title: "Review the program handbook", description: "The plain-language guide to how the program works.", required: true, participantCompletable: true, sortOrder: 5 },
+  {
+    id: "nova_te_task_01",
+    title: "Attend orientation session",
+    description: "Join the Project Nova orientation and meet your coordinator.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 1,
+  },
+  {
+    id: "nova_te_task_02",
+    title: "Complete employment paperwork",
+    description: "I-9 and W-4 forms, completed and verified with your coordinator.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 2,
+  },
+  {
+    id: "nova_te_task_03",
+    title: "Set up direct deposit or pay card",
+    description: "Choose how you'd like to be paid.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 3,
+  },
+  {
+    id: "nova_te_task_04",
+    title: "Add an emergency contact",
+    description: "Someone we can reach if anything comes up at a work site.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 4,
+  },
+  {
+    id: "nova_te_task_05",
+    title: "Review the program handbook",
+    description: "The plain-language guide to how the program works.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 5,
+  },
+];
+
+const NOVA_TE_TRAINING_PROGRAMS = [
+  {
+    id: "nova_te_training_workplace_readiness",
+    code: "WORKPLACE-READINESS",
+    name: "Workplace Readiness and Communication",
+    description:
+      "Workplace expectations, communication, feedback, escalation, digital navigation, and requesting support.",
+    requiredForMatching: true,
+    sortOrder: 1,
+  },
+  {
+    id: "nova_te_training_animal_handling",
+    code: "ANIMAL-HANDLING-FOUNDATIONS",
+    name: "Animal Behavior, Humane Handling, and Bite Prevention Foundations",
+    description:
+      "Animal body language, fear and stress signals, objective observation, low-stress handling concepts, bite prevention, and stop-and-get-help boundaries.",
+    requiredForMatching: true,
+    sortOrder: 2,
+  },
+  {
+    id: "nova_te_training_sanitation",
+    code: "SHELTER-SANITATION-FOUNDATIONS",
+    name: "Shelter Sanitation, Zoonoses, and PPE Foundations",
+    description:
+      "Hygiene, cleaning and disinfection, zoonotic-risk awareness, PPE concepts, chemical-label awareness, and exposure and injury reporting.",
+    requiredForMatching: true,
+    sortOrder: 3,
+  },
 ];
 
 async function main() {
@@ -131,8 +230,17 @@ async function main() {
     });
   }
 
+  // Portable pre-matching training catalog (Story 3.4; ADR-017).
+  for (const trainingProgram of NOVA_TE_TRAINING_PROGRAMS) {
+    await prisma.trainingProgram.upsert({
+      where: { id: trainingProgram.id },
+      update: { ...trainingProgram, programId: "program_nova_te" },
+      create: { ...trainingProgram, programId: "program_nova_te" },
+    });
+  }
+
   console.log(
-    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic), 1 program + ${NOVA_TE_TASKS.length} onboarding task templates (reference data).`,
+    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic), 1 program + ${NOVA_TE_TASKS.length} onboarding task templates + ${NOVA_TE_TRAINING_PROGRAMS.length} training programs (reference data).`,
   );
 }
 

@@ -53,6 +53,10 @@ export const PERMISSIONS = [
   // ownership (like the applicant tier), never via these grants.
   "onboardingTask.complete",
   "onboardingTask.reopen",
+  // Portable training attempts (Story 3.4; ADR-017): coordinator-only
+  // writes in Nova scope. Participants see only the rolled-up journey step.
+  "trainingEnrollment.create",
+  "trainingEnrollment.update",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -78,6 +82,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "onboardingTask.view",
     "onboardingTask.complete",
     "onboardingTask.reopen",
+    "trainingEnrollment.create",
+    "trainingEnrollment.update",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -94,6 +100,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "onboardingTask.view",
     "onboardingTask.complete",
     "onboardingTask.reopen",
+    "trainingEnrollment.create",
+    "trainingEnrollment.update",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
