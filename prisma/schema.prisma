@@ -112,6 +112,7 @@ model Person {
   dateOfBirth    DateTime @db.Date
 
   applicantProfile ApplicantProfile?
+  applications     Application[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,6 +135,54 @@ model ApplicantProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// --- Applications (Story 2.3) -----------------------------------------------
+
+// One attempt by a person to enter Project Nova (TERMINOLOGY.md). Transitions
+// are action-based only: DRAFT -> SUBMITTED via 2.5's explicit Submit; review
+// phases via 2.8/2.9/2.10; terminal decisions via 2.11. Terminal applications
+// are never reopened; reapplication creates a NEW record (business-rules.md).
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  ELIGIBILITY_REVIEW
+  INTERVIEW
+  BACKGROUND_REVIEW
+  ACCEPTED
+  REJECTED
+  DISQUALIFIED
+}
+
+model Application {
+  id String @id @default(cuid())
+  // Human-facing reference (docs/architecture/database-design.md).
+  applicationNumber String @unique
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  status ApplicationStatus @default(DRAFT)
+
+  // Form responses — lenient while DRAFT (partial saves welcome); completeness
+  // is enforced only at submission (2.5). Plain-language prompts, no
+  // eligibility screening content (that's review policy, 2.8).
+  motivation          String?
+  workExperience      String?
+  animalExperience    String?
+  availabilityNotes   String?
+  transportationNotes String?
+
+  submittedAt    DateTime?
+  decidedAt      DateTime?
+  decisionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([personId])
+  // One non-terminal application per person is enforced by a partial unique
+  // index added in the migration SQL (Prisma cannot express WHERE clauses):
+  //   UNIQUE (personId) WHERE status NOT IN ('ACCEPTED','REJECTED','DISQUALIFIED')
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------

@@ -24,8 +24,14 @@ export default async function ParticipantDashboardPage() {
       <h1 className="text-2xl font-bold tracking-tight">Welcome to Project Nova</h1>
       {person ? (
         <p className="max-w-prose text-base leading-relaxed text-base-content/80">
-          Thanks, {person.legalFirstName} — your account is set up. Your application opens
-          here as the next step in your journey.
+          Thanks, {person.legalFirstName} — your account is set up. Head to{" "}
+          <a
+            href="/participant/application"
+            className="font-medium underline underline-offset-2"
+          >
+            My Application
+          </a>{" "}
+          to start or continue your application.
         </p>
       ) : (
         <p className="max-w-prose text-base leading-relaxed text-base-content/80">

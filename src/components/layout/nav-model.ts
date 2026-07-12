@@ -17,7 +17,7 @@ export interface NavItem {
 
 export const PARTICIPANT_NAV: readonly NavItem[] = [
   { label: "Dashboard", href: "/participant", icon: "home", available: true },
-  { label: "My Application", href: "/participant/application", icon: "file", available: false },
+  { label: "My Application", href: "/participant/application", icon: "file", available: true },
   { label: "My Placement", href: "/participant/placement", icon: "briefcase", available: false },
   { label: "My Hours", href: "/participant/hours", icon: "clock", available: false },
   { label: "Certifications", href: "/participant/certifications", icon: "award", available: false },

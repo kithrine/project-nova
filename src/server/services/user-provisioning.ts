@@ -70,12 +70,24 @@ export async function provisionClerkUser(
     return { userId: byEmail.id, created: false };
   }
 
-  const created = await prisma.user.create({
-    data: {
-      clerkUserId: data.clerkUserId,
-      email: data.email,
-      displayName: data.displayName,
-    },
-  });
-  return { userId: created.id, created: true };
+  try {
+    const created = await prisma.user.create({
+      data: {
+        clerkUserId: data.clerkUserId,
+        email: data.email,
+        displayName: data.displayName,
+      },
+    });
+    return { userId: created.id, created: true };
+  } catch (error) {
+    // Two concurrent first requests (e.g. layout + page render) can race the
+    // create; the loser reuses the winner's row — provisioning stays idempotent.
+    if ((error as { code?: string }).code === "P2002") {
+      const winner = await prisma.user.findUnique({
+        where: { clerkUserId: data.clerkUserId },
+      });
+      if (winner) return { userId: winner.id, created: false };
+    }
+    throw error;
+  }
 }
