@@ -3,6 +3,7 @@ import type { DocumentType } from "@/generated/prisma/client";
 import { REQUIRED_DOCUMENT_TYPES } from "@/lib/documents";
 import {
   APPLICATION_STATUS_LABELS,
+  REAPPLY_WAITING_DAYS,
   type ApplicationView,
 } from "@/server/services/application-service";
 
@@ -83,10 +84,26 @@ function buildSteps(status: ApplicationStatus): JourneyStep[] {
   }));
 }
 
+/** "You may apply again on or after {date}" (ADR-016's 30-day window). */
+function reapplyOnLabel(application: ApplicationView): string | null {
+  if (!application.decidedAt) return null;
+  const reapplyOn = new Date(
+    new Date(application.decidedAt).getTime() +
+      REAPPLY_WAITING_DAYS * 24 * 60 * 60 * 1000,
+  );
+  return reapplyOn.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function buildNextStep(
-  status: ApplicationStatus,
+  application: ApplicationView,
   missingRequiredDocument: boolean,
 ): JourneyNextStep {
+  const status = application.status;
   switch (status) {
     case ApplicationStatus.DRAFT:
       return {
@@ -128,15 +145,18 @@ function buildNextStep(
         actionHref: null,
         tone: "positive",
       };
-    case ApplicationStatus.REJECTED:
+    case ApplicationStatus.REJECTED: {
+      const reapplyOn = reapplyOnLabel(application);
       return {
         headline: "This application is closed",
-        description:
-          "Thank you for applying. You may apply again whenever you're ready — a new application is reviewed with fresh eyes.",
+        description: reapplyOn
+          ? `Thank you for applying. You may apply again on or after ${reapplyOn} — a new application is reviewed with fresh eyes.`
+          : "Thank you for applying. You may apply again whenever you're ready — a new application is reviewed with fresh eyes.",
         actionLabel: null,
         actionHref: null,
         tone: "closed",
       };
+    }
     case ApplicationStatus.DISQUALIFIED:
       return {
         headline: "This application is closed",
@@ -169,7 +189,7 @@ export function toJourneyView(
     stageLabel: APPLICATION_STATUS_LABELS[application.status],
     submittedAtLabel: application.submittedAtLabel,
     steps: buildSteps(application.status),
-    nextStep: buildNextStep(application.status, missingRequiredDocument),
+    nextStep: buildNextStep(application, missingRequiredDocument),
     isTerminal,
     canReapply: isTerminal ? application.status === ApplicationStatus.REJECTED : null,
   };

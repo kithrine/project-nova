@@ -4,7 +4,11 @@ import { ApplicationStatus } from "@/generated/prisma/client";
 import {
   compareQueueEntries,
   contextualActionsFor,
+  DISQUALIFICATION_CATEGORIES,
+  isDecisionCategory,
+  isDisqualifyingCategory,
   OPERATIONS_STATUS_LABELS,
+  ORDINARY_REJECTION_CATEGORIES,
   QUEUE_VISIBLE_STATUSES,
   resolveQueueFilter,
   resolveWorkspaceTab,
@@ -82,20 +86,51 @@ describe("resolveWorkspaceTab", () => {
   });
 });
 
-describe("contextualActionsFor (entry points only — 2.8–2.11 mechanics)", () => {
+describe("contextualActionsFor (entry points for unbuilt workflows, 2.8–2.10)", () => {
   it("offers phase-appropriate entry points for every in-flight phase", () => {
     expect(contextualActionsFor(S.SUBMITTED).map((a) => a.label)).toEqual([
       "Begin Eligibility Review",
     ]);
     expect(contextualActionsFor(S.INTERVIEW).length).toBeGreaterThan(0);
-    expect(contextualActionsFor(S.BACKGROUND_REVIEW).map((a) => a.label)).toContain(
-      "Reject Application",
-    );
+    // Decision actions (2.11) are live in the Decision Panel, not stubs here.
+    expect(contextualActionsFor(S.BACKGROUND_REVIEW).map((a) => a.label)).toEqual([
+      "Record Background Decision",
+    ]);
   });
 
   it("offers nothing for decided applications or drafts", () => {
     for (const status of [S.ACCEPTED, S.REJECTED, S.DISQUALIFIED, S.DRAFT]) {
       expect(contextualActionsFor(status)).toEqual([]);
     }
+  });
+});
+
+describe("decision categories (Story 2.11, ADR-016)", () => {
+  it("limits permanent disqualification to EXACTLY the three ADR-016 categories", () => {
+    expect(Object.keys(DISQUALIFICATION_CATEGORIES).sort()).toEqual([
+      "PERMANENT_POSSESSION_BAN",
+      "PROGRAM_FRAUD",
+      "PROGRAM_VIOLENCE",
+    ]);
+    for (const category of Object.keys(
+      DISQUALIFICATION_CATEGORIES,
+    ) as (keyof typeof DISQUALIFICATION_CATEGORIES)[]) {
+      expect(isDisqualifyingCategory(category)).toBe(true);
+    }
+  });
+
+  it("keeps every ordinary category non-disqualifying", () => {
+    for (const category of Object.keys(
+      ORDINARY_REJECTION_CATEGORIES,
+    ) as (keyof typeof ORDINARY_REJECTION_CATEGORIES)[]) {
+      expect(isDisqualifyingCategory(category)).toBe(false);
+    }
+  });
+
+  it("rejects anything outside the approved list", () => {
+    expect(isDecisionCategory("FELONY")).toBe(false);
+    expect(isDecisionCategory("")).toBe(false);
+    expect(isDecisionCategory("PROGRAM_FRAUD")).toBe(true);
+    expect(isDecisionCategory("INTERVIEW")).toBe(true);
   });
 });

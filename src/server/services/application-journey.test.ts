@@ -20,6 +20,7 @@ function view(status: ApplicationStatus, overrides: Partial<ApplicationView> = {
     progressPercent: 100,
     updatedAtToken: "2026-07-02T03:04:05.678Z",
     submittedAtLabel: status === S.DRAFT ? null : "July 12, 2026",
+    decidedAt: null,
     ...overrides,
   };
 }
@@ -99,6 +100,13 @@ describe("toJourneyView (Story 2.6 participant-safe mapping)", () => {
     expect(journey.canReapply).toBe(true);
     expect(journey.nextStep.description).toMatch(/you may apply again/i);
     expect(JSON.stringify(journey)).not.toMatch(/reject/i);
+  });
+
+  it("states the exact reapply date once a decision timestamp exists (ADR-016, 30 days)", () => {
+    const journey = toJourneyView(
+      view(S.REJECTED, { decidedAt: "2026-07-12T00:00:00.000Z" }),
+    );
+    expect(journey.nextStep.description).toContain("on or after August 11, 2026");
   });
 
   it("closes DISQUALIFIED respectfully with no reapplication and a human contact path", () => {

@@ -260,6 +260,59 @@ try {
     },
   });
 
+  // Decision fixture (Story 2.11): a SUBMITTED application the operations
+  // E2E rejects through the Decision Panel each run. Fully reset here:
+  // status back to SUBMITTED, decision fields cleared, person unmarked, and
+  // prior runs' decision events/audits removed.
+  const decisionUser = await prisma.user.upsert({
+    where: { id: "e2e_user_decision" },
+    update: {},
+    create: {
+      id: "e2e_user_decision",
+      email: "e2e-decision-applicant@synthetic.example",
+      displayName: "Synthetic E2E Decision Applicant",
+      isSynthetic: true,
+    },
+  });
+  const decisionPerson = await prisma.person.upsert({
+    where: { userId: decisionUser.id },
+    update: { disqualifiedAt: null },
+    create: {
+      id: "e2e_person_decision",
+      userId: decisionUser.id,
+      legalFirstName: "Devon",
+      legalLastName: "Synthetic-Decision",
+      dateOfBirth: new Date("1991-05-05T00:00:00Z"),
+    },
+  });
+  await prisma.applicationEvent.deleteMany({
+    where: { applicationId: "e2e_app_decision" },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: { subjectType: "Application", subjectId: "e2e_app_decision" },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_decision" },
+    update: {
+      status: ApplicationStatus.SUBMITTED,
+      submittedAt: new Date(),
+      decidedAt: null,
+      decisionReason: null,
+    },
+    create: {
+      id: "e2e_app_decision",
+      personId: decisionPerson.id,
+      applicationNumber: "APP-E2E-DECIDE",
+      status: ApplicationStatus.SUBMITTED,
+      submittedAt: new Date(),
+      motivation: "Synthetic decision fixture.",
+      workExperience: "Synthetic.",
+      animalExperience: "Synthetic.",
+      availabilityNotes: "Synthetic.",
+      transportationNotes: "Synthetic.",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds
@@ -270,7 +323,7 @@ try {
 
   console.log(
     `E2E fixtures ready (${FIXTURE_USERS.length + 2} Clerk users, 2 organizations, ` +
-      `1 queue application; applicants reset; ${cleaned.count} prior funding fixtures cleaned).`,
+      `2 operations applications; applicants reset; ${cleaned.count} prior funding fixtures cleaned).`,
   );
 } finally {
   await prisma.$disconnect();

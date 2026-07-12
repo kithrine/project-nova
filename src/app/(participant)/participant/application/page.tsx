@@ -188,6 +188,16 @@ export default async function MyApplicationPage({
         </>
       ) : null}
 
+      {gateway.kind === "waiting-period" ? (
+        <div className="max-w-prose rounded-md border border-base-300 bg-base-200/60 p-6">
+          <p className="text-base leading-relaxed text-base-content/85">
+            Your previous application was decided on {gateway.decidedOnLabel}. You may
+            start a new application on or after {gateway.reapplyOnLabel} — we&apos;d be
+            glad to see it.
+          </p>
+        </div>
+      ) : null}
+
       {gateway.kind === "can-apply" &&
       journeyApp?.status !== ApplicationStatus.ACCEPTED ? (
         <div className="flex max-w-prose flex-col items-start gap-4 border-t border-base-300 pt-6">

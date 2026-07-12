@@ -1,8 +1,19 @@
 import { ApplicationStatus } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
-import { hasPermission, requireNovaScope, requirePermission } from "@/server/auth/authorize";
+import {
+  hasPermission,
+  requireLifecycleState,
+  requireNovaScope,
+  requirePermission,
+  requirePrerequisites,
+} from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
-import { NotFoundError, ValidationError } from "@/server/errors/app-error";
+import {
+  ConflictError,
+  LifecycleError,
+  NotFoundError,
+  ValidationError,
+} from "@/server/errors/app-error";
 import { recordAuditEvent } from "@/server/services/audit-service";
 import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 
@@ -159,10 +170,10 @@ export interface ContextualAction {
 }
 
 /**
- * Phase-appropriate entry points (AC2). Mechanics arrive with 2.8–2.11 —
- * several of those are Blocked pending policy validation
- * (docs/planning/open-questions.md), so these render as Disabled states,
- * never live controls.
+ * Phase-appropriate entry points for review workflows that are not yet
+ * built (2.8–2.10) — rendered as Disabled states naming the story that
+ * enables them. The decision actions (accept/reject, 2.11) are LIVE and
+ * render through the Decision Panel, not here.
  */
 export function contextualActionsFor(status: ApplicationStatus): ContextualAction[] {
   switch (status) {
@@ -176,11 +187,7 @@ export function contextualActionsFor(status: ApplicationStatus): ContextualActio
         { label: "Record Interview Outcome", arrivesWith: "Story 2.9" },
       ];
     case ApplicationStatus.BACKGROUND_REVIEW:
-      return [
-        { label: "Record Background Decision", arrivesWith: "Story 2.10" },
-        { label: "Accept Application", arrivesWith: "Story 2.11" },
-        { label: "Reject Application", arrivesWith: "Story 2.11" },
-      ];
+      return [{ label: "Record Background Decision", arrivesWith: "Story 2.10" }];
     default:
       return [];
   }
@@ -339,6 +346,169 @@ export async function addCaseNote(
       year: "numeric",
     }),
   };
+}
+
+// --- Terminal decisions (Story 2.11; ADR-016) ---------------------------------
+
+export {
+  DISQUALIFICATION_CATEGORIES,
+  ORDINARY_REJECTION_CATEGORIES,
+  isDecisionCategory,
+  isDisqualifyingCategory,
+} from "@/features/review/decision-categories";
+import {
+  isDecisionCategory,
+  isDisqualifyingCategory,
+  type DecisionCategory,
+} from "@/features/review/decision-categories";
+export type { DecisionCategory } from "@/features/review/decision-categories";
+
+/** Statuses a decision may act on: non-terminal and never DRAFT (invisible to Operations). */
+const DECIDABLE_STATUSES: readonly ApplicationStatus[] = [
+  ApplicationStatus.SUBMITTED,
+  ApplicationStatus.ELIGIBILITY_REVIEW,
+  ApplicationStatus.INTERVIEW,
+  ApplicationStatus.BACKGROUND_REVIEW,
+];
+
+const TERMINAL_MESSAGE =
+  "This application has already been decided — terminal applications are never reopened.";
+
+/**
+ * The shared rejection action (AC2/AC3): invoked directly or by 2.8/2.9/2.10
+ * on a negative outcome. The category alone determines the terminal status —
+ * only ADR-016's three categories set DISQUALIFIED and stamp the Person-level
+ * marker. Status change, lifecycle event, Person marker, and audit event all
+ * commit in ONE transaction; the compare-and-set on the loaded status makes a
+ * replayed or racing decision a lifecycle error, never a double transition.
+ */
+export async function rejectApplication(
+  ctx: AuthContext,
+  applicationId: string,
+  category: DecisionCategory,
+): Promise<void> {
+  requirePermission(ctx, "application.reject");
+  requireNovaScope(ctx);
+  if (!isDecisionCategory(category)) {
+    throw new ValidationError("Choose a decision reason from the approved list.");
+  }
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (!DECIDABLE_STATUSES.includes(application.status)) {
+    throw new LifecycleError(TERMINAL_MESSAGE);
+  }
+
+  const disqualifying = isDisqualifyingCategory(category);
+  const targetStatus = disqualifying
+    ? ApplicationStatus.DISQUALIFIED
+    : ApplicationStatus.REJECTED;
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.application.updateMany({
+      where: { id: applicationId, status: application.status },
+      data: {
+        status: targetStatus,
+        decidedAt: new Date(),
+        decisionReason: category,
+      },
+    });
+    if (result.count === 0) {
+      // Another decision or transition won the race.
+      throw new ConflictError(
+        "This application changed while you were deciding. Review the latest state, then decide again if still needed.",
+      );
+    }
+    await tx.applicationEvent.create({
+      data: {
+        applicationId,
+        fromStatus: application.status,
+        toStatus: targetStatus,
+        actorUserId: ctx.userId,
+      },
+    });
+    if (disqualifying) {
+      await tx.person.update({
+        where: { id: application.personId },
+        data: { disqualifiedAt: new Date() },
+      });
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "application.reject",
+        subjectType: "Application",
+        subjectId: applicationId,
+        detail: category,
+      },
+    });
+  });
+}
+
+/**
+ * Accept's business prerequisites (AC1). A recorded Clear background outcome
+ * is required beyond lifecycle state. The BackgroundReview model arrives with
+ * Story 2.10 — until it exists, no Clear outcome can be recorded, so this
+ * correctly reports the missing prerequisite. 2.10 replaces the body with the
+ * real BackgroundReview query; the accept flow below needs no other change.
+ */
+export async function acceptPrerequisiteFailures(
+  _applicationId: string,
+): Promise<string[]> {
+  void _applicationId; // 2.10 queries BackgroundReview by this id
+  return [
+    "a recorded Clear background outcome is required before acceptance (arrives with Story 2.10)",
+  ];
+}
+
+/**
+ * Accept (AC1): only from BACKGROUND_REVIEW with a Clear background outcome.
+ * The transaction below is the Story 3.1 handoff boundary — participant and
+ * enrollment creation plug into THIS transaction so acceptance and enrollment
+ * succeed together or not at all (business-rules.md).
+ */
+export async function acceptApplication(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<void> {
+  requirePermission(ctx, "application.accept");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (!DECIDABLE_STATUSES.includes(application.status)) {
+    throw new LifecycleError(TERMINAL_MESSAGE);
+  }
+  requireLifecycleState(application.status, [ApplicationStatus.BACKGROUND_REVIEW]);
+  requirePrerequisites(await acceptPrerequisiteFailures(applicationId));
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.application.updateMany({
+      where: { id: applicationId, status: ApplicationStatus.BACKGROUND_REVIEW },
+      data: { status: ApplicationStatus.ACCEPTED, decidedAt: new Date() },
+    });
+    if (result.count === 0) {
+      throw new ConflictError(
+        "This application changed while you were deciding. Review the latest state before accepting.",
+      );
+    }
+    await tx.applicationEvent.create({
+      data: {
+        applicationId,
+        fromStatus: ApplicationStatus.BACKGROUND_REVIEW,
+        toStatus: ApplicationStatus.ACCEPTED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "application.accept",
+        subjectType: "Application",
+        subjectId: applicationId,
+      },
+    });
+    // Story 3.1 handoff: Participant + ProgramEnrollment creation joins this
+    // transaction here (accepted application creates both transactionally).
+  });
 }
 
 // --- Restricted background access (AC3/AC4) -----------------------------------

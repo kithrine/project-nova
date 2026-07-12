@@ -31,6 +31,11 @@ export const PERMISSIONS = [
   "backgroundReview.view",
   // Internal case notes on an application (Story 2.7): Nova Operations only.
   "caseNote.create",
+  // Terminal decisions (Story 2.11): accept additionally requires the
+  // business prerequisite of a recorded Clear background outcome (2.10);
+  // reject/disqualify follow ADR-016. Never shelters, never applicants.
+  "application.accept",
+  "application.reject",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -48,6 +53,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "document.view",
     "application.view",
     "caseNote.create",
+    "application.accept",
+    "application.reject",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -56,6 +63,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "document.view",
     "application.view",
     "caseNote.create",
+    "application.accept",
+    "application.reject",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

@@ -3,13 +3,19 @@ import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { Restricted } from "@/components/feedback/restricted";
-import { addCaseNoteAction } from "@/features/review/actions";
+import {
+  acceptApplicationAction,
+  addCaseNoteAction,
+  rejectApplicationAction,
+} from "@/features/review/actions";
 import { CaseNotes } from "@/features/review/case-notes";
+import { DecisionPanel } from "@/features/review/decision-panel";
 import { WorkspaceTabs } from "@/features/review/workspace-tabs";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import { NotFoundError } from "@/server/errors/app-error";
 import {
+  acceptPrerequisiteFailures,
   getApplicationHistory,
   getApplicationWorkspace,
   listCaseNotes,
@@ -138,6 +144,23 @@ export default async function ApplicationWorkspacePage({
       <div id="workspace-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
         {tab === "overview" ? (
           <div className="flex flex-col gap-8">
+            {!decided ? (
+              <DecisionPanel
+                canAccept={
+                  hasPermission(ctx, "application.accept") &&
+                  workspace.status === ApplicationStatus.BACKGROUND_REVIEW
+                }
+                canReject={hasPermission(ctx, "application.reject")}
+                acceptDisabledReason={
+                  workspace.status === ApplicationStatus.BACKGROUND_REVIEW
+                    ? ((await acceptPrerequisiteFailures(workspace.id))[0] ?? null)
+                    : null
+                }
+                acceptAction={acceptApplicationAction.bind(null, workspace.id)}
+                rejectAction={rejectApplicationAction.bind(null, workspace.id)}
+              />
+            ) : null}
+
             <section aria-labelledby="actions-heading" className="flex flex-col gap-3">
               <h2 id="actions-heading" className="text-base font-semibold">
                 Actions for this phase

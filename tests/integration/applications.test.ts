@@ -147,7 +147,7 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
     ).rejects.toMatchObject({ code: "P2002" });
   });
 
-  it("allows reapplication after REJECTED — new record, old preserved unchanged", async () => {
+  it("allows reapplication after REJECTED once the 30-day window elapses (ADR-016)", async () => {
     const ctx = await contextFor(userBId);
     const first = await service.startOrResumeApplication(ctx);
     await prisma.application.update({
@@ -155,6 +155,17 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
       data: { status: enums.ApplicationStatus.REJECTED, decidedAt: new Date() },
     });
 
+    // Inside the window: blocked with the reapply date, not an error page.
+    await expect(service.startOrResumeApplication(ctx)).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringMatching(/on or after/),
+    });
+
+    // Window elapsed: a NEW record starts; the old one is preserved unchanged.
+    await prisma.application.update({
+      where: { id: first.id },
+      data: { decidedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) },
+    });
     const second = await service.startOrResumeApplication(ctx);
     expect(second.id).not.toBe(first.id);
     expect(second.status).toBe(enums.ApplicationStatus.DRAFT);

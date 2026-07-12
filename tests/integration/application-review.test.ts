@@ -272,6 +272,174 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       review.addCaseNote(shelterCtx, submittedAppId, "should never save"),
     ).rejects.toBeInstanceOf(errors.AuthorizationError);
   });
+
+  describe("terminal decisions (Story 2.11, ADR-016)", () => {
+    async function createSubmittedApplicant(tag: string) {
+      const user = await prisma.user.create({
+        data: {
+          email: `${runId}-${tag}@synthetic.example`,
+          displayName: testScopedName(runId, tag),
+          isSynthetic: true,
+          person: {
+            create: {
+              legalFirstName: "Decision",
+              legalLastName: testScopedName(runId, tag),
+              dateOfBirth: new Date("1994-07-07T00:00:00Z"),
+            },
+          },
+        },
+      });
+      const person = await prisma.person.findUniqueOrThrow({
+        where: { userId: user.id },
+      });
+      const application = await prisma.application.create({
+        data: {
+          personId: person.id,
+          applicationNumber: applications.generateApplicationNumber(),
+          status: enums.ApplicationStatus.SUBMITTED,
+          submittedAt: new Date(),
+        },
+      });
+      return { userId: user.id, personId: person.id, applicationId: application.id };
+    }
+
+    it("rejects ordinarily in one transaction: status, event, audit category — no Person marker", async () => {
+      const { userId, personId, applicationId } = await createSubmittedApplicant("d");
+      const ctx = await contextFor(coordinatorId);
+
+      await review.rejectApplication(ctx, applicationId, "INTERVIEW");
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.REJECTED);
+      expect(row.decidedAt).toBeInstanceOf(Date);
+      expect(row.decisionReason).toBe("INTERVIEW");
+
+      const events = await prisma.applicationEvent.findMany({ where: { applicationId } });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        fromStatus: enums.ApplicationStatus.SUBMITTED,
+        toStatus: enums.ApplicationStatus.REJECTED,
+        actorUserId: coordinatorId,
+      });
+
+      const audit = await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "application.reject", subjectId: applicationId },
+      });
+      expect(audit.detail).toBe("INTERVIEW");
+
+      const person = await prisma.person.findUniqueOrThrow({ where: { id: personId } });
+      expect(person.disqualifiedAt).toBeNull();
+
+      // The 30-day window: blocked with the reapply date, never an error page.
+      const applicantCtx = await contextFor(userId);
+      await expect(applications.startOrResumeApplication(applicantCtx)).rejects.toMatchObject({
+        code: "LIFECYCLE",
+        message: expect.stringMatching(/on or after/),
+      });
+
+      // After the window elapses, a fresh application starts normally.
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { decidedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) },
+      });
+      const fresh = await applications.startOrResumeApplication(applicantCtx);
+      expect(fresh.status).toBe(enums.ApplicationStatus.DRAFT);
+      expect(fresh.id).not.toBe(applicationId);
+    });
+
+    it("disqualifies ONLY via an ADR-016 category: Person marker set, future applications blocked", async () => {
+      const { userId, personId, applicationId } = await createSubmittedApplicant("e");
+      const ctx = await contextFor(coordinatorId);
+
+      await review.rejectApplication(ctx, applicationId, "PROGRAM_FRAUD");
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.DISQUALIFIED);
+
+      const person = await prisma.person.findUniqueOrThrow({ where: { id: personId } });
+      expect(person.disqualifiedAt).toBeInstanceOf(Date);
+
+      const audit = await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "application.reject", subjectId: applicationId },
+      });
+      expect(audit.detail).toBe("PROGRAM_FRAUD");
+
+      // Creation-time block with respectful messaging (2.3 AC4).
+      const applicantCtx = await contextFor(userId);
+      await expect(applications.startOrResumeApplication(applicantCtx)).rejects.toMatchObject({
+        code: "LIFECYCLE",
+        message: expect.not.stringMatching(/disqualif|reject|denied/i),
+      });
+    });
+
+    it("never reopens a terminal application (AC5)", async () => {
+      const { applicationId } = await createSubmittedApplicant("f");
+      const ctx = await contextFor(coordinatorId);
+
+      await review.rejectApplication(ctx, applicationId, "OTHER");
+      await expect(
+        review.rejectApplication(ctx, applicationId, "OTHER"),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      expect(
+        await prisma.applicationEvent.count({ where: { applicationId } }),
+      ).toBe(1); // exactly one decision ever recorded
+    });
+
+    it("guards accept: wrong lifecycle is a lifecycle error; BACKGROUND_REVIEW awaits 2.10's Clear outcome", async () => {
+      const { applicationId } = await createSubmittedApplicant("g");
+      const ctx = await contextFor(coordinatorId);
+
+      // SUBMITTED: lifecycle guard fires before anything else.
+      await expect(review.acceptApplication(ctx, applicationId)).rejects.toBeInstanceOf(
+        errors.LifecycleError,
+      );
+
+      // BACKGROUND_REVIEW: the business prerequisite (Clear outcome, 2.10)
+      // correctly reports as unmet — no BackgroundReview model exists yet.
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      await expect(review.acceptApplication(ctx, applicationId)).rejects.toMatchObject({
+        code: "LIFECYCLE",
+        message: expect.stringMatching(/background outcome/i),
+      });
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.BACKGROUND_REVIEW); // untouched
+      expect(await prisma.applicationEvent.count({ where: { applicationId } })).toBe(0);
+    });
+
+    it("denies decisions to users without the permissions (never shelters)", async () => {
+      const { applicationId } = await createSubmittedApplicant("h");
+      const shelterCtx = await contextFor(shelterUserId);
+
+      await expect(
+        review.rejectApplication(shelterCtx, applicationId, "OTHER"),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
+      await expect(review.acceptApplication(shelterCtx, applicationId)).rejects.toBeInstanceOf(
+        errors.AuthorizationError,
+      );
+    });
+
+    it("keeps the decision category out of the participant payload", async () => {
+      const { userId, applicationId } = await createSubmittedApplicant("i");
+      const ctx = await contextFor(coordinatorId);
+      await review.rejectApplication(ctx, applicationId, "BACKGROUND");
+
+      const applicantCtx = await contextFor(userId);
+      const views = await applications.getOwnApplications(applicantCtx);
+      const payload = JSON.stringify({
+        views,
+        journeys: views.map((v) => journey.toJourneyView(v)),
+      });
+      expect(payload).not.toContain("decisionReason");
+      expect(payload).not.toContain("BACKGROUND"); // the category never leaks
+      // The journey still tells the applicant when they may reapply.
+      expect(payload).toMatch(/apply again on or after/i);
+    });
+  });
 });
 
 describe.skipIf(hasDatabase)("application review (unconfigured)", () => {

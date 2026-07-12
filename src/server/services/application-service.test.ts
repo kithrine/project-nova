@@ -51,6 +51,59 @@ describe("resolveApplicationGateway (Story 2.3 rules)", () => {
   });
 });
 
+describe("resolveApplicationGateway — 30-day reapplication window (Story 2.11, ADR-016)", () => {
+  const now = new Date("2026-07-12T12:00:00Z");
+  const rejected = (decidedAt: string) => ({ status: S.REJECTED, decidedAt });
+
+  it("shows the waiting period as dates — decided day 0, blocked through day 29", () => {
+    const gateway = resolveApplicationGateway([rejected("2026-07-01T12:00:00Z")], now);
+    expect(gateway).toEqual({
+      kind: "waiting-period",
+      decidedOnLabel: "July 1, 2026",
+      reapplyOnLabel: "July 31, 2026",
+    });
+  });
+
+  it("reopens exactly at 30 days", () => {
+    const boundary = resolveApplicationGateway([rejected("2026-06-12T12:00:00Z")], now);
+    expect(boundary).toEqual({ kind: "can-apply", reapplying: true });
+
+    const oneSecondShy = resolveApplicationGateway(
+      [rejected("2026-06-12T12:00:01Z")],
+      now,
+    );
+    expect(oneSecondShy.kind).toBe("waiting-period");
+  });
+
+  it("uses the MOST RECENT rejection when there are several", () => {
+    const gateway = resolveApplicationGateway(
+      [rejected("2026-01-01T00:00:00Z"), rejected("2026-07-10T00:00:00Z")],
+      now,
+    );
+    expect(gateway.kind).toBe("waiting-period");
+  });
+
+  it("never outranks a draft, an in-review application, or a disqualification", () => {
+    const fresh = rejected("2026-07-11T00:00:00Z");
+    expect(resolveApplicationGateway([fresh, { status: S.DRAFT }], now).kind).toBe(
+      "resume-draft",
+    );
+    expect(resolveApplicationGateway([fresh, { status: S.SUBMITTED }], now).kind).toBe(
+      "in-review",
+    );
+    expect(resolveApplicationGateway([fresh, { status: S.DISQUALIFIED }], now).kind).toBe(
+      "blocked",
+    );
+  });
+
+  it("keeps legacy rejections without a decision date reapplicable", () => {
+    expect(resolveApplicationGateway([{ status: S.REJECTED }], now)).toEqual({
+      kind: "can-apply",
+      reapplying: true,
+    });
+  });
+});
+
 describe("generateApplicationNumber", () => {
   it("uses the APP-YYYY-XXXXXX shape with an unambiguous alphabet", () => {
     for (let i = 0; i < 50; i++) {
