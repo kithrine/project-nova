@@ -12,7 +12,7 @@ Allow applicants to apply and track progress.
 | 2.3 | Create and save draft application | Done |
 | 2.4 | Upload required documents | Done |
 | 2.5 | Submit application | Done |
-| 2.6 | View participant-safe application journey | Ready for Development |
+| 2.6 | View participant-safe application journey | Done |
 | 2.7 | Operations applications queue | Ready for Development |
 | 2.8 | Eligibility review | Blocked — pending policy validation |
 | 2.9 | Interview workflow | Ready for Development |
@@ -270,7 +270,7 @@ Eligibility review itself (2.8), post-submission edit or more-information reques
 ## Story 2.6 — View participant-safe application journey
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As an applicant, I want to see a clear, simplified view of where my application stands and what happens next, so that I always know whether action is needed from me.

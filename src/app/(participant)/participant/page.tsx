@@ -7,8 +7,9 @@ export const metadata = { title: "Dashboard" };
 
 /**
  * Participant dashboard (Stories 1.7/2.2). Applicants (no memberships) who
- * haven't completed account onboarding are sent there first. The journey
- * timeline and Next Step card arrive with 2.3/2.6.
+ * haven't completed account onboarding are sent there first. The Journey
+ * Timeline and Next Step Card live on My Application (2.6); this page points
+ * there until program-experience stories (Epic 3+) give it content of its own.
  */
 export default async function ParticipantDashboardPage() {
   const ctx = await getOrProvisionAuthContext();

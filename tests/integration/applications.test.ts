@@ -16,6 +16,7 @@ const runId = createTestRunId("app23");
 describe.skipIf(!hasDatabase)("applications (integration)", () => {
   let prisma: (typeof import("@/server/database/prisma"))["prisma"];
   let service: typeof import("@/server/services/application-service");
+  let journey: typeof import("@/server/services/application-journey");
   let enums: typeof import("@/generated/prisma/enums");
   let errors: typeof import("@/server/errors/app-error");
 
@@ -48,6 +49,7 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
   beforeAll(async () => {
     ({ prisma } = await import("@/server/database/prisma"));
     service = await import("@/server/services/application-service");
+    journey = await import("@/server/services/application-journey");
     enums = await import("@/generated/prisma/enums");
     errors = await import("@/server/errors/app-error");
 
@@ -318,6 +320,36 @@ describe.skipIf(!hasDatabase)("applications (integration)", () => {
 
       const row = await prisma.application.findUniqueOrThrow({ where: { id: submitted.id } });
       expect(row.motivation).toBe(COMPLETE_ANSWERS.motivation);
+    });
+  });
+
+  describe("journey view (Story 2.6)", () => {
+    it("structurally excludes internal decision detail from the participant payload", async () => {
+      // Operations records an internal rationale on userB's disqualified
+      // application — the kind of Highly Restricted detail (2.11) that must
+      // never reach a participant-facing response.
+      await prisma.application.updateMany({
+        where: {
+          person: { userId: userBId },
+          status: enums.ApplicationStatus.DISQUALIFIED,
+        },
+        data: { decisionReason: "Internal screening rationale" },
+      });
+
+      const ctx = await contextFor(userBId);
+      const views = await service.getOwnApplications(ctx);
+      expect(views.length).toBeGreaterThan(0);
+
+      // The applicant's own views carry form content but never decision detail.
+      const viewPayload = JSON.stringify(views);
+      expect(viewPayload).not.toContain("decisionReason");
+      expect(viewPayload).not.toContain("rationale");
+
+      // The journey is stricter still: status-shaped only — no internal
+      // phase names, no raw terminal enum values, no form content.
+      const journeyPayload = JSON.stringify(views.map((v) => journey.toJourneyView(v)));
+      expect(journeyPayload).not.toMatch(/rationale|decisionReason/i);
+      expect(journeyPayload).not.toMatch(/ELIGIBILITY|INTERVIEW|BACKGROUND|DISQUALIF/i);
     });
   });
 });
