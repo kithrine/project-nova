@@ -24,6 +24,7 @@ import {
   ValidationError,
 } from "@/server/errors/app-error";
 import { recordAuditEvent } from "@/server/services/audit-service";
+import { createEnrollmentForAcceptedApplication } from "@/server/services/enrollment-service";
 import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 
 /**
@@ -966,8 +967,9 @@ export async function acceptApplication(
         subjectId: applicationId,
       },
     });
-    // Story 3.1 handoff: Participant + ProgramEnrollment creation joins this
-    // transaction here (accepted application creates both transactionally).
+    // Story 3.1: the acceptance and the participant/enrollment creation
+    // succeed together or not at all (business-rules.md).
+    await createEnrollmentForAcceptedApplication(tx, application, ctx.userId);
   });
 }
 

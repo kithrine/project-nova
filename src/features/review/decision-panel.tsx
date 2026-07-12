@@ -26,6 +26,7 @@ export function DecisionPanel({
   acceptAction,
   rejectAction,
   initialRejectState = { status: "idle" },
+  initialAcceptState,
 }: {
   canAccept: boolean;
   canReject: boolean;
@@ -34,6 +35,7 @@ export function DecisionPanel({
   acceptAction: (prev: DecisionFormState, formData: FormData) => Promise<DecisionFormState>;
   rejectAction: (prev: DecisionFormState, formData: FormData) => Promise<DecisionFormState>;
   initialRejectState?: DecisionFormState;
+  initialAcceptState?: DecisionFormState;
 }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
@@ -42,9 +44,11 @@ export function DecisionPanel({
     rejectAction,
     initialRejectState,
   );
-  const [acceptState, acceptFormAction, acceptPending] = useActionState(acceptAction, {
-    status: "idle",
-  });
+  const idleState: DecisionFormState = { status: "idle" };
+  const [acceptState, acceptFormAction, acceptPending] = useActionState(
+    acceptAction,
+    initialAcceptState ?? idleState,
+  );
 
   if (!canAccept && !canReject) return null;
 
@@ -56,8 +60,9 @@ export function DecisionPanel({
 
       {rejectState.status === "decided" || acceptState.status === "decided" ? (
         <p role="status" className="max-w-prose rounded-md border border-success/40 bg-success/5 px-4 py-3 text-sm">
-          Decision recorded. The applicant sees only the approved, respectful
-          messaging for this outcome.
+          {acceptState.status === "decided"
+            ? "Application accepted — the participant and their enrollment were created together. Next step: onboarding."
+            : "Decision recorded. The applicant sees only the approved, respectful messaging for this outcome."}
         </p>
       ) : (
         <>

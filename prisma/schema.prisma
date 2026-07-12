@@ -118,6 +118,7 @@ model Person {
 
   applicantProfile ApplicantProfile?
   applications     Application[]
+  participant      Participant?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -187,6 +188,7 @@ model Application {
   eligibilityReview EligibilityReview?
   interviews        Interview[]
   backgroundReview  BackgroundReview?
+  enrollment        ProgramEnrollment?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -394,6 +396,88 @@ model Document {
   updatedAt DateTime @updatedAt
 
   @@index([applicationId])
+}
+
+// --- Enrollment (Story 3.1) ---------------------------------------------------
+
+// A Project Nova program (TERMINOLOGY.md). MVP runs ONE program — the
+// default transitional-employment program, resolved by its stable code at
+// acceptance time. The onboarding task catalog (3.2) hangs off Program.
+model Program {
+  id     String       @id @default(cuid())
+  // Stable machine code, e.g. "NOVA-TE" — the acceptance flow resolves the
+  // default program by code, never by guessing at "the first active row".
+  code   String       @unique
+  name   String
+  status ActiveStatus @default(ACTIVE)
+
+  enrollments ProgramEnrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Participant identity (TERMINOLOGY.md): a person accepted into Project
+// Nova. Exactly ONE per Person, ever — an alum whose new application is
+// accepted REUSES this row and gains a new ProgramEnrollment (3.1 AC3).
+// Created only inside the acceptance transaction (2.11); no standalone
+// creation path exists.
+model Participant {
+  id       String @id @default(cuid())
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id])
+
+  enrollments ProgramEnrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Epic 3 statuses only; Epic 5 extends this enum when placements arrive.
+enum EnrollmentStatus {
+  ONBOARDING
+  READY_FOR_MATCHING
+}
+
+// One period of involvement in a program (TERMINOLOGY.md), created 1:1
+// with the accepting Application inside the acceptance transaction.
+// Enrollment cannot become placement-active manually (business-rules.md).
+model ProgramEnrollment {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+  programId     String
+  program       Program     @relation(fields: [programId], references: [id])
+  // The accepting application — one enrollment per acceptance.
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  status     EnrollmentStatus @default(ONBOARDING)
+  enrolledAt DateTime         @default(now())
+
+  events EnrollmentEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participantId])
+}
+
+// Lifecycle event for ProgramEnrollment — same append-only pattern as
+// ApplicationEvent (database-design.md). fromStatus is null for the
+// creation event.
+model EnrollmentEvent {
+  id           String            @id @default(cuid())
+  enrollmentId String
+  enrollment   ProgramEnrollment @relation(fields: [enrollmentId], references: [id])
+
+  fromStatus  EnrollmentStatus?
+  toStatus    EnrollmentStatus
+  actorUserId String
+
+  createdAt DateTime @default(now())
+
+  @@index([enrollmentId])
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------

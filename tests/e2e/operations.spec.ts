@@ -208,6 +208,20 @@ test("the specialist clears the background check and the coordinator accepts (St
   await expect(page.getByText("Background review → Accepted")).toBeVisible({
     timeout: 20_000,
   });
+
+  // Story 3.1: the same transaction created the enrollment — the participant
+  // appears in the enrollment view with no manual follow-up.
+  await page.getByRole("tab", { name: "Overview" }).click();
+  await expect(page.getByText("Accepted — enrollment created")).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole("link", { name: "View Enrollment" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Blair Synthetic-Background" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/Transitional Employment Program · Onboarding/),
+  ).toBeVisible();
 });
 
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {

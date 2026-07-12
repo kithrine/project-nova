@@ -37,6 +37,7 @@ import {
   OPERATIONS_STATUS_LABELS,
 } from "@/server/services/application-review-service";
 import { listDocumentsForReview } from "@/server/services/document-service";
+import { getEnrollmentForApplication } from "@/server/services/enrollment-service";
 import { formatFileSize } from "@/lib/documents";
 import { ApplicationStatus } from "@/generated/prisma/client";
 
@@ -155,6 +156,44 @@ export default async function ApplicationWorkspacePage({
       <div id="workspace-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
         {tab === "overview" ? (
           <div className="flex flex-col gap-8">
+            {workspace.status === ApplicationStatus.ACCEPTED ? (
+              await (async () => {
+                const enrollment = await getEnrollmentForApplication(ctx, workspace.id);
+                return enrollment ? (
+                  <div className="flex max-w-prose items-start gap-3 rounded-lg border border-success/30 bg-success/5 p-5">
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mt-0.5 size-6 shrink-0 text-success"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                    </svg>
+                    <div>
+                      <h2 className="text-base font-semibold">
+                        Accepted — enrollment created
+                      </h2>
+                      <p className="mt-1 text-sm leading-relaxed text-base-content/80">
+                        {enrollment.participantName} is now a participant in{" "}
+                        {enrollment.programName}. Next step: onboarding.
+                      </p>
+                      <Link
+                        href={`/operations/enrollments/${enrollment.id}`}
+                        className="mt-2 inline-block text-sm font-medium text-primary underline underline-offset-2"
+                      >
+                        View Enrollment
+                      </Link>
+                    </div>
+                  </div>
+                ) : null;
+              })()
+            ) : null}
+
             {!decided ? (
               <DecisionPanel
                 canAccept={

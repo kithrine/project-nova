@@ -99,8 +99,22 @@ async function main() {
     });
   }
 
+  // The default Program (Story 3.1) is REAL reference data, not synthetic:
+  // the acceptance flow resolves it by stable code in every environment, so
+  // it is deliberately NOT flagged isSynthetic and survives the launch
+  // checklist's synthetic-data removal.
+  await prisma.program.upsert({
+    where: { code: "NOVA-TE" },
+    update: { status: ActiveStatus.ACTIVE },
+    create: {
+      id: "program_nova_te",
+      code: "NOVA-TE",
+      name: "Transitional Employment Program",
+    },
+  });
+
   console.log(
-    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic).`,
+    `Seed complete: 2 organizations, 1 site, ${SEED_USERS.length} users with memberships (all synthetic), 1 program (reference data).`,
   );
 }
 

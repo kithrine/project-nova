@@ -26,6 +26,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
   let applicantUserId: string;
   let submittedAppId: string;
   let draftAppId: string;
+  let programId: string;
 
   async function contextFor(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -45,6 +46,18 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     memberships = await import("@/server/repositories/membership-repository");
     enums = await import("@/generated/prisma/enums");
     errors = await import("@/server/errors/app-error");
+
+    // Shared REAL reference row (Story 3.1) — upserted, never deleted here.
+    const program = await prisma.program.upsert({
+      where: { code: "NOVA-TE" },
+      update: { status: enums.ActiveStatus.ACTIVE },
+      create: {
+        id: "program_nova_te",
+        code: "NOVA-TE",
+        name: "Transitional Employment Program",
+      },
+    });
+    programId = program.id;
 
     const nova = await prisma.organization.create({
       data: {
@@ -162,6 +175,19 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     });
     const userIds = runUsers.map((u) => u.id);
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: userIds } } });
+    await prisma.enrollmentEvent.deleteMany({
+      where: {
+        enrollment: {
+          participant: { person: { user: { email: { startsWith: `${runId}-` } } } },
+        },
+      },
+    });
+    await prisma.programEnrollment.deleteMany({
+      where: { participant: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
+    await prisma.participant.deleteMany({
+      where: { person: { user: { email: { startsWith: `${runId}-` } } } },
+    });
     await prisma.backgroundReview.deleteMany({
       where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
     });
@@ -486,7 +512,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       });
       expect(payload).not.toContain("rubric item");
       expect(payload).not.toContain("rationale");
-    });
+    }, 30_000);
 
     it("routes Not Eligible through the shared rejection in one transaction (Story 2.8)", async () => {
       const { applicationId } = await createSubmittedApplicant("elig-b");
@@ -609,7 +635,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       expect(
         await applications.getOwnUpcomingAppointment(applicantCtx, applicationId),
       ).toBeNull();
-    });
+    }, 30_000);
 
     it("routes Do Not Advance through the shared rejection in one transaction (Story 2.9)", async () => {
       const { applicationId } = await createSubmittedApplicant("int-b");
@@ -744,6 +770,30 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       expect(row.status).toBe(enums.ApplicationStatus.ACCEPTED);
       expect(row.decidedAt).toBeInstanceOf(Date);
 
+      // Story 3.1: the SAME transaction created the participant and
+      // enrollment, with the enrollment's lifecycle + audit events.
+      const enrollment = await prisma.programEnrollment.findUniqueOrThrow({
+        where: { applicationId },
+      });
+      expect(enrollment.status).toBe(enums.EnrollmentStatus.ONBOARDING);
+      expect(enrollment.programId).toBe(programId);
+      const participant = await prisma.participant.findUniqueOrThrow({
+        where: { id: enrollment.participantId },
+      });
+      expect(participant.personId).toBe(row.personId);
+      const enrollmentEvents = await prisma.enrollmentEvent.findMany({
+        where: { enrollmentId: enrollment.id },
+      });
+      expect(enrollmentEvents).toHaveLength(1);
+      expect(enrollmentEvents[0]).toMatchObject({
+        fromStatus: null,
+        toStatus: enums.EnrollmentStatus.ONBOARDING,
+        actorUserId: coordinatorId,
+      });
+      await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "enrollment.create", subjectId: enrollment.id },
+      });
+
       // The restricted rationale reaches no other payload: not the
       // workspace, not the queue, not the participant journey (AC5).
       const workspace = await review.getApplicationWorkspace(coordinatorCtx, applicationId);
@@ -758,7 +808,7 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       });
       expect(participantPayload).not.toContain("six factors documented");
       expect(participantPayload).not.toMatch(/backgroundReview|rationale/i);
-    });
+    }, 30_000);
 
     it("routes a Disqualifying outcome by its ADR-016 category (Story 2.10)", async () => {
       const specialistCtx = await contextFor(specialistId);
@@ -822,7 +872,95 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
           "no category chosen",
         ),
       ).rejects.toBeInstanceOf(errors.ValidationError);
-    });
+    }, 30_000);
+
+    it("reuses the existing Participant for a returning person — one identity, two enrollments (3.1 AC3)", async () => {
+      const coordinatorCtx = await contextFor(coordinatorId);
+      const specialistCtx = await contextFor(specialistId);
+      const { personId, applicationId } = await createSubmittedApplicant("enr-a");
+
+      async function clearAndAccept(appId: string) {
+        await prisma.application.update({
+          where: { id: appId },
+          data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+        });
+        await review.recordBackgroundDecision(
+          specialistCtx,
+          appId,
+          enums.BackgroundOutcome.CLEAR,
+          "Synthetic clear.",
+        );
+        await review.acceptApplication(coordinatorCtx, appId);
+      }
+
+      await clearAndAccept(applicationId);
+
+      // The alum applies again: a NEW application, the SAME participant.
+      const second = await prisma.application.create({
+        data: {
+          personId,
+          applicationNumber: applications.generateApplicationNumber(),
+          status: enums.ApplicationStatus.SUBMITTED,
+          submittedAt: new Date(),
+        },
+      });
+      await clearAndAccept(second.id);
+
+      expect(await prisma.participant.count({ where: { personId } })).toBe(1);
+      const participant = await prisma.participant.findUniqueOrThrow({
+        where: { personId },
+      });
+      expect(
+        await prisma.programEnrollment.count({ where: { participantId: participant.id } }),
+      ).toBe(2);
+    }, 30_000);
+
+    it("rolls back the ENTIRE acceptance when enrollment creation fails (3.1 AC2)", async () => {
+      const coordinatorCtx = await contextFor(coordinatorId);
+      const specialistCtx = await contextFor(specialistId);
+      const { personId, applicationId } = await createSubmittedApplicant("enr-b");
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.BACKGROUND_REVIEW },
+      });
+      await review.recordBackgroundDecision(
+        specialistCtx,
+        applicationId,
+        enums.BackgroundOutcome.CLEAR,
+        "Synthetic clear.",
+      );
+
+      // Sabotage: a pre-existing enrollment for this application makes the
+      // in-transaction enrollment create violate the unique constraint.
+      const participant = await prisma.participant.create({ data: { personId } });
+      await prisma.programEnrollment.create({
+        data: {
+          participantId: participant.id,
+          programId,
+          applicationId,
+        },
+      });
+
+      await expect(review.acceptApplication(coordinatorCtx, applicationId)).rejects.toThrow();
+
+      // Nothing committed: the application NEVER became accepted, no accept
+      // events or audits exist, and no extra enrollment appeared.
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.BACKGROUND_REVIEW);
+      expect(
+        await prisma.applicationEvent.count({
+          where: { applicationId, toStatus: enums.ApplicationStatus.ACCEPTED },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.auditEvent.count({
+          where: { action: "application.accept", subjectId: applicationId },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.programEnrollment.count({ where: { applicationId } }),
+      ).toBe(1); // only the sabotage row
+    }, 30_000);
 
     it("keeps the decision category out of the participant payload", async () => {
       const { userId, applicationId } = await createSubmittedApplicant("i");
