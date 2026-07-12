@@ -61,6 +61,30 @@ test("an applicant starts a draft and saves partial answers", async ({ page }) =
   await expect(page.getByRole("status")).toHaveText(/draft saved/i, { timeout: 15_000 });
 });
 
+test("uploading a required document updates the checklist (Story 2.4)", async ({ page }) => {
+  await signInAsApplicant(page);
+  await page.goto("/participant/application");
+
+  // The required item starts missing.
+  await expect(page.getByText(/missing — please upload this document/i)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Standard file picker (keyboard-first, no drag-and-drop required).
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await page
+    .locator("#upload-GOVERNMENT_ID")
+    .setInputFiles({ name: "id-front.png", mimeType: "image/png", buffer: png });
+
+  // Direct upload -> server-verified confirm -> checklist refresh.
+  await expect(page.getByText(/uploaded: id-front/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("link", { name: "View" })).toBeVisible();
+  await expect(page.getByText(/missing — please upload this document/i)).toBeHidden();
+});
+
 test("the draft survives sign-out and resumes on the next visit", async ({ page }) => {
   await signInAsApplicant(page);
   await page.goto("/participant/application");

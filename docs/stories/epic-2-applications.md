@@ -10,7 +10,7 @@ Allow applicants to apply and track progress.
 | 2.1 | Public How It Works page | Done |
 | 2.2 | Applicant account onboarding | Done |
 | 2.3 | Create and save draft application | Done |
-| 2.4 | Upload required documents | Ready for Development |
+| 2.4 | Upload required documents | Done |
 | 2.5 | Submit application | Ready for Development |
 | 2.6 | View participant-safe application journey | Ready for Development |
 | 2.7 | Operations applications queue | Ready for Development |
@@ -173,7 +173,7 @@ Document upload (2.4), submission and completeness enforcement (2.5), operations
 ## Story 2.4 — Upload required documents
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As an applicant, I want to securely upload the documents my application requires, so that reviewers have what they need without me emailing sensitive files.

@@ -176,6 +176,19 @@ try {
   // applications -> profile -> person -> user.
   for (const email of [E2E_APPLICANT_USER_EMAIL, E2E_DRAFT_USER_EMAIL]) {
     await ensureClerkUser(email);
+    // Delete this identity's stored blobs before their metadata rows
+    // (targeted storage cleanup, ADR-006 discipline).
+    const docs = await prisma.document.findMany({
+      where: { application: { person: { user: { email } } } },
+      select: { storagePathname: true },
+    });
+    if (docs.length > 0) {
+      const { del } = await import("@vercel/blob");
+      await del(docs.map((d) => d.storagePathname)).catch(() => {});
+    }
+    await prisma.document.deleteMany({
+      where: { application: { person: { user: { email } } } },
+    });
     await prisma.application.deleteMany({
       where: { person: { user: { email } } },
     });
