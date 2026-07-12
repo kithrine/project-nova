@@ -6,6 +6,7 @@ import { PrismaClient } from "../../src/generated/prisma/client";
 import {
   ActiveStatus,
   ApplicationStatus,
+  OnboardingTaskStatus,
   OrganizationKind,
   Role,
 } from "../../src/generated/prisma/enums";
@@ -520,6 +521,83 @@ try {
       animalExperience: "Synthetic.",
       availabilityNotes: "Synthetic.",
       transportationNotes: "Synthetic.",
+    },
+  });
+
+  // Participant onboarding fixture (Story 3.3): the persistent participant
+  // identity gains a person, participant, ONBOARDING enrollment, and two
+  // deterministic tasks (one participant-completable, one staff-only),
+  // reset to Not Started every run.
+  const participantFixtureUser = await prisma.user.findUniqueOrThrow({
+    where: { id: "e2e_user_participant" },
+  });
+  await prisma.person.upsert({
+    where: { userId: participantFixtureUser.id },
+    update: {},
+    create: {
+      id: "e2e_person_participant",
+      userId: participantFixtureUser.id,
+      legalFirstName: "Parker",
+      legalLastName: "Synthetic-Participant",
+      dateOfBirth: new Date("1990-01-01T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_participant" },
+    update: {},
+    create: {
+      id: "e2e_app_participant",
+      personId: "e2e_person_participant",
+      applicationNumber: "APP-E2E-PRTCPT",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_participant" },
+    update: {},
+    create: { id: "e2e_participant_main", personId: "e2e_person_participant" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_participant" },
+    update: { status: "ONBOARDING" },
+    create: {
+      id: "e2e_enrollment_participant",
+      participantId: "e2e_participant_main",
+      programId: "program_nova_te",
+      applicationId: "e2e_app_participant",
+    },
+  });
+  const participantTaskReset = {
+    status: OnboardingTaskStatus.NOT_STARTED,
+    completedAt: null,
+    completedByUserId: null,
+  };
+  await prisma.onboardingTask.upsert({
+    where: { id: "e2e_task_participant_own" },
+    update: participantTaskReset,
+    create: {
+      id: "e2e_task_participant_own",
+      enrollmentId: "e2e_enrollment_participant",
+      title: "Confirm your contact information",
+      description: "Make sure we can reach you.",
+      required: true,
+      participantCompletable: true,
+      sortOrder: 1,
+    },
+  });
+  await prisma.onboardingTask.upsert({
+    where: { id: "e2e_task_participant_staff" },
+    update: participantTaskReset,
+    create: {
+      id: "e2e_task_participant_staff",
+      enrollmentId: "e2e_enrollment_participant",
+      title: "Verify identity documents",
+      description: "Nova staff verify originals at the office.",
+      required: true,
+      participantCompletable: false,
+      sortOrder: 2,
     },
   });
 

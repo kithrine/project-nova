@@ -57,10 +57,32 @@ export default async function EnrollmentPage({
         <h2 className="text-lg font-semibold">Onboarding tasks</h2>
         <p className="max-w-prose text-sm text-base-content/70">
           Generated automatically from the program&apos;s required-task catalog the
-          moment the enrollment was created. Completion arrives with Story 3.3.
+          moment the enrollment was created. Reopening a completed task is a
+          corrective action and is audited.
         </p>
         {hasPermission(ctx, "onboardingTask.view") ? (
-          <TaskList tasks={await listOnboardingTasks(ctx, enrollment.id)} />
+          await (async () => {
+            const tasks = await listOnboardingTasks(ctx, enrollment.id);
+            const complete = tasks.filter((t) => t.status === "COMPLETE").length;
+            return (
+              <>
+                {/* Live progress (AC: both surfaces); role=status announces
+                    changes to assistive technology after each action. */}
+                <p role="status" className="text-sm font-medium text-base-content/80">
+                  {complete} of {tasks.length} complete · {tasks.length - complete}{" "}
+                  remaining
+                </p>
+                <TaskList
+                  tasks={tasks}
+                  ops={{
+                    enrollmentId: enrollment.id,
+                    canComplete: hasPermission(ctx, "onboardingTask.complete"),
+                    canReopen: hasPermission(ctx, "onboardingTask.reopen"),
+                  }}
+                />
+              </>
+            );
+          })()
         ) : (
           <p className="max-w-prose text-sm text-base-content/70">
             You don&apos;t have access to the onboarding task list.

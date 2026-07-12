@@ -1,15 +1,17 @@
 import { redirect } from "next/navigation";
 
+import { ParticipantTasks } from "@/features/enrollment/participant-tasks";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnPerson } from "@/server/services/applicant-onboarding";
+import { getOwnOnboardingSummary } from "@/server/services/enrollment-service";
 
 export const metadata = { title: "Dashboard" };
 
 /**
- * Participant dashboard (Stories 1.7/2.2). Applicants (no memberships) who
- * haven't completed account onboarding are sent there first. The Journey
- * Timeline and Next Step Card live on My Application (2.6); this page points
- * there until program-experience stories (Epic 3+) give it content of its own.
+ * Participant dashboard (Stories 1.7/2.2/3.3). Applicants (no memberships)
+ * who haven't completed account onboarding are sent there first. Once a
+ * person is enrolled (3.1), their onboarding checklist and live progress
+ * appear here — the Required tasks card (docs/ux/wireframes-layouts.md).
  */
 export default async function ParticipantDashboardPage() {
   const ctx = await getOrProvisionAuthContext();
@@ -20,10 +22,21 @@ export default async function ParticipantDashboardPage() {
     redirect("/participant/onboarding");
   }
 
+  const onboarding = ctx && person ? await getOwnOnboardingSummary(ctx) : null;
+
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold tracking-tight">Welcome to Project Nova</h1>
-      {person ? (
+      {onboarding ? (
+        <>
+          <p className="max-w-prose text-base leading-relaxed text-base-content/80">
+            {person?.legalFirstName ? `${person.legalFirstName}, you` : "You"}&apos;re
+            enrolled in {onboarding.programName}. These tasks get you ready for your
+            placement — take them at your own pace, and ask your coordinator anytime.
+          </p>
+          <ParticipantTasks summary={onboarding} />
+        </>
+      ) : person ? (
         <p className="max-w-prose text-base leading-relaxed text-base-content/80">
           Thanks, {person.legalFirstName} — your account is set up. Head to{" "}
           <a

@@ -9,7 +9,7 @@ Prepare accepted participants for matching.
 |---|---|---|
 | 3.1 | Create participant and enrollment transactionally | Done |
 | 3.2 | Generate onboarding tasks | Done |
-| 3.3 | Complete onboarding tasks | Ready for Development |
+| 3.3 | Complete onboarding tasks | Done |
 | 3.4 | Record training enrollment | Ready for Development |
 | 3.5 | Record certifications | Ready for Development |
 | 3.6 | Display matching blockers | Ready for Development |
@@ -131,7 +131,13 @@ Completing tasks (3.3), placement-owned onboarding tasks (Epic 5, Story 5.4), an
 ## Story 3.3 — Complete onboarding tasks
 
 ### Status
-Ready for Development
+Done
+
+> Built note: participant completion is ownership-based (Person →
+> Participant → Enrollment chain), consistent with the applicant tier —
+> the `onboardingTask.complete`/`.reopen` grants are the staff paths
+> (PC/NA). Completion columns are working state; the correction history
+> lives in the audit trail.
 
 ### User story
 As a participant, I want to complete my onboarding tasks and see my progress, so that I always know what I still need to do before I can be matched to a placement.

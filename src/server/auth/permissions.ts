@@ -48,6 +48,11 @@ export const PERMISSIONS = [
   // Onboarding task list on an enrollment (Story 3.2): Nova Operations
   // only; shelters have no access to enrollment-stage onboarding data.
   "onboardingTask.view",
+  // Task completion and correction (Story 3.3): the staff paths. A
+  // participant completes their OWN participant-completable tasks via
+  // ownership (like the applicant tier), never via these grants.
+  "onboardingTask.complete",
+  "onboardingTask.reopen",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -71,6 +76,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "interview.schedule",
     "interview.record",
     "onboardingTask.view",
+    "onboardingTask.complete",
+    "onboardingTask.reopen",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -85,6 +92,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "interview.schedule",
     "interview.record",
     "onboardingTask.view",
+    "onboardingTask.complete",
+    "onboardingTask.reopen",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
