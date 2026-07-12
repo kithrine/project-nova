@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
-import { getAuthContext } from "@/server/auth/context";
+import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { routeForContext } from "@/server/auth/experience";
 
 export const metadata = { title: "Dashboard" };
@@ -13,7 +13,7 @@ export const metadata = { title: "Dashboard" };
  * see a clear setup-pending state instead of an error.
  */
 export default async function DashboardPage() {
-  const ctx = await getAuthContext();
+  const ctx = await getOrProvisionAuthContext();
 
   if (!ctx) {
     return (

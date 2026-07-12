@@ -12,8 +12,11 @@ export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
+  // Clerk dev instances rate-limit; too many concurrent sign-ins makes the
+  // suite flaky. Four workers keeps FAPI traffic under the limit locally.
+  workers: process.env.CI ? 2 : 4,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: externalBaseUrl ?? LOCAL_URL,

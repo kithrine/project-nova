@@ -51,3 +51,47 @@ export async function requireAuthContext(): Promise<AuthContext> {
   }
   return ctx;
 }
+
+/**
+ * Like getAuthContext, but provisions the internal User on first sign-in
+ * when it does not exist yet (Story 2.2). Uses the same idempotent service
+ * as the Clerk webhook (1.2) — this is the self-service fallback for
+ * environments the webhook cannot reach (local dev, previews); in
+ * production both paths coexist safely because provisioning is idempotent.
+ */
+export async function getOrProvisionAuthContext(): Promise<AuthContext | null> {
+  const existing = await getAuthContext();
+  if (existing) return existing;
+
+  const { currentUser } = await import("@clerk/nextjs/server");
+  const clerkUser = await currentUser();
+  if (!clerkUser) return null;
+
+  const { mapClerkUserPayload, provisionClerkUser } = await import(
+    "@/server/services/user-provisioning"
+  );
+  const mapped = mapClerkUserPayload({
+    id: clerkUser.id,
+    email_addresses: clerkUser.emailAddresses.map((e) => ({
+      id: e.id,
+      email_address: e.emailAddress,
+    })),
+    primary_email_address_id: clerkUser.primaryEmailAddressId,
+    first_name: clerkUser.firstName,
+    last_name: clerkUser.lastName,
+  });
+  if (!mapped) return null;
+
+  await provisionClerkUser(mapped);
+
+  // Re-resolve through the standard path (bypasses this request's cache miss).
+  const user = await prisma.user.findUnique({ where: { clerkUserId: clerkUser.id } });
+  if (!user) return null;
+  const memberships = await listActiveMembershipsForUser(user.id);
+  return {
+    userId: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    memberships,
+  };
+}

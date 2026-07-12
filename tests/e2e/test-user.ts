@@ -23,5 +23,13 @@ export const E2E_PARTICIPANT_USER_EMAIL =
 export const E2E_GRANT_ADMIN_USER_EMAIL =
   process.env.E2E_CLERK_GRANT_ADMIN_USER_EMAIL ?? "e2e-grant+clerk_test@example.com";
 
+/**
+ * Fresh applicant (Story 2.2): exists in Clerk only — the fixture script
+ * deletes this user's internal rows each run so every E2E run exercises
+ * provision-on-first-sign-in and the onboarding flow from scratch.
+ */
+export const E2E_APPLICANT_USER_EMAIL =
+  process.env.E2E_CLERK_APPLICANT_USER_EMAIL ?? "e2e-applicant+clerk_test@example.com";
+
 export const E2E_USER_PASSWORD =
   process.env.E2E_CLERK_USER_PASSWORD ?? "Synthetic-Nova-E2E-42!";

@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { ActiveStatus, OrganizationKind, Role } from "../../src/generated/prisma/enums";
 import {
+  E2E_APPLICANT_USER_EMAIL,
   E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
@@ -166,6 +167,18 @@ try {
     }
   }
 
+  // The fresh-applicant identity (Story 2.2) exists in Clerk only — ensure
+  // the Clerk user, then delete any internal rows a previous run created so
+  // provision-on-first-sign-in + onboarding run from scratch every time.
+  await ensureClerkUser(E2E_APPLICANT_USER_EMAIL);
+  await prisma.applicantProfile.deleteMany({
+    where: { person: { user: { email: E2E_APPLICANT_USER_EMAIL } } },
+  });
+  await prisma.person.deleteMany({
+    where: { user: { email: E2E_APPLICANT_USER_EMAIL } },
+  });
+  await prisma.user.deleteMany({ where: { email: E2E_APPLICANT_USER_EMAIL } });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds
@@ -175,8 +188,8 @@ try {
   });
 
   console.log(
-    `E2E fixtures ready (${FIXTURE_USERS.length} users, 2 organizations; ` +
-      `${cleaned.count} prior funding fixtures cleaned).`,
+    `E2E fixtures ready (${FIXTURE_USERS.length + 1} users, 2 organizations; ` +
+      `applicant reset; ${cleaned.count} prior funding fixtures cleaned).`,
   );
 } finally {
   await prisma.$disconnect();
