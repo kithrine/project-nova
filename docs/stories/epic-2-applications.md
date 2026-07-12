@@ -8,7 +8,7 @@ Allow applicants to apply and track progress.
 | ID | Story | Status |
 |---|---|---|
 | 2.1 | Public How It Works page | Done |
-| 2.2 | Applicant account onboarding | Ready for Development |
+| 2.2 | Applicant account onboarding | Done |
 | 2.3 | Create and save draft application | Ready for Development |
 | 2.4 | Upload required documents | Ready for Development |
 | 2.5 | Submit application | Ready for Development |
@@ -75,7 +75,7 @@ The other public pages listed in `docs/ux/information-architecture.md` (Home, Ab
 ## Story 2.2 — Applicant account onboarding
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a prospective applicant, I want to create my Project Nova account and provide my basic identity information, so that I can start an application under my own, private record.

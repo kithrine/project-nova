@@ -59,6 +59,7 @@ model User {
   isSynthetic Boolean @default(false)
 
   memberships Membership[]
+  person      Person?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,6 +94,46 @@ model OrganizationSite {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+// --- Applicant identity (Story 2.2) -----------------------------------------
+
+// A real human being, linked 1:1 to a sign-in account. Holding a Person
+// record is NOT participant status: no Role, no Membership. Participant
+// status is created only on acceptance (Epic 3, Story 3.1). The permanent-
+// disqualification marker lands with Story 2.11 once policy wording exists.
+model Person {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  legalFirstName String
+  legalLastName  String
+  dateOfBirth    DateTime @db.Date
+
+  applicantProfile ApplicantProfile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Contact and mailing details collected at applicant onboarding.
+// Confidential personal classification (docs/architecture/security-privacy.md):
+// never exposed to shelters.
+model ApplicantProfile {
+  id       String @id @default(cuid())
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id])
+
+  phone               String
+  mailingAddressLine1 String
+  mailingAddressLine2 String?
+  city                String
+  region              String
+  postalCode          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------
