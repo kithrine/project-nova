@@ -181,9 +181,10 @@ model Application {
   decidedAt      DateTime?
   decisionReason String?
 
-  documents Document[]
-  events    ApplicationEvent[]
-  caseNotes CaseNote[]
+  documents         Document[]
+  events            ApplicationEvent[]
+  caseNotes         CaseNote[]
+  eligibilityReview EligibilityReview?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -214,6 +215,33 @@ model ApplicationEvent {
   createdAt DateTime @default(now())
 
   @@index([applicationId])
+}
+
+// --- Eligibility review (Story 2.8; ADR-015) ---------------------------------
+
+enum EligibilityOutcome {
+  ELIGIBLE
+  NOT_ELIGIBLE
+}
+
+// One eligibility review per application (the lifecycle passes through
+// ELIGIBILITY_REVIEW exactly once; reapplication is a NEW application).
+// The rationale is an internal operational record (Restricted case
+// information): never exposed to the applicant beyond 2.6's simplified
+// mapping, never to shelters. Outcomes follow the ADR-015 intake rubric —
+// offense history is NEVER part of eligibility.
+model EligibilityReview {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  reviewerId String
+  outcome    EligibilityOutcome?
+  rationale  String?
+  decidedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Internal operational note on an Application (Story 2.7). Nova Operations

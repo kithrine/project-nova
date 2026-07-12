@@ -313,6 +313,60 @@ try {
     },
   });
 
+  // Eligibility fixture (Story 2.8): a SUBMITTED application the operations
+  // E2E takes through begin -> Eligible each run. Fully reset here.
+  const eligibilityUser = await prisma.user.upsert({
+    where: { id: "e2e_user_eligibility" },
+    update: {},
+    create: {
+      id: "e2e_user_eligibility",
+      email: "e2e-eligibility-applicant@synthetic.example",
+      displayName: "Synthetic E2E Eligibility Applicant",
+      isSynthetic: true,
+    },
+  });
+  const eligibilityPerson = await prisma.person.upsert({
+    where: { userId: eligibilityUser.id },
+    update: { disqualifiedAt: null },
+    create: {
+      id: "e2e_person_eligibility",
+      userId: eligibilityUser.id,
+      legalFirstName: "Ellis",
+      legalLastName: "Synthetic-Eligibility",
+      dateOfBirth: new Date("1992-06-06T00:00:00Z"),
+    },
+  });
+  await prisma.eligibilityReview.deleteMany({
+    where: { applicationId: "e2e_app_eligibility" },
+  });
+  await prisma.applicationEvent.deleteMany({
+    where: { applicationId: "e2e_app_eligibility" },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: { subjectType: "Application", subjectId: "e2e_app_eligibility" },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_eligibility" },
+    update: {
+      status: ApplicationStatus.SUBMITTED,
+      submittedAt: new Date(),
+      decidedAt: null,
+      decisionReason: null,
+    },
+    create: {
+      id: "e2e_app_eligibility",
+      personId: eligibilityPerson.id,
+      applicationNumber: "APP-E2E-ELIGIB",
+      status: ApplicationStatus.SUBMITTED,
+      submittedAt: new Date(),
+      motivation: "Synthetic eligibility fixture.",
+      workExperience: "Synthetic.",
+      animalExperience: "Synthetic.",
+      availabilityNotes: "Synthetic.",
+      transportationNotes: "Synthetic.",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

@@ -71,6 +71,18 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("keeps decisions and eligibility review to PC and NA — never RRS, shelters, or participants (2.8/2.11)", () => {
+    for (const role of Object.values(Role)) {
+      const expected = role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("application.accept"), `accept for ${role}`).toBe(expected);
+      expect(granted.has("application.reject"), `reject for ${role}`).toBe(expected);
+      expect(granted.has("eligibilityReview.decide"), `eligibility for ${role}`).toBe(
+        expected,
+      );
+    }
+  });
+
   it("never grants shelter roles any application, document, or note permission", () => {
     for (const role of [Role.SHELTER_SUPERVISOR, Role.SHELTER_MANAGER]) {
       const granted = permissionsForRoles([role]);

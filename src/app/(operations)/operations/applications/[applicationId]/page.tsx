@@ -6,10 +6,13 @@ import { Restricted } from "@/components/feedback/restricted";
 import {
   acceptApplicationAction,
   addCaseNoteAction,
+  beginEligibilityReviewAction,
+  recordEligibilityOutcomeAction,
   rejectApplicationAction,
 } from "@/features/review/actions";
 import { CaseNotes } from "@/features/review/case-notes";
 import { DecisionPanel } from "@/features/review/decision-panel";
+import { EligibilityPanel } from "@/features/review/eligibility-panel";
 import { WorkspaceTabs } from "@/features/review/workspace-tabs";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
@@ -18,6 +21,7 @@ import {
   acceptPrerequisiteFailures,
   getApplicationHistory,
   getApplicationWorkspace,
+  getEligibilityReview,
   listCaseNotes,
   openBackgroundTab,
   resolveWorkspaceTab,
@@ -161,15 +165,15 @@ export default async function ApplicationWorkspacePage({
               />
             ) : null}
 
-            <section aria-labelledby="actions-heading" className="flex flex-col gap-3">
-              <h2 id="actions-heading" className="text-base font-semibold">
-                Actions for this phase
-              </h2>
-              {workspace.actions.length === 0 ? (
-                <p className="text-sm text-base-content/60">
-                  This application is decided — no review actions remain.
-                </p>
-              ) : (
+            {decided ? (
+              <p className="text-sm text-base-content/60">
+                This application is decided — no review actions remain.
+              </p>
+            ) : workspace.actions.length > 0 ? (
+              <section aria-labelledby="actions-heading" className="flex flex-col gap-3">
+                <h2 id="actions-heading" className="text-base font-semibold">
+                  Actions for this phase
+                </h2>
                 <ul className="flex flex-wrap gap-3">
                   {workspace.actions.map((action) => (
                     <li key={action.label}>
@@ -184,16 +188,13 @@ export default async function ApplicationWorkspacePage({
                     </li>
                   ))}
                 </ul>
-              )}
-              {workspace.actions.length > 0 ? (
                 <p id="actions-note" className="max-w-prose text-sm text-base-content/60">
-                  Review actions arrive with{" "}
-                  {[...new Set(workspace.actions.map((a) => a.arrivesWith))].join(", ")} —
-                  several are pending policy validation
-                  (docs/planning/open-questions.md) and stay disabled until approved.
+                  These arrive with{" "}
+                  {[...new Set(workspace.actions.map((a) => a.arrivesWith))].join(", ")}.
+                  Live actions for this phase are on their own tabs.
                 </p>
-              ) : null}
-            </section>
+              </section>
+            ) : null}
 
             <section aria-labelledby="answers-heading" className="flex flex-col gap-3">
               <h2 id="answers-heading" className="text-base font-semibold">
@@ -252,11 +253,13 @@ export default async function ApplicationWorkspacePage({
         ) : null}
 
         {tab === "eligibility" ? (
-          <p className="max-w-prose text-sm text-base-content/70">
-            No eligibility review has been recorded. The eligibility workflow arrives
-            with Story 2.8 and remains disabled until Nova&apos;s eligibility policy is
-            approved (docs/planning/open-questions.md).
-          </p>
+          <EligibilityPanel
+            status={workspace.status}
+            review={await getEligibilityReview(ctx, workspace.id)}
+            canDecide={hasPermission(ctx, "eligibilityReview.decide")}
+            beginAction={beginEligibilityReviewAction.bind(null, workspace.id)}
+            recordAction={recordEligibilityOutcomeAction.bind(null, workspace.id)}
+          />
         ) : null}
 
         {tab === "interview" ? (

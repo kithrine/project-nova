@@ -36,6 +36,9 @@ export const PERMISSIONS = [
   // reject/disqualify follow ADR-016. Never shelters, never applicants.
   "application.accept",
   "application.reject",
+  // Eligibility review (Story 2.8, ADR-015): standard Coordinator tier —
+  // eligibility is NOT restricted the way background review is.
+  "eligibilityReview.decide",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -55,6 +58,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "caseNote.create",
     "application.accept",
     "application.reject",
+    "eligibilityReview.decide",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -65,6 +69,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "caseNote.create",
     "application.accept",
     "application.reject",
+    "eligibilityReview.decide",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

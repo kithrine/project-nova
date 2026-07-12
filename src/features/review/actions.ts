@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 
+import { EligibilityOutcome } from "@/generated/prisma/enums";
 import { isDecisionCategory } from "@/features/review/decision-categories";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   acceptApplication,
   addCaseNote,
+  beginEligibilityReview,
+  recordEligibilityOutcome,
   rejectApplication,
 } from "@/server/services/application-review-service";
 
@@ -63,6 +66,59 @@ export async function rejectApplicationAction(
     const ctx = await getOrProvisionAuthContext();
     if (!ctx) throw new AuthenticationError();
     await rejectApplication(ctx, applicationId, category);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/applications/${applicationId}`);
+  revalidatePath("/operations/applications");
+  return { status: "decided" };
+}
+
+export async function beginEligibilityReviewAction(
+  applicationId: string,
+  _prev: DecisionFormState,
+  _formData: FormData,
+): Promise<DecisionFormState> {
+  void _formData; // useActionState signature; begin takes no form input
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await beginEligibilityReview(ctx, applicationId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/applications/${applicationId}`);
+  revalidatePath("/operations/applications");
+  return { status: "decided" };
+}
+
+export async function recordEligibilityOutcomeAction(
+  applicationId: string,
+  _prev: DecisionFormState,
+  formData: FormData,
+): Promise<DecisionFormState> {
+  const outcomeRaw = String(formData.get("outcome") ?? "");
+  if (!Object.values(EligibilityOutcome).includes(outcomeRaw as EligibilityOutcome)) {
+    return { status: "error", formError: "Choose an outcome." };
+  }
+
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordEligibilityOutcome(
+      ctx,
+      applicationId,
+      outcomeRaw as EligibilityOutcome,
+      String(formData.get("rationale") ?? ""),
+    );
   } catch (error) {
     if (error instanceof AppError) {
       return { status: "error", formError: error.message };
