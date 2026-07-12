@@ -161,11 +161,11 @@ enum ApplicationStatus {
 }
 
 model Application {
-  id String @id @default(cuid())
+  id                String @id @default(cuid())
   // Human-facing reference (docs/architecture/database-design.md).
   applicationNumber String @unique
-  personId String
-  person   Person @relation(fields: [personId], references: [id])
+  personId          String
+  person            Person @relation(fields: [personId], references: [id])
 
   status ApplicationStatus @default(DRAFT)
 
@@ -192,11 +192,11 @@ model Application {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([personId])
   // One non-terminal application per person is enforced by a partial unique
   // index added in the migration SQL (Prisma cannot express WHERE clauses):
   //   UNIQUE (personId) WHERE status NOT IN ('ACCEPTED','REJECTED','DISQUALIFIED')
+
+  @@index([personId])
 }
 
 // Lifecycle event for one Application status transition (Story 2.5).
@@ -210,8 +210,8 @@ model ApplicationEvent {
   applicationId String
   application   Application @relation(fields: [applicationId], references: [id])
 
-  fromStatus ApplicationStatus
-  toStatus   ApplicationStatus
+  fromStatus  ApplicationStatus
+  toStatus    ApplicationStatus
   // Who performed the transition (the applicant for submit; Operations staff
   // for review transitions). Plain id, matching Document.uploadedByUserId.
   actorUserId String
@@ -337,7 +337,7 @@ model CaseNote {
 // administrative activity for security review (security-privacy.md). First
 // use: reads of restricted background-review content. Append-only.
 model AuditEvent {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   actorUserId String
   // Permission-style action code, e.g. "backgroundReview.view".
   action      String
@@ -411,8 +411,9 @@ model Program {
   name   String
   status ActiveStatus @default(ACTIVE)
 
-  enrollments   ProgramEnrollment[]
-  taskTemplates OnboardingTaskTemplate[]
+  enrollments      ProgramEnrollment[]
+  taskTemplates    OnboardingTaskTemplate[]
+  trainingPrograms TrainingProgram[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -456,8 +457,9 @@ model ProgramEnrollment {
   status     EnrollmentStatus @default(ONBOARDING)
   enrolledAt DateTime         @default(now())
 
-  events          EnrollmentEvent[]
-  onboardingTasks OnboardingTask[]
+  events              EnrollmentEvent[]
+  onboardingTasks     OnboardingTask[]
+  trainingEnrollments TrainingEnrollment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -538,6 +540,94 @@ model EnrollmentEvent {
   createdAt DateTime @default(now())
 
   @@index([enrollmentId])
+}
+
+// --- Portable training (Story 3.4; ADR-017) ----------------------------------
+
+enum TrainingEnrollmentStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  WITHDRAWN
+}
+
+enum TrainingCompletionMethod {
+  KNOWLEDGE_ASSESSMENT
+  PROVIDER_VERIFICATION
+  OBSERVED_COMPETENCY
+  PRIOR_LEARNING_VERIFICATION
+}
+
+// Program-scoped, seeded catalog data. Requiredness lives here so readiness
+// can detect a missing TrainingEnrollment attempt (ADR-017).
+model TrainingProgram {
+  id        String  @id @default(cuid())
+  programId String
+  program   Program @relation(fields: [programId], references: [id])
+
+  code                String
+  name                String
+  description         String
+  requiredForMatching Boolean      @default(true)
+  sortOrder           Int          @default(0)
+  status              ActiveStatus @default(ACTIVE)
+
+  enrollments TrainingEnrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([programId, code])
+  @@index([programId, sortOrder])
+}
+
+// One attempt to complete one TrainingProgram. COMPLETED and WITHDRAWN are
+// terminal; re-enrollment creates a new row. A migration-level partial unique
+// index prevents two ENROLLED/IN_PROGRESS attempts for the same pair.
+model TrainingEnrollment {
+  id                  String            @id @default(cuid())
+  programEnrollmentId String
+  programEnrollment   ProgramEnrollment @relation(fields: [programEnrollmentId], references: [id])
+  trainingProgramId   String
+  trainingProgram     TrainingProgram   @relation(fields: [trainingProgramId], references: [id])
+
+  status                 TrainingEnrollmentStatus @default(ENROLLED)
+  enrolledAt             DateTime                 @db.Date
+  expectedCompletionDate DateTime?                @db.Date
+  startedAt              DateTime?                @db.Date
+  completedAt            DateTime?                @db.Date
+  withdrawnAt            DateTime?                @db.Date
+  providerName           String?
+
+  completionMethod           TrainingCompletionMethod?
+  completionVerifiedByUserId String?
+  completionVerifiedAt       DateTime?
+
+  events TrainingEnrollmentEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programEnrollmentId])
+  @@index([trainingProgramId])
+}
+
+// Append-only lifecycle event, written transactionally with creation or a
+// transition. effectiveDate is the coordinator-recorded domain date;
+// createdAt is when Nova recorded it.
+model TrainingEnrollmentEvent {
+  id                   String             @id @default(cuid())
+  trainingEnrollmentId String
+  trainingEnrollment   TrainingEnrollment @relation(fields: [trainingEnrollmentId], references: [id])
+
+  fromStatus    TrainingEnrollmentStatus?
+  toStatus      TrainingEnrollmentStatus
+  actorUserId   String
+  effectiveDate DateTime                  @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@index([trainingEnrollmentId])
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------

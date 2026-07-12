@@ -82,13 +82,77 @@ const FIXTURE_USERS: FixtureUser[] = [
   },
 ];
 
-
 const NOVA_TE_TASKS = [
-  { id: "nova_te_task_01", title: "Attend orientation session", description: "Join the Project Nova orientation and meet your coordinator.", required: true, participantCompletable: false, sortOrder: 1 },
-  { id: "nova_te_task_02", title: "Complete employment paperwork", description: "I-9 and W-4 forms, completed and verified with your coordinator.", required: true, participantCompletable: false, sortOrder: 2 },
-  { id: "nova_te_task_03", title: "Set up direct deposit or pay card", description: "Choose how you'd like to be paid.", required: true, participantCompletable: true, sortOrder: 3 },
-  { id: "nova_te_task_04", title: "Add an emergency contact", description: "Someone we can reach if anything comes up at a work site.", required: true, participantCompletable: true, sortOrder: 4 },
-  { id: "nova_te_task_05", title: "Review the program handbook", description: "The plain-language guide to how the program works.", required: true, participantCompletable: true, sortOrder: 5 },
+  {
+    id: "nova_te_task_01",
+    title: "Attend orientation session",
+    description: "Join the Project Nova orientation and meet your coordinator.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 1,
+  },
+  {
+    id: "nova_te_task_02",
+    title: "Complete employment paperwork",
+    description: "I-9 and W-4 forms, completed and verified with your coordinator.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 2,
+  },
+  {
+    id: "nova_te_task_03",
+    title: "Set up direct deposit or pay card",
+    description: "Choose how you'd like to be paid.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 3,
+  },
+  {
+    id: "nova_te_task_04",
+    title: "Add an emergency contact",
+    description: "Someone we can reach if anything comes up at a work site.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 4,
+  },
+  {
+    id: "nova_te_task_05",
+    title: "Review the program handbook",
+    description: "The plain-language guide to how the program works.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 5,
+  },
+];
+
+const NOVA_TE_TRAINING_PROGRAMS = [
+  {
+    id: "nova_te_training_workplace_readiness",
+    code: "WORKPLACE-READINESS",
+    name: "Workplace Readiness and Communication",
+    description:
+      "Workplace expectations, communication, feedback, escalation, digital navigation, and requesting support.",
+    requiredForMatching: true,
+    sortOrder: 1,
+  },
+  {
+    id: "nova_te_training_animal_handling",
+    code: "ANIMAL-HANDLING-FOUNDATIONS",
+    name: "Animal Behavior, Humane Handling, and Bite Prevention Foundations",
+    description:
+      "Animal body language, safe handling foundations, bite prevention, and stop-and-get-help boundaries.",
+    requiredForMatching: true,
+    sortOrder: 2,
+  },
+  {
+    id: "nova_te_training_sanitation",
+    code: "SHELTER-SANITATION-FOUNDATIONS",
+    name: "Shelter Sanitation, Zoonoses, and PPE Foundations",
+    description:
+      "Hygiene, cleaning and disinfection, zoonotic-risk awareness, PPE concepts, and reporting.",
+    requiredForMatching: true,
+    sortOrder: 3,
+  },
 ];
 
 async function ensureClerkUser(email: string): Promise<string> {
@@ -114,7 +178,9 @@ async function ensureClerkUser(email: string): Promise<string> {
     const alreadyExists =
       createResponse.status === 422 && body.includes("form_identifier_exists");
     if (!alreadyExists) {
-      throw new Error(`Failed to ensure Clerk user ${email} (${createResponse.status}): ${body}`);
+      throw new Error(
+        `Failed to ensure Clerk user ${email} (${createResponse.status}): ${body}`,
+      );
     }
   }
 
@@ -449,6 +515,13 @@ try {
       create: { ...task, programId: "program_nova_te" },
     });
   }
+  for (const trainingProgram of NOVA_TE_TRAINING_PROGRAMS) {
+    await prisma.trainingProgram.upsert({
+      where: { id: trainingProgram.id },
+      update: { ...trainingProgram, programId: "program_nova_te" },
+      create: { ...trainingProgram, programId: "program_nova_te" },
+    });
+  }
 
   // Background fixture (Story 2.10): an application in BACKGROUND_REVIEW the
   // operations E2E clears (RRS) and then accepts (PC) each run. Fully reset.
@@ -586,6 +659,74 @@ try {
       participantCompletable: true,
       sortOrder: 1,
     },
+  });
+
+  // Dedicated coordinator-training fixture (Story 3.4). No Clerk identity is
+  // needed for the subject; the coordinator operates the enrollment. Reset
+  // only this enrollment's attempts so E2E retries converge safely.
+  await prisma.user.upsert({
+    where: { id: "e2e_user_training_subject" },
+    update: {},
+    create: {
+      id: "e2e_user_training_subject",
+      email: "e2e-training-subject@synthetic.example",
+      displayName: "Synthetic Training Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_training_subject" },
+    update: {},
+    create: {
+      id: "e2e_person_training",
+      userId: "e2e_user_training_subject",
+      legalFirstName: "Taylor",
+      legalLastName: "Synthetic-Training",
+      dateOfBirth: new Date("1990-01-01T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_training" },
+    update: {},
+    create: {
+      id: "e2e_app_training",
+      personId: "e2e_person_training",
+      applicationNumber: "APP-E2E-TRAIN",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_training" },
+    update: {},
+    create: { id: "e2e_participant_training", personId: "e2e_person_training" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_training" },
+    update: { status: "ONBOARDING" },
+    create: {
+      id: "e2e_enrollment_training",
+      participantId: "e2e_participant_training",
+      programId: "program_nova_te",
+      applicationId: "e2e_app_training",
+    },
+  });
+  const priorTrainingAttempts = await prisma.trainingEnrollment.findMany({
+    where: { programEnrollmentId: "e2e_enrollment_training" },
+    select: { id: true },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: {
+      subjectType: "TrainingEnrollment",
+      subjectId: { in: priorTrainingAttempts.map((attempt) => attempt.id) },
+    },
+  });
+  await prisma.trainingEnrollmentEvent.deleteMany({
+    where: { trainingEnrollment: { programEnrollmentId: "e2e_enrollment_training" } },
+  });
+  await prisma.trainingEnrollment.deleteMany({
+    where: { programEnrollmentId: "e2e_enrollment_training" },
   });
   await prisma.onboardingTask.upsert({
     where: { id: "e2e_task_participant_staff" },

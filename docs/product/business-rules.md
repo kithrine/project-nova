@@ -14,6 +14,15 @@
 - Enrollment cannot become placement-active manually.
 - Required onboarding and training must be complete before matching readiness.
 
+## Training
+
+- The default Program requires the three portable Training Programs in `ADR-017` before matching readiness.
+- Requiredness is configured on the Program training catalog so a missing enrollment remains a blocker.
+- Training Enrollment transitions are action-based: Enrolled → In Progress/Completed/Withdrawn and In Progress → Completed/Withdrawn.
+- Completed and Withdrawn attempts are terminal; a later attempt is a new record.
+- Completion requires a structured evidence method; attendance alone is not demonstrated competency.
+- Portable completion never replaces host-site safety orientation and task-specific competency confirmation.
+
 ## Placements
 
 - A participant may have multiple historical placements.

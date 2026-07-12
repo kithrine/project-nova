@@ -45,7 +45,8 @@ Alternate terminal states:
 - Host and site assigned
 - Supervisor and coordinator assigned
 - Onboarding complete
-- Training and certifications complete
+- Portable training and required certifications complete (`ADR-017` Layer 1)
+- Host-site safety orientation and assigned-task competency confirmed (`ADR-017` Layer 2)
 - Schedule confirmed
 - Active funding assignment
 - No conflicting active placement
