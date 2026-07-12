@@ -39,6 +39,9 @@ export const PERMISSIONS = [
   // Eligibility review (Story 2.8, ADR-015): standard Coordinator tier —
   // eligibility is NOT restricted the way background review is.
   "eligibilityReview.decide",
+  // Interview workflow (Story 2.9): standard Coordinator tier.
+  "interview.schedule",
+  "interview.record",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -59,6 +62,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "application.accept",
     "application.reject",
     "eligibilityReview.decide",
+    "interview.schedule",
+    "interview.record",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -70,6 +75,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "application.accept",
     "application.reject",
     "eligibilityReview.decide",
+    "interview.schedule",
+    "interview.record",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

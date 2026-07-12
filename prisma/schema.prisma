@@ -185,6 +185,7 @@ model Application {
   events            ApplicationEvent[]
   caseNotes         CaseNote[]
   eligibilityReview EligibilityReview?
+  interviews        Interview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -242,6 +243,41 @@ model EligibilityReview {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// --- Interview (Story 2.9) ----------------------------------------------------
+
+enum InterviewFormat {
+  IN_PERSON
+  VIRTUAL
+}
+
+enum InterviewOutcome {
+  ADVANCE
+  DO_NOT_ADVANCE
+}
+
+// One row per scheduled appointment: rescheduling CREATES a new row so the
+// prior time is preserved as history, never silently overwritten. The
+// newest row is the current appointment; the outcome is recorded on it.
+// The applicant's journey (2.6) sees date/time/format ONLY — interviewer,
+// notes, and the recommendation are internal (never applicant or shelter).
+model Interview {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  scheduledAt   DateTime
+  format        InterviewFormat
+  interviewerId String
+  outcome       InterviewOutcome?
+  notes         String?
+  decidedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId])
 }
 
 // Internal operational note on an Application (Story 2.7). Nova Operations

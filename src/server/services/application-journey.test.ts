@@ -73,6 +73,23 @@ describe("toJourneyView (Story 2.6 participant-safe mapping)", () => {
     }
   });
 
+  it("surfaces the scheduled interview to the applicant — date, time, format only (Story 2.9)", () => {
+    const journey = toJourneyView(view(S.INTERVIEW), [DocumentType.GOVERNMENT_ID], {
+      scheduledAtLabel: "August 1, 2026 at 10:30 AM",
+      formatLabel: "In person",
+    });
+    expect(journey.nextStep.headline).toBe("Your interview is scheduled");
+    expect(journey.nextStep.description).toContain("August 1, 2026 at 10:30 AM");
+    expect(journey.nextStep.description).toContain("In person");
+    // Still one simplified stage — never the internal phase name.
+    expect(JSON.stringify(journey)).not.toMatch(/INTERVIEW/);
+  });
+
+  it("keeps the calm 'under review' copy when no appointment exists yet", () => {
+    const journey = toJourneyView(view(S.INTERVIEW), [DocumentType.GOVERNMENT_ID], null);
+    expect(journey.nextStep.description).toMatch(/no action is needed right now/i);
+  });
+
   it("surfaces 'we need one more document' when a required document goes missing mid-review", () => {
     const journey = toJourneyView(view(S.ELIGIBILITY_REVIEW), []);
     expect(journey.nextStep).toMatchObject({

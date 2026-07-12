@@ -367,6 +367,58 @@ try {
     },
   });
 
+  // Interview fixture (Story 2.9): an application in the INTERVIEW phase the
+  // operations E2E schedules and advances each run. Fully reset here.
+  const interviewUser = await prisma.user.upsert({
+    where: { id: "e2e_user_interview" },
+    update: {},
+    create: {
+      id: "e2e_user_interview",
+      email: "e2e-interview-applicant@synthetic.example",
+      displayName: "Synthetic E2E Interview Applicant",
+      isSynthetic: true,
+    },
+  });
+  const interviewPerson = await prisma.person.upsert({
+    where: { userId: interviewUser.id },
+    update: { disqualifiedAt: null },
+    create: {
+      id: "e2e_person_interview",
+      userId: interviewUser.id,
+      legalFirstName: "Indra",
+      legalLastName: "Synthetic-Interview",
+      dateOfBirth: new Date("1993-03-03T00:00:00Z"),
+    },
+  });
+  await prisma.interview.deleteMany({ where: { applicationId: "e2e_app_interview" } });
+  await prisma.applicationEvent.deleteMany({
+    where: { applicationId: "e2e_app_interview" },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: { subjectType: "Application", subjectId: "e2e_app_interview" },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_interview" },
+    update: {
+      status: ApplicationStatus.INTERVIEW,
+      submittedAt: new Date(),
+      decidedAt: null,
+      decisionReason: null,
+    },
+    create: {
+      id: "e2e_app_interview",
+      personId: interviewPerson.id,
+      applicationNumber: "APP-E2E-INTRVW",
+      status: ApplicationStatus.INTERVIEW,
+      submittedAt: new Date(),
+      motivation: "Synthetic interview fixture.",
+      workExperience: "Synthetic.",
+      animalExperience: "Synthetic.",
+      availabilityNotes: "Synthetic.",
+      transportationNotes: "Synthetic.",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

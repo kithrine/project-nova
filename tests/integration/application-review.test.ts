@@ -162,6 +162,9 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     });
     const userIds = runUsers.map((u) => u.id);
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: userIds } } });
+    await prisma.interview.deleteMany({
+      where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
     await prisma.eligibilityReview.deleteMany({
       where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
     });
@@ -531,6 +534,148 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
           "too early",
         ),
       ).rejects.toBeInstanceOf(errors.LifecycleError);
+    });
+
+    it("schedules, reschedules with history, and advances after interview (Story 2.9)", async () => {
+      const { userId, applicationId } = await createSubmittedApplicant("int-a");
+      const ctx = await contextFor(coordinatorId);
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.INTERVIEW },
+      });
+
+      // Recording before scheduling is a lifecycle error.
+      await expect(
+        review.recordInterviewOutcome(
+          ctx,
+          applicationId,
+          enums.InterviewOutcome.ADVANCE,
+          "too early",
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      await review.scheduleInterview(
+        ctx,
+        applicationId,
+        new Date("2026-08-01T10:30:00.000Z"),
+        enums.InterviewFormat.IN_PERSON,
+      );
+
+      // The applicant sees date/time/format — and nothing else (AC1).
+      const applicantCtx = await contextFor(userId);
+      const appointment = await applications.getOwnUpcomingAppointment(
+        applicantCtx,
+        applicationId,
+      );
+      expect(appointment).toEqual({
+        scheduledAtLabel: "August 1, 2026 at 10:30 AM",
+        formatLabel: "In person",
+      });
+
+      // Rescheduling creates a NEW row; the prior time is preserved (AC2).
+      await review.scheduleInterview(
+        ctx,
+        applicationId,
+        new Date("2026-08-03T15:00:00.000Z"),
+        enums.InterviewFormat.VIRTUAL,
+      );
+      const interviews = await review.listInterviews(ctx, applicationId);
+      expect(interviews).toHaveLength(2);
+      expect(interviews[0].isCurrent).toBe(true);
+      expect(interviews[0].formatLabel).toBe("Virtual");
+      expect(interviews[1].scheduledAtLabel).toBe("August 1, 2026 at 10:30 AM");
+
+      // Advance moves to BACKGROUND_REVIEW with outcome and notes stored (AC3).
+      await review.recordInterviewOutcome(
+        ctx,
+        applicationId,
+        enums.InterviewOutcome.ADVANCE,
+        "Internal recommendation: strong candidate.",
+      );
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.BACKGROUND_REVIEW);
+
+      // Notes and the recommendation never reach the applicant (AC5); the
+      // appointment card retires once the outcome is recorded.
+      const views = await applications.getOwnApplications(applicantCtx);
+      const payload = JSON.stringify({
+        views,
+        journeys: views.map((v) => journey.toJourneyView(v)),
+      });
+      expect(payload).not.toContain("strong candidate");
+      expect(
+        await applications.getOwnUpcomingAppointment(applicantCtx, applicationId),
+      ).toBeNull();
+    });
+
+    it("routes Do Not Advance through the shared rejection in one transaction (Story 2.9)", async () => {
+      const { applicationId } = await createSubmittedApplicant("int-b");
+      const ctx = await contextFor(coordinatorId);
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.INTERVIEW },
+      });
+      await review.scheduleInterview(
+        ctx,
+        applicationId,
+        new Date("2026-08-05T09:00:00.000Z"),
+        enums.InterviewFormat.VIRTUAL,
+      );
+
+      await review.recordInterviewOutcome(
+        ctx,
+        applicationId,
+        enums.InterviewOutcome.DO_NOT_ADVANCE,
+        "Internal notes for the record.",
+      );
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.REJECTED);
+      expect(row.decisionReason).toBe("INTERVIEW");
+
+      const audit = await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "application.reject", subjectId: applicationId },
+      });
+      expect(audit.detail).toBe("INTERVIEW");
+
+      // A second outcome can never be recorded (application left the phase).
+      await expect(
+        review.recordInterviewOutcome(
+          ctx,
+          applicationId,
+          enums.InterviewOutcome.ADVANCE,
+          "changed my mind",
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+    });
+
+    it("denies interview actions without the permissions or outside the phase (Story 2.9)", async () => {
+      const { applicationId } = await createSubmittedApplicant("int-c");
+      const ctx = await contextFor(coordinatorId);
+      const shelterCtx = await contextFor(shelterUserId);
+
+      // SUBMITTED — not the interview phase.
+      await expect(
+        review.scheduleInterview(
+          ctx,
+          applicationId,
+          new Date("2026-08-01T10:00:00.000Z"),
+          enums.InterviewFormat.IN_PERSON,
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: enums.ApplicationStatus.INTERVIEW },
+      });
+      await expect(
+        review.scheduleInterview(
+          shelterCtx,
+          applicationId,
+          new Date("2026-08-01T10:00:00.000Z"),
+          enums.InterviewFormat.IN_PERSON,
+        ),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
     });
 
     it("keeps the decision category out of the participant payload", async () => {

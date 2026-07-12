@@ -131,6 +131,47 @@ test("a coordinator runs eligibility review: begin, record Eligible, reach Inter
   await expect(page.getByText("Eligibility review → Interview")).toBeVisible();
 });
 
+test("a coordinator schedules an interview, reschedules with history, and advances (Story 2.9)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  await page.goto("/operations/applications/e2e_app_interview?tab=interview");
+  await expect(page.getByLabel("Date and time")).toBeVisible({ timeout: 20_000 });
+
+  // Schedule.
+  await page.getByLabel("Date and time").fill("2026-08-01T10:30");
+  await page.getByLabel("Format").selectOption("IN_PERSON");
+  await page.getByRole("button", { name: "Schedule Interview" }).click();
+  await expect(page.getByText("August 1, 2026 at 10:30 AM · In person")).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Reschedule — the prior time is preserved as history.
+  await page.getByRole("button", { name: "Reschedule…" }).click();
+  await page.getByLabel("Date and time").fill("2026-08-03T15:00");
+  await page.getByLabel("Format").selectOption("VIRTUAL");
+  await page.getByRole("button", { name: "Reschedule Interview" }).click();
+  await expect(page.getByText("August 3, 2026 at 3:00 PM · Virtual")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText(/August 1, 2026 at 10:30 AM.*rescheduled/)).toBeVisible();
+
+  // Record Advance: outcome + notes + confirmation, then Background review.
+  const record = page.getByRole("button", { name: "Record Interview Outcome" });
+  await expect(record).toBeDisabled();
+  await page.getByRole("radio", { name: /Advance — moves/ }).check();
+  await page.getByLabel("Internal notes").fill("Synthetic: advance to background.");
+  await page.getByRole("checkbox", { name: /ready to record/i }).check();
+  await record.click();
+
+  await expect(page.getByText(/· Background review/)).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page.getByText("Interview → Background review")).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {
   await signIn(page, E2E_USER_EMAIL);
 
