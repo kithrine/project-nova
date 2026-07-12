@@ -87,6 +87,14 @@ describe("DecisionPanel (Story 2.11)", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("names the enrollment and onboarding next step after an acceptance (Story 3.1)", () => {
+    renderPanel({ initialAcceptState: { status: "decided" } });
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /enrollment were created together. Next step: onboarding/,
+    );
+  });
+
   it("renders nothing for viewers without either decision permission", () => {
     const { container } = renderPanel({ canAccept: false, canReject: false });
     expect(container).toBeEmptyDOMElement();

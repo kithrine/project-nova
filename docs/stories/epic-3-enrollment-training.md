@@ -7,7 +7,7 @@ Prepare accepted participants for matching.
 
 | ID | Story | Status |
 |---|---|---|
-| 3.1 | Create participant and enrollment transactionally | Ready for Development |
+| 3.1 | Create participant and enrollment transactionally | Done |
 | 3.2 | Generate onboarding tasks | Ready for Development |
 | 3.3 | Complete onboarding tasks | Ready for Development |
 | 3.4 | Record training enrollment | Ready for Development |
@@ -22,7 +22,12 @@ Prepare accepted participants for matching.
 ## Story 3.1 — Create participant and enrollment transactionally
 
 ### Status
-Ready for Development
+Done
+
+> Built note: MVP runs the single default Program (code `NOVA-TE`, seeded
+> reference data); Cohort is deferred until a second program or cohort
+> structure exists. The creation function is transaction-composable and
+> invoked only inside 2.11's acceptApplication transaction.
 
 ### User story
 As a Program Coordinator, I want accepting an application to atomically create the participant and Program Enrollment records, so that no accepted applicant is ever left in a half-created state and every acceptance immediately becomes a trackable enrollment.

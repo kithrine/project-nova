@@ -419,6 +419,18 @@ try {
     },
   });
 
+  // Default program (Story 3.1): REAL reference data resolved by code at
+  // acceptance time — same row the seed maintains.
+  await prisma.program.upsert({
+    where: { code: "NOVA-TE" },
+    update: { status: ActiveStatus.ACTIVE },
+    create: {
+      id: "program_nova_te",
+      code: "NOVA-TE",
+      name: "Transitional Employment Program",
+    },
+  });
+
   // Background fixture (Story 2.10): an application in BACKGROUND_REVIEW the
   // operations E2E clears (RRS) and then accepts (PC) each run. Fully reset.
   const backgroundUser = await prisma.user.upsert({
@@ -451,6 +463,23 @@ try {
   await prisma.auditEvent.deleteMany({
     where: { subjectType: "Application", subjectId: "e2e_app_background" },
   });
+  // The prior run's acceptance created an enrollment chain (3.1/3.2) —
+  // remove it so re-accepting the reset application never collides with
+  // the one-enrollment-per-application constraint. Children first.
+  const priorEnrollment = await prisma.programEnrollment.findUnique({
+    where: { applicationId: "e2e_app_background" },
+    select: { id: true },
+  });
+  if (priorEnrollment) {
+    await prisma.enrollmentEvent.deleteMany({
+      where: { enrollmentId: priorEnrollment.id },
+    });
+    await prisma.auditEvent.deleteMany({
+      where: { subjectType: "ProgramEnrollment", subjectId: priorEnrollment.id },
+    });
+    await prisma.programEnrollment.delete({ where: { id: priorEnrollment.id } });
+  }
+  await prisma.participant.deleteMany({ where: { personId: "e2e_person_background" } });
   await prisma.application.upsert({
     where: { id: "e2e_app_background" },
     update: {
