@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { TaskList } from "@/features/enrollment/task-list";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import { NotFoundError } from "@/server/errors/app-error";
-import { getEnrollment } from "@/server/services/enrollment-service";
+import { getEnrollment, listOnboardingTasks } from "@/server/services/enrollment-service";
 
 export const metadata = { title: "Enrollment" };
 
@@ -55,8 +56,16 @@ export default async function EnrollmentPage({
       <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
         <h2 className="text-lg font-semibold">Onboarding tasks</h2>
         <p className="max-w-prose text-sm text-base-content/70">
-          The onboarding checklist is generated automatically with Story 3.2.
+          Generated automatically from the program&apos;s required-task catalog the
+          moment the enrollment was created. Completion arrives with Story 3.3.
         </p>
+        {hasPermission(ctx, "onboardingTask.view") ? (
+          <TaskList tasks={await listOnboardingTasks(ctx, enrollment.id)} />
+        ) : (
+          <p className="max-w-prose text-sm text-base-content/70">
+            You don&apos;t have access to the onboarding task list.
+          </p>
+        )}
       </div>
     </section>
   );

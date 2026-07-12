@@ -45,6 +45,9 @@ export const PERMISSIONS = [
   // Recording a background decision (Story 2.10): restricted, like
   // backgroundReview.view — never implied by any base role except RRS.
   "backgroundReview.decide",
+  // Onboarding task list on an enrollment (Story 3.2): Nova Operations
+  // only; shelters have no access to enrollment-stage onboarding data.
+  "onboardingTask.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -67,6 +70,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "eligibilityReview.decide",
     "interview.schedule",
     "interview.record",
+    "onboardingTask.view",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -80,6 +84,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "eligibilityReview.decide",
     "interview.schedule",
     "interview.record",
+    "onboardingTask.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

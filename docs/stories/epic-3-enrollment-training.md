@@ -8,7 +8,7 @@ Prepare accepted participants for matching.
 | ID | Story | Status |
 |---|---|---|
 | 3.1 | Create participant and enrollment transactionally | Done |
-| 3.2 | Generate onboarding tasks | Ready for Development |
+| 3.2 | Generate onboarding tasks | Done |
 | 3.3 | Complete onboarding tasks | Ready for Development |
 | 3.4 | Record training enrollment | Ready for Development |
 | 3.5 | Record certifications | Ready for Development |
@@ -76,7 +76,14 @@ Epic 2, Story 2.11 (Acceptance and rejection). Requires the `User`/`Membership`/
 ## Story 3.2 — Generate onboarding tasks
 
 ### Status
-Ready for Development
+Done
+
+> Built note: generation runs inside the SAME transaction as 3.1's
+> enrollment creation, so acceptance, enrollment, and the checklist exist
+> together or not at all. The required-task catalog is seeded reference
+> data (five `NOVA-TE` templates); `placementId` exists as a plain column
+> under the XOR CHECK constraint until Epic 5's Placement model adds the
+> relation.
 
 ### User story
 As a Program Coordinator, I want the required onboarding tasks to be generated automatically as soon as a participant is enrolled, so that every participant starts onboarding with a complete, consistent checklist and nothing is missed.

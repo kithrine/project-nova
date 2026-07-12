@@ -58,6 +58,20 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       },
     });
     programId = program.id;
+    // Required-task catalog (Story 3.2) — same reference rows the seed keeps.
+    await prisma.onboardingTaskTemplate.upsert({
+      where: { id: "nova_te_task_01" },
+      update: { programId: program.id },
+      create: {
+        id: "nova_te_task_01",
+        programId: program.id,
+        title: "Attend orientation session",
+        description: "Join the Project Nova orientation and meet your coordinator.",
+        required: true,
+        participantCompletable: false,
+        sortOrder: 1,
+      },
+    });
 
     const nova = await prisma.organization.create({
       data: {
@@ -175,6 +189,13 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     });
     const userIds = runUsers.map((u) => u.id);
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: userIds } } });
+    await prisma.onboardingTask.deleteMany({
+      where: {
+        enrollment: {
+          participant: { person: { user: { email: { startsWith: `${runId}-` } } } },
+        },
+      },
+    });
     await prisma.enrollmentEvent.deleteMany({
       where: {
         enrollment: {
@@ -793,6 +814,63 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       await prisma.auditEvent.findFirstOrThrow({
         where: { action: "enrollment.create", subjectId: enrollment.id },
       });
+
+      // Story 3.2: the SAME transaction generated the onboarding checklist —
+      // one task per catalog template, Not Started, flags copied.
+      const templates = await prisma.onboardingTaskTemplate.findMany({
+        where: { programId },
+      });
+      const tasks = await prisma.onboardingTask.findMany({
+        where: { enrollmentId: enrollment.id },
+      });
+      expect(tasks.length).toBe(templates.length);
+      expect(tasks.length).toBeGreaterThan(0);
+      for (const task of tasks) {
+        const template = templates.find((t) => t.id === task.templateId);
+        expect(template).toBeDefined();
+        expect(task.status).toBe(enums.OnboardingTaskStatus.NOT_STARTED);
+        expect(task.required).toBe(template?.required);
+        expect(task.participantCompletable).toBe(template?.participantCompletable);
+        expect(task.placementId).toBeNull();
+      }
+
+      // Retried generation is a no-op (3.2 AC3).
+      const enrollmentSvc = await import("@/server/services/enrollment-service");
+      const regenerated = await prisma.$transaction((tx) =>
+        enrollmentSvc.generateOnboardingTasksForEnrollment(tx, {
+          id: enrollment.id,
+          programId,
+        }),
+      );
+      expect(regenerated).toBe(0);
+      expect(
+        await prisma.onboardingTask.count({ where: { enrollmentId: enrollment.id } }),
+      ).toBe(tasks.length);
+
+      // XOR ownership (3.2 AC4): the DATABASE rejects a task with both
+      // owning contexts, and one with neither.
+      await expect(
+        prisma.onboardingTask.create({
+          data: {
+            enrollmentId: enrollment.id,
+            placementId: "some_placement",
+            title: "bad",
+            description: "bad",
+            required: true,
+            participantCompletable: false,
+          },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        prisma.onboardingTask.create({
+          data: {
+            title: "bad",
+            description: "bad",
+            required: true,
+            participantCompletable: false,
+          },
+        }),
+      ).rejects.toThrow();
 
       // The restricted rationale reaches no other payload: not the
       // workspace, not the queue, not the participant journey (AC5).

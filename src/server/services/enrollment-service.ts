@@ -1,5 +1,9 @@
-import { ActiveStatus, EnrollmentStatus } from "@/generated/prisma/client";
-import type { Prisma } from "@/generated/prisma/client";
+import {
+  ActiveStatus,
+  EnrollmentStatus,
+  OnboardingTaskStatus,
+} from "@/generated/prisma/client";
+import type { OnboardingTaskTemplate, Prisma } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import { hasPermission, requireNovaScope } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
@@ -73,7 +77,112 @@ export async function createEnrollmentForAcceptedApplication(
     },
   });
 
+  // Story 3.2: the onboarding checklist generates in this SAME transaction —
+  // enrollment and its task list exist together or not at all.
+  await generateOnboardingTasksForEnrollment(tx, {
+    id: enrollment.id,
+    programId: program.id,
+  });
+
   return { enrollmentId: enrollment.id, participantId: participant.id };
+}
+
+// --- Onboarding task generation (Story 3.2) ------------------------------------
+
+/** Pure: how one catalog template becomes one enrollment-owned task row. */
+export function taskDataFromTemplate(
+  template: Pick<
+    OnboardingTaskTemplate,
+    "id" | "title" | "description" | "required" | "participantCompletable" | "sortOrder"
+  >,
+  enrollmentId: string,
+) {
+  return {
+    enrollmentId,
+    templateId: template.id,
+    title: template.title,
+    description: template.description,
+    required: template.required,
+    participantCompletable: template.participantCompletable,
+    sortOrder: template.sortOrder,
+    status: OnboardingTaskStatus.NOT_STARTED,
+  };
+}
+
+/**
+ * Generate one task per catalog template for the enrollment's program
+ * (AC1/AC2), all-or-nothing inside the caller's transaction. Idempotent per
+ * enrollment (AC3): a retry that finds existing tasks generates nothing,
+ * and the (enrollmentId, templateId) unique constraint backstops races.
+ */
+export async function generateOnboardingTasksForEnrollment(
+  tx: Prisma.TransactionClient,
+  enrollment: { id: string; programId: string },
+): Promise<number> {
+  const existing = await tx.onboardingTask.count({
+    where: { enrollmentId: enrollment.id },
+  });
+  if (existing > 0) {
+    return 0;
+  }
+  const templates = await tx.onboardingTaskTemplate.findMany({
+    where: { programId: enrollment.programId },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (templates.length === 0) {
+    return 0;
+  }
+  await tx.onboardingTask.createMany({
+    data: templates.map((template) => taskDataFromTemplate(template, enrollment.id)),
+  });
+  return templates.length;
+}
+
+// --- Onboarding task reads (Story 3.2) ------------------------------------------
+
+export const ONBOARDING_TASK_STATUS_LABELS: Record<OnboardingTaskStatus, string> = {
+  [OnboardingTaskStatus.NOT_STARTED]: "Not started",
+  [OnboardingTaskStatus.COMPLETE]: "Complete",
+};
+
+export interface OnboardingTaskView {
+  id: string;
+  title: string;
+  description: string;
+  required: boolean;
+  participantCompletable: boolean;
+  status: OnboardingTaskStatus;
+  statusLabel: string;
+}
+
+export async function listOnboardingTasks(
+  ctx: AuthContext,
+  enrollmentId: string,
+): Promise<OnboardingTaskView[]> {
+  if (!hasPermission(ctx, "onboardingTask.view")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+  const enrollment = await prisma.programEnrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { id: true },
+  });
+  if (!enrollment) {
+    throw new NotFoundError();
+  }
+  const tasks = await prisma.onboardingTask.findMany({
+    where: { enrollmentId },
+    orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+  });
+  return tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    required: task.required,
+    participantCompletable: task.participantCompletable,
+    status: task.status,
+    statusLabel: ONBOARDING_TASK_STATUS_LABELS[task.status],
+  }));
 }
 
 // --- Operations reads ----------------------------------------------------------

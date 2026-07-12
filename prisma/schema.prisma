@@ -411,7 +411,8 @@ model Program {
   name   String
   status ActiveStatus @default(ACTIVE)
 
-  enrollments ProgramEnrollment[]
+  enrollments   ProgramEnrollment[]
+  taskTemplates OnboardingTaskTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -455,12 +456,66 @@ model ProgramEnrollment {
   status     EnrollmentStatus @default(ONBOARDING)
   enrolledAt DateTime         @default(now())
 
-  events EnrollmentEvent[]
+  events          EnrollmentEvent[]
+  onboardingTasks OnboardingTask[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([participantId])
+}
+
+// The required-task catalog per Program (Story 3.2) — configured/seeded
+// data for MVP; no authoring UI. Generation reads this, never writes it.
+model OnboardingTaskTemplate {
+  id        String  @id @default(cuid())
+  programId String
+  program   Program @relation(fields: [programId], references: [id])
+
+  title                  String
+  description            String
+  required               Boolean @default(true)
+  participantCompletable Boolean @default(false)
+  sortOrder              Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId])
+}
+
+enum OnboardingTaskStatus {
+  NOT_STARTED
+  COMPLETE
+}
+
+// One onboarding checklist item (Story 3.2). XOR ownership
+// (database-design.md): EXACTLY one owning context — enrollmentId today,
+// placementId with Epic 5 (Story 5.4) — enforced by a CHECK constraint in
+// the migration SQL (Prisma cannot express it):
+//   CHECK ((("enrollmentId" IS NOT NULL)::int + ("placementId" IS NOT NULL)::int) = 1)
+// placementId is a plain column until the Placement model exists.
+model OnboardingTask {
+  id           String             @id @default(cuid())
+  enrollmentId String?
+  enrollment   ProgramEnrollment? @relation(fields: [enrollmentId], references: [id])
+  placementId  String?
+
+  templateId String?
+
+  title                  String
+  description            String
+  required               Boolean
+  participantCompletable Boolean
+  sortOrder              Int                  @default(0)
+  status                 OnboardingTaskStatus @default(NOT_STARTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Idempotent generation: one instance per template per enrollment.
+  @@unique([enrollmentId, templateId])
+  @@index([enrollmentId])
 }
 
 // Lifecycle event for ProgramEnrollment — same append-only pattern as

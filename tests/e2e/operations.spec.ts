@@ -222,6 +222,12 @@ test("the specialist clears the background check and the coordinator accepts (St
   await expect(
     page.getByText(/Transitional Employment Program · Onboarding/),
   ).toBeVisible();
+
+  // Story 3.2: the onboarding checklist generated with the enrollment —
+  // populated with no manual setup, every task Not started.
+  await expect(page.getByText("Attend orientation session")).toBeVisible();
+  await expect(page.getByText("Review the program handbook")).toBeVisible();
+  expect(await page.getByText("Not started", { exact: true }).count()).toBe(5);
 });
 
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {
