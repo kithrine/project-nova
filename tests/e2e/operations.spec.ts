@@ -74,6 +74,36 @@ test("a restricted review specialist sees background content (audited server-sid
   await expect(page.getByText("Background review is restricted")).toBeHidden();
 });
 
+test("a coordinator records an ordinary rejection through the confirmation panel (Story 2.11)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  await page.goto("/operations/applications/e2e_app_decision");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Devon Synthetic-Decision" }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // Two-step confirmation: category AND explicit acknowledgment required.
+  await page.getByRole("button", { name: "Reject Application…" }).click();
+  const record = page.getByRole("button", { name: "Record Decision" });
+  await expect(record).toBeDisabled();
+  await page.getByRole("radio", { name: "Other program reason" }).check();
+  await expect(record).toBeDisabled();
+  await page.getByRole("checkbox", { name: /this decision is final/i }).check();
+  await expect(record).toBeEnabled();
+  await record.click();
+
+  // The revalidated workspace reflects the terminal state directly (the
+  // panel's transient confirmation is covered by its component test).
+  await expect(page.getByText(/· Rejected/)).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText("This application is decided — no review actions remain."),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page.getByText("Submitted → Rejected")).toBeVisible({ timeout: 20_000 });
+});
+
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {
   await signIn(page, E2E_USER_EMAIL);
 

@@ -111,6 +111,11 @@ model Person {
   legalLastName  String
   dateOfBirth    DateTime @db.Date
 
+  // Permanent-disqualification marker (Story 2.11, ADR-016): set only by the
+  // three ADR-016 categories; blocks future application creation (2.3). On
+  // the Person, not the Application, so the block survives reapplication.
+  disqualifiedAt DateTime?
+
   applicantProfile ApplicantProfile?
   applications     Application[]
 
@@ -244,6 +249,9 @@ model AuditEvent {
   action      String
   subjectType String
   subjectId   String
+  // Short, NON-SENSITIVE context — e.g. a decision reason category (2.11).
+  // Never rationale, report content, or anything Highly Restricted.
+  detail      String?
 
   createdAt DateTime @default(now())
 

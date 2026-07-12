@@ -44,6 +44,19 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   [ApplicationStatus.DISQUALIFIED]: "Closed",
 };
 
+/** Reapplication waiting period after an ordinary rejection (ADR-016). */
+export const REAPPLY_WAITING_DAYS = 30;
+
+function formatDateLabel(date: Date): string {
+  // UTC keeps labels identical across server regions and test environments.
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 /** The form fields a draft may carry (completeness enforced only in 2.5). */
 export const DRAFT_FIELDS = [
   "motivation",
@@ -69,6 +82,8 @@ export interface ApplicationView {
   updatedAtToken: string;
   /** Human-friendly submission date, e.g. "July 11, 2026" (journey view, 2.6). */
   submittedAtLabel: string | null;
+  /** ISO decision timestamp — drives the 30-day reapplication window (2.11). */
+  decidedAt: string | null;
 }
 
 /** Pure: what may this person do next, given their application history? */
@@ -76,10 +91,12 @@ export type ApplicationGateway =
   | { kind: "resume-draft" }
   | { kind: "in-review" }
   | { kind: "can-apply"; reapplying: boolean }
+  | { kind: "waiting-period"; decidedOnLabel: string; reapplyOnLabel: string }
   | { kind: "blocked" };
 
 export function resolveApplicationGateway(
-  history: readonly { status: ApplicationStatus }[],
+  history: readonly { status: ApplicationStatus; decidedAt?: string | Date | null }[],
+  now: Date = new Date(),
 ): ApplicationGateway {
   if (history.some((a) => a.status === ApplicationStatus.DISQUALIFIED)) {
     return { kind: "blocked" };
@@ -94,6 +111,26 @@ export function resolveApplicationGateway(
   ) {
     return { kind: "in-review" };
   }
+
+  // 30-day reapplication window after the most recent ordinary rejection
+  // (ADR-016) — shown as a date, never an error.
+  const lastDecided = history
+    .filter((a) => a.status === ApplicationStatus.REJECTED && a.decidedAt)
+    .map((a) => new Date(a.decidedAt as string | Date))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  if (lastDecided) {
+    const reapplyOn = new Date(
+      lastDecided.getTime() + REAPPLY_WAITING_DAYS * 24 * 60 * 60 * 1000,
+    );
+    if (reapplyOn.getTime() > now.getTime()) {
+      return {
+        kind: "waiting-period",
+        decidedOnLabel: formatDateLabel(lastDecided),
+        reapplyOnLabel: formatDateLabel(reapplyOn),
+      };
+    }
+  }
+
   return {
     kind: "can-apply",
     reapplying: history.some((a) => a.status === ApplicationStatus.REJECTED),
@@ -120,12 +157,9 @@ export function toApplicationView(application: Application): ApplicationView {
     progressPercent: Math.round((filled / DRAFT_FIELDS.length) * 100),
     updatedAtToken: application.updatedAt.toISOString(),
     submittedAtLabel: application.submittedAt
-      ? application.submittedAt.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
+      ? formatDateLabel(application.submittedAt)
       : null,
+    decidedAt: application.decidedAt?.toISOString() ?? null,
   };
 }
 
@@ -143,16 +177,22 @@ export function generateApplicationNumber(year = new Date().getFullYear()): stri
   return `APP-${year}-${suffix}`;
 }
 
-async function requireOwnPersonId(ctx: AuthContext): Promise<string> {
+async function requireOwnPerson(
+  ctx: AuthContext,
+): Promise<{ id: string; disqualifiedAt: Date | null }> {
   const person = await prisma.person.findUnique({
     where: { userId: ctx.userId },
-    select: { id: true },
+    select: { id: true, disqualifiedAt: true },
   });
   if (!person) {
     // Onboarding (2.2) is the prerequisite for applying.
     throw new NotFoundError("Complete your account setup before starting an application.");
   }
-  return person.id;
+  return person;
+}
+
+async function requireOwnPersonId(ctx: AuthContext): Promise<string> {
+  return (await requireOwnPerson(ctx)).id;
 }
 
 /** The requester's own application history (all records, newest first). */
@@ -171,16 +211,24 @@ export async function getOwnApplications(ctx: AuthContext): Promise<ApplicationV
  * this story enforces the gate).
  */
 export async function startOrResumeApplication(ctx: AuthContext): Promise<ApplicationView> {
-  const personId = await requireOwnPersonId(ctx);
+  const person = await requireOwnPerson(ctx);
+  const personId = person.id;
   const history = await prisma.application.findMany({
     where: { personId },
     orderBy: { createdAt: "desc" },
   });
 
   const gateway = resolveApplicationGateway(history);
-  if (gateway.kind === "blocked") {
+  // The Person-level marker (2.11, ADR-016) is the authoritative block — it
+  // survives to future attempts regardless of application history shape.
+  if (gateway.kind === "blocked" || person.disqualifiedAt) {
     throw new LifecycleError(
       "A new application can't be started on this account. If you have questions, please contact Project Nova.",
+    );
+  }
+  if (gateway.kind === "waiting-period") {
+    throw new LifecycleError(
+      `Your previous application was decided on ${gateway.decidedOnLabel}. You may start a new application on or after ${gateway.reapplyOnLabel} — we'd be glad to see it.`,
     );
   }
   const active = history.find((a) =>
