@@ -14,10 +14,10 @@ Allow applicants to apply and track progress.
 | 2.5 | Submit application | Done |
 | 2.6 | View participant-safe application journey | Done |
 | 2.7 | Operations applications queue | Done |
-| 2.8 | Eligibility review | Blocked — pending policy validation |
+| 2.8 | Eligibility review | Ready for Development |
 | 2.9 | Interview workflow | Ready for Development |
-| 2.10 | Background decision workflow | Blocked — pending policy validation |
-| 2.11 | Acceptance and rejection | Blocked — pending policy validation |
+| 2.10 | Background decision workflow | Ready for Development |
+| 2.11 | Acceptance and rejection | Ready for Development |
 
 > Sequencing note: the epic is numbered 2.1–2.11 for reference, but Stories 2.8, 2.9, and 2.10 each hand off negative outcomes to the shared reject action specified in 2.11 — build 2.11's rejection path alongside or before 2.8 rather than strictly last. Story 2.6 depends only on the `Application` status enum introduced in 2.3, so it can be built in parallel with the Operations-side stories (2.7–2.11).
 
@@ -368,7 +368,7 @@ The review actions themselves (2.8–2.11), reporting/analytics (Epic 7), full c
 ## Story 2.8 — Eligibility review
 
 ### Status
-Blocked — pending policy validation
+Ready for Development
 
 ### User story
 As a Program Coordinator, I want to record an eligibility determination on a submitted application, so that only applicants who meet Nova's eligibility criteria advance toward an interview.
@@ -377,13 +377,13 @@ As a Program Coordinator, I want to record an eligibility determination on a sub
 - Begin Eligibility Review action, transitioning `Application.status` from `SUBMITTED` to `ELIGIBILITY_REVIEW`.
 - Record an eligibility outcome — Eligible or Not Eligible — with an internal rationale, using the Eligibility Checklist component (`docs/ux/component-guidelines.md`).
 - Eligible advances the `Application` to `INTERVIEW` (2.9). Not Eligible invokes the shared rejection action (2.11) with an eligibility reason category, rather than duplicating rejection mechanics here.
-- This story builds the workflow shell only. The actual eligibility rubric — what makes an applicant eligible or not, and in particular whether screening for a prior offense is applied categorically or case-by-case — is not yet approved policy (`docs/planning/assumptions.md`, "Needs validation"). The workflow must not be enabled against real applicants until that policy exists.
+- The eligibility rubric and screening model are governed by `docs/decisions/ADR-015-eligibility-screening-policy.md` (working policy): intake eligibility does not screen offense history; offense screening is individualized (case-by-case), never categorical. The workflow must not run against real applicants until the counsel-review launch gate clears (`docs/ops/launch-checklist.md`).
 
 ### Acceptance criteria
 1. Given a `SUBMITTED` `Application`, when a Program Coordinator with `eligibilityReview.decide` begins eligibility review, then the `Application` transitions to `ELIGIBILITY_REVIEW` and an `EligibilityReview` record is created capturing the reviewer and start time.
 2. Given an eligibility review in progress, when the coordinator records an Eligible outcome, then the `Application` transitions to `INTERVIEW` and the outcome and rationale are stored on the `EligibilityReview` record.
 3. Given an eligibility review in progress, when the coordinator records a Not Eligible outcome, then the shared rejection action (2.11) is invoked with an eligibility reason category, and the `Application` does not advance to `INTERVIEW`.
-4. Given the criteria used to reach a determination, when applied, then they must be Nova's approved eligibility policy. **This criteria set, including whether certain offense histories are screened categorically or case-by-case, is not yet approved. Until it is, this action must remain disabled in production.**
+4. Given the criteria used to reach a determination, when applied, then they must be the working eligibility policy in `ADR-015` — the intake rubric with reason categories drawn from it, never an offense-based category. Until the counsel-review launch gate clears, the action runs against synthetic data only, never real applicants.
 5. Given an eligibility determination is recorded, when saved, then it is stored as an internal operational record, never exposed to the applicant beyond the simplified mapping in 2.6, and never exposed to shelters.
 6. Given a user without `eligibilityReview.decide` or without Nova organization scope, when they attempt the action, then it is denied.
 
@@ -397,19 +397,19 @@ As a Program Coordinator, I want to record an eligibility determination on a sub
 Creates `EligibilityReview` (`id`, `applicationId`, `reviewerId`, outcome [`ELIGIBLE`/`NOT_ELIGIBLE`], rationale, timestamps) as a record within the `Application` aggregate.
 
 ### UX and accessibility
-Eligibility Checklist and Status Transition Control components, internal-only visibility, an accessible outcome-and-rationale form, and the Blocked screen state on the action itself while the policy criteria are not yet configured.
+Eligibility Checklist and Status Transition Control components, internal-only visibility, an accessible outcome-and-rationale form. The checklist items render the `ADR-015` intake rubric.
 
 ### Tests
 - Unit: the `SUBMITTED`-only entry guard and outcome-to-transition mapping.
 - Integration: `EligibilityReview` creation; permission/scope enforcement; exclusion from participant- and shelter-facing views.
 - Component: the outcome-recording form and its accessible validation.
-- E2E: not applicable until the eligibility criteria are approved. A workflow-shell smoke test (begin review → record a synthetic, non-legal test outcome → status changes correctly) can run without real criteria.
+- E2E: a coordinator begins review on a synthetic submitted application, records an outcome against the `ADR-015` rubric, and the status transitions correctly. Synthetic fixtures only.
 
 ### Out of scope
-The eligibility rubric or criteria itself (a policy decision, not an engineering one), interview scheduling (2.9), background review (2.10), the rejection UI/action itself (2.11).
+Changing the eligibility rubric itself (governed by `ADR-015`; changes require a superseding ADR), interview scheduling (2.9), background review (2.10), the rejection UI/action itself (2.11).
 
 ### Dependencies
-2.7 (queue/workspace surface), 2.5 (`SUBMITTED` applications to review). **Blocked on:** approved eligibility/screening policy — exact legal screening criteria, and whether offense-based screening is categorical or case-by-case (`docs/planning/assumptions.md`, "Needs validation"; legal review required per `docs/architecture/security-privacy.md`).
+2.7 (queue/workspace surface), 2.5 (`SUBMITTED` applications to review). Criteria governed by `docs/decisions/ADR-015-eligibility-screening-policy.md` (working policy; production enablement gated on counsel review, `docs/ops/launch-checklist.md`).
 
 ---
 
@@ -465,7 +465,7 @@ Video-conferencing integration, calendar sync or reminder notifications (messagi
 ## Story 2.10 — Background decision workflow
 
 ### Status
-Blocked — pending policy validation
+Ready for Development
 
 ### User story
 As an authorized restricted reviewer, I want to record the outcome of an applicant's background check, so that only applicants who clear it can be accepted, while keeping the details away from anyone without clearance.
@@ -481,7 +481,7 @@ As an authorized restricted reviewer, I want to record the outcome of an applica
 1. Given an `Application` in `BACKGROUND_REVIEW`, when a user holding `backgroundReview.decide` records that a background check is complete, then a `BackgroundReview` record is created capturing the reviewer, timestamp, and outcome.
 2. Given a Program Coordinator without `backgroundReview.decide` (or `backgroundReview.view`), when they attempt to view or record a background decision, then both the action and the underlying data are denied server-side — not merely hidden in the UI.
 3. Given a Clear outcome, when recorded, then the `Application` becomes eligible for the Accept action (2.11) but is not itself automatically accepted.
-4. Given a Disqualifying outcome, when recorded, then the shared rejection action (2.11) is invoked with a background reason category. **Whether this specific rejection also triggers permanent disqualification (blocking future reapplication, 2.11) depends on approved policy wording that does not yet exist — see Dependencies.**
+4. Given a Disqualifying outcome, when recorded, then the shared rejection action (2.11) is invoked with a background reason category. Whether it is an ordinary rejection or permanent disqualification follows `ADR-016`: only an active PERMANENT court-ordered animal-possession ban qualifies from this path; a time-limited ban is an ordinary rejection with reapplication possible after the ban lapses.
 5. Given a background decision is recorded, when stored, then its rationale and any report content are held at the Highly Restricted classification, excluded from logs, and excluded from every role-shaped view model except the restricted internal one.
 6. Given a background decision is recorded, when saved, then the action is written to an audit event distinct from ordinary lifecycle events, reflecting its sensitivity.
 
@@ -501,34 +501,35 @@ The Restricted state is the default rendering for any user without the permissio
 - Unit: the restricted-permission gate (deny by default); the `BACKGROUND_REVIEW`-only lifecycle guard.
 - Integration: `BackgroundReview` data is excluded from non-restricted view models and from logs; an audit event is written on every access and decision.
 - Component: the Restricted state renders correctly for unauthorized roles.
-- E2E: not applicable until policy is approved. A workflow-shell smoke test (the permission gate correctly allows/denies) can run without real criteria.
+- E2E: the restricted permission gate allows a Restricted Review Specialist and denies a coordinator; a specialist records a synthetic outcome and the application transitions correctly. Synthetic fixtures only.
 
 ### Out of scope
 Background-check vendor/API integration (explicitly deferred, `docs/product/mvp.md`), the acceptance/rejection action itself (2.11), an appeals process.
 
 ### Dependencies
-2.9 (the application must reach `BACKGROUND_REVIEW`), 1.5 (restricted-permission support). **Blocked on:** background-check legal obligations and permanent-disqualification policy wording (`docs/planning/assumptions.md`, "Needs validation"; `docs/architecture/security-privacy.md`, "Legal review required").
+2.9 (the application must reach `BACKGROUND_REVIEW`), 1.5 (restricted-permission support). Legal obligations and the disqualification linkage are governed by `docs/decisions/ADR-015-eligibility-screening-policy.md` and `docs/decisions/ADR-016-rejection-disqualification-policy.md` (working policy; production enablement gated on counsel review, `docs/ops/launch-checklist.md`).
 
 ---
 
 ## Story 2.11 — Acceptance and rejection
 
 ### Status
-Blocked — pending policy validation
+Ready for Development
 
 ### User story
 As a Program Coordinator, I want to accept or reject an application with a single, auditable decision action, so that the outcome is recorded consistently and the applicant is told respectfully and correctly what it means for them.
 
 ### Scope
 - Accept action: reachable only when `Application.status` is `BACKGROUND_REVIEW` with a recorded Clear outcome (2.10). Transitions the `Application` to `ACCEPTED` and, in the same operation, triggers the transactional creation of the `Participant` and `Program Enrollment` records specified in Story 3.1 (`docs/stories/epic-3-enrollment-training.md`) — the acceptance and the participant/enrollment creation succeed together or not at all, per `docs/product/business-rules.md`: "Accepted application creates participant and enrollment records transactionally."
-- Reject action: the single, shared rejection mechanism invoked by this story directly, or by 2.8/2.9/2.10 on a negative outcome, with a reason category. Transitions the `Application` to `REJECTED` (ordinary — reapplication remains possible) or `DISQUALIFIED` (permanent — blocks future applications, per `docs/product/business-rules.md`).
-- Applicant-facing copy for both outcomes follows `docs/ux/content-style-guide.md`: never "failed," "bad candidate," or a clinical "rejected"; "You may apply again" when reapplication remains possible.
-- The permanent-disqualification branch specifically requires approved policy: which reasons qualify, and the exact applicant-facing wording, are not yet defined (`docs/product/business-rules.md`: "Permanent disqualification blocks future applications under approved policy"). This branch must not be enabled in production until that policy exists; the ordinary accept/reject mechanics do not depend on it and can be built now.
+- Reject action: the single, shared rejection mechanism invoked by this story directly, or by 2.8/2.9/2.10 on a negative outcome, with a reason category. Transitions the `Application` to `REJECTED` (ordinary — reapplication allowed 30 days after `decidedAt`, `ADR-016`) or `DISQUALIFIED` (permanent — blocks future applications; only the three `ADR-016` categories qualify).
+- The 30-day reapplication window is enforced at the application gateway (2.3's `resolveApplicationGateway`/`startOrResumeApplication`), which shows the reapply date in respectful copy — never an error — until the window elapses.
+- Applicant-facing copy for both outcomes is drawn only from the approved templates in `docs/ux/content-style-guide.md` ("Decision communications", `ADR-016`): never "failed," "bad candidate," or a clinical "rejected"; the reapply date stated plainly when reapplication remains possible.
+- The permanent-disqualification branch is governed by `ADR-016` (three narrow categories: active permanent animal-possession ban; violence within the program; fraud against the program). Until the counsel-review launch gate clears, this branch runs against synthetic data only, never real applicants.
 
 ### Acceptance criteria
 1. Given an `Application` in `BACKGROUND_REVIEW` with a Clear `BackgroundReview` outcome, when a user with `application.accept` accepts it, then the `Application` transitions to `ACCEPTED` and, within the same transaction boundary, Story 3.1's `Participant` and `Program Enrollment` creation is triggered — both succeed or neither does.
-2. Given an `Application` at any non-terminal phase, when a user with `application.reject` rejects it with an ordinary (non-disqualifying) reason, then the `Application` transitions to `REJECTED`, the applicant may submit a new application later (2.3), and the applicant-facing copy follows `docs/ux/content-style-guide.md`.
-3. Given a rejection reason that qualifies for permanent disqualification under approved policy, when recorded, then the `Application` transitions to `DISQUALIFIED` and a disqualification flag is set on the `Person` so future application attempts are blocked at creation (2.3). **The qualifying criteria and the approved applicant-facing wording for this outcome do not yet exist — see Dependencies. This transition must stay disabled in production until they do.**
+2. Given an `Application` at any non-terminal phase, when a user with `application.reject` rejects it with an ordinary (non-disqualifying) reason, then the `Application` transitions to `REJECTED`, the applicant may submit a new application 30 days after `decidedAt` (`ADR-016`; enforced at the 2.3 gateway, which shows the reapply date respectfully before then), and the applicant-facing copy uses the approved templates in `docs/ux/content-style-guide.md`.
+3. Given a rejection reason in one of `ADR-016`'s three permanent-disqualification categories, when recorded, then the `Application` transitions to `DISQUALIFIED` and a disqualification flag is set on the `Person` so future application attempts are blocked at creation (2.3), with applicant-facing copy drawn only from the approved disqualification template. Until the counsel-review launch gate clears, this transition runs against synthetic data only.
 4. Given a rejection or disqualification is recorded, when the applicant views their journey (2.6), then they see only approved, respectful language — never unapproved permanent-disqualification wording.
 5. Given an Accept or Reject action is attempted outside its required state — for example, accepting a `DRAFT` application, or acting on an `Application` that is already `ACCEPTED`, `REJECTED`, or `DISQUALIFIED` — then it is rejected as a lifecycle error.
 6. Given an Accept or Reject action completes, when recorded, then it is written to an audit event capturing who decided, when, and the reason category.
@@ -549,10 +550,10 @@ Application Decision component and a Confirmation Panel for this largely irrever
 - Unit: accept/reject/disqualify lifecycle guards; terminal-state immutability.
 - Integration: the transactional Accept → participant/enrollment handoff (paired with 3.1's own tests); the audit event written on every decision; the `Person`-level disqualification flag blocking future application creation (2.3).
 - Component: the decision confirmation UI and respectful-copy rendering.
-- E2E: the full happy path (draft → submit → eligible → interview advance → background clear → accept) reaches the 3.1 handoff; the ordinary-rejection path shows respectful messaging and allows reapplication. Permanent-disqualification E2E coverage is not applicable until policy wording is approved.
+- E2E: the full happy path (draft → submit → eligible → interview advance → background clear → accept) reaches the 3.1 handoff; the ordinary-rejection path shows the approved messaging with the reapply date, blocks a new application inside the 30-day window, and allows one after it; the disqualification path (synthetic fixtures) blocks at creation with the approved template.
 
 ### Out of scope
 `Participant`/`Program Enrollment` record creation itself (Epic 3, Story 3.1), onboarding (Epic 3), an appeals process, notification/email delivery.
 
 ### Dependencies
-2.10 (a Clear outcome is required to accept); 2.8/2.9 (rejection may be invoked from any prior phase); Epic 3, Story 3.1, for the participant/enrollment creation this story triggers. **Blocked on:** approved permanent-disqualification policy wording and criteria (`docs/planning/assumptions.md`, "Needs validation"; `docs/product/business-rules.md`: "Permanent disqualification blocks future applications under approved policy").
+2.10 (a Clear outcome is required to accept); 2.8/2.9 (rejection may be invoked from any prior phase); Epic 3, Story 3.1, for the participant/enrollment creation this story triggers. Disqualification criteria, the 30-day reapplication window, and applicant-facing wording are governed by `docs/decisions/ADR-016-rejection-disqualification-policy.md` (working policy; production enablement gated on counsel review, `docs/ops/launch-checklist.md`).

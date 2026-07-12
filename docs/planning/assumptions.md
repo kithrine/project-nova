@@ -6,16 +6,16 @@
 - Shelters are host organizations.
 - One active placement per participant in MVP.
 - One active funding source per placement in MVP.
-- Rejected applicants may reapply unless permanently disqualified under approved policy.
+- Rejected applicants may reapply 30 days after the decision unless permanently disqualified (`ADR-016`).
 - Messaging is V2.
 - Dark mode is deferred.
 - Manual matching is sufficient for the pilot.
 
 ## Needs validation
 
-- Exact legal screening criteria
-- Whether violent-offense screening is categorical or case-by-case
-- Permanent disqualification policy wording
+- ~~Exact legal screening criteria~~ — working policy adopted (`ADR-015`); Washington employment-counsel review outstanding (launch checklist)
+- ~~Whether violent-offense screening is categorical or case-by-case~~ — individualized (case-by-case) per `ADR-015`; counsel review outstanding
+- ~~Permanent disqualification policy wording~~ — working policy adopted (`ADR-016`); counsel review outstanding
 - Payroll and tax workflows
 - Grant-specific data fields
 - Document storage provider

@@ -6,6 +6,9 @@ A person who has started or submitted an application but has not yet been accept
 ## Application
 One attempt by a person to enter Project Nova.
 
+## Individualized Assessment
+The documented, six-factor evaluation of whether a specific conviction is job-related for a specific placement (seriousness; number and types of convictions; time elapsed; verifiable rehabilitation; duties of the position; place and manner of performance), performed before any adverse decision based on offense history. Required by Washington's Fair Chance Act (RCW 49.94) and adopted as Nova's screening model in `docs/decisions/ADR-015-eligibility-screening-policy.md` — never a categorical exclusion, with the single narrow animal-care nexus screen described there.
+
 ## Lifecycle Event
 An append-only record of one status transition on a workflow record (for example, an `Application` moving from `DRAFT` to `SUBMITTED`), written in the same transaction as the transition itself. Distinct from an audit event, which records access and administrative activity for security review.
 
