@@ -44,9 +44,6 @@ test("a coordinator works the queue; background stays restricted even by direct 
   await expect(
     page.getByRole("tablist", { name: "Application workspace sections" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Begin Eligibility Review" }),
-  ).toBeDisabled();
 
   // Background via the tab control: Restricted state, no restricted content.
   await page.getByRole("tab", { name: "Background" }).click();
@@ -102,6 +99,36 @@ test("a coordinator records an ordinary rejection through the confirmation panel
   ).toBeVisible();
   await page.getByRole("tab", { name: "History" }).click();
   await expect(page.getByText("Submitted → Rejected")).toBeVisible({ timeout: 20_000 });
+});
+
+test("a coordinator runs eligibility review: begin, record Eligible, reach Interview (Story 2.8)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  await page.goto("/operations/applications/e2e_app_eligibility?tab=eligibility");
+  await expect(page.getByText("Eligibility rubric (ADR-015)")).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole("button", { name: "Begin Eligibility Review" }).click();
+
+  // The review is now in progress; the outcome form appears with its gates.
+  const record = page.getByRole("button", { name: "Record Eligibility Outcome" });
+  await expect(record).toBeVisible({ timeout: 20_000 });
+  await expect(record).toBeDisabled();
+  await page.getByRole("radio", { name: /Eligible — advances/ }).check();
+  await page.getByLabel(/Rationale \(internal\)/).fill("Synthetic: meets every rubric item.");
+  await page.getByRole("checkbox", { name: /ADR-015 rubric only/i }).check();
+  await record.click();
+
+  // Eligible advances the application to the Interview phase.
+  await expect(page.getByText(/· Interview/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Outcome: Eligible")).toBeVisible();
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page.getByText("Submitted → Eligibility review")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText("Eligibility review → Interview")).toBeVisible();
 });
 
 test("a shelter user is denied the queue by direct URL (AC5)", async ({ page }) => {

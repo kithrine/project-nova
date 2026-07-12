@@ -1,4 +1,5 @@
-import { ApplicationStatus } from "@/generated/prisma/client";
+import { ApplicationStatus, EligibilityOutcome } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import {
   hasPermission,
@@ -171,16 +172,12 @@ export interface ContextualAction {
 
 /**
  * Phase-appropriate entry points for review workflows that are not yet
- * built (2.8–2.10) — rendered as Disabled states naming the story that
- * enables them. The decision actions (accept/reject, 2.11) are LIVE and
- * render through the Decision Panel, not here.
+ * built — rendered as Disabled states naming the story that enables them.
+ * Live workflows (decisions 2.11, eligibility 2.8) render through their
+ * own panels, not here.
  */
 export function contextualActionsFor(status: ApplicationStatus): ContextualAction[] {
   switch (status) {
-    case ApplicationStatus.SUBMITTED:
-      return [{ label: "Begin Eligibility Review", arrivesWith: "Story 2.8" }];
-    case ApplicationStatus.ELIGIBILITY_REVIEW:
-      return [{ label: "Record Eligibility Outcome", arrivesWith: "Story 2.8" }];
     case ApplicationStatus.INTERVIEW:
       return [
         { label: "Schedule Interview", arrivesWith: "Story 2.9" },
@@ -375,12 +372,68 @@ const TERMINAL_MESSAGE =
   "This application has already been decided — terminal applications are never reopened.";
 
 /**
- * The shared rejection action (AC2/AC3): invoked directly or by 2.8/2.9/2.10
- * on a negative outcome. The category alone determines the terminal status —
- * only ADR-016's three categories set DISQUALIFIED and stamp the Person-level
- * marker. Status change, lifecycle event, Person marker, and audit event all
- * commit in ONE transaction; the compare-and-set on the loaded status makes a
- * replayed or racing decision a lifecycle error, never a double transition.
+ * The shared rejection mechanics, composable into a caller's transaction —
+ * 2.8/2.9/2.10 invoke this on a negative outcome so their own record update
+ * and the rejection commit atomically. Status change, lifecycle event,
+ * Person marker (DQ only), and audit event; the compare-and-set on the
+ * loaded status makes a racing decision a conflict, never a double
+ * transition.
+ */
+async function applyRejectionInTx(
+  tx: Prisma.TransactionClient,
+  application: { id: string; status: ApplicationStatus; personId: string },
+  category: DecisionCategory,
+  actorUserId: string,
+): Promise<void> {
+  const disqualifying = isDisqualifyingCategory(category);
+  const targetStatus = disqualifying
+    ? ApplicationStatus.DISQUALIFIED
+    : ApplicationStatus.REJECTED;
+
+  const result = await tx.application.updateMany({
+    where: { id: application.id, status: application.status },
+    data: {
+      status: targetStatus,
+      decidedAt: new Date(),
+      decisionReason: category,
+    },
+  });
+  if (result.count === 0) {
+    // Another decision or transition won the race.
+    throw new ConflictError(
+      "This application changed while you were deciding. Review the latest state, then decide again if still needed.",
+    );
+  }
+  await tx.applicationEvent.create({
+    data: {
+      applicationId: application.id,
+      fromStatus: application.status,
+      toStatus: targetStatus,
+      actorUserId,
+    },
+  });
+  if (disqualifying) {
+    await tx.person.update({
+      where: { id: application.personId },
+      data: { disqualifiedAt: new Date() },
+    });
+  }
+  await tx.auditEvent.create({
+    data: {
+      actorUserId,
+      action: "application.reject",
+      subjectType: "Application",
+      subjectId: application.id,
+      detail: category,
+    },
+  });
+}
+
+/**
+ * The shared rejection action (AC2/AC3): invoked directly here, and by
+ * 2.8/2.9/2.10 via applyRejectionInTx on a negative outcome. The category
+ * alone determines the terminal status — only ADR-016's three categories set
+ * DISQUALIFIED and stamp the Person-level marker.
  */
 export async function rejectApplication(
   ctx: AuthContext,
@@ -398,49 +451,158 @@ export async function rejectApplication(
     throw new LifecycleError(TERMINAL_MESSAGE);
   }
 
-  const disqualifying = isDisqualifyingCategory(category);
-  const targetStatus = disqualifying
-    ? ApplicationStatus.DISQUALIFIED
-    : ApplicationStatus.REJECTED;
+  await prisma.$transaction(async (tx) =>
+    applyRejectionInTx(tx, application, category, ctx.userId),
+  );
+}
+
+// --- Eligibility review (Story 2.8; ADR-015) -----------------------------------
+
+export const ELIGIBILITY_OUTCOME_LABELS: Record<EligibilityOutcome, string> = {
+  [EligibilityOutcome.ELIGIBLE]: "Eligible",
+  [EligibilityOutcome.NOT_ELIGIBLE]: "Not eligible",
+};
+
+export interface EligibilityReviewView {
+  reviewerName: string;
+  startedAtLabel: string;
+  outcome: EligibilityOutcome | null;
+  outcomeLabel: string | null;
+  /** Internal operational record — never in participant or shelter payloads. */
+  rationale: string | null;
+  decidedAtLabel: string | null;
+}
+
+export async function getEligibilityReview(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<EligibilityReviewView | null> {
+  await loadVisibleApplication(ctx, applicationId);
+  const review = await prisma.eligibilityReview.findUnique({ where: { applicationId } });
+  if (!review) return null;
+  const reviewer = await prisma.user.findUnique({
+    where: { id: review.reviewerId },
+    select: { displayName: true },
+  });
+  return {
+    reviewerName: reviewer?.displayName ?? "Unknown user",
+    startedAtLabel: formatDate(review.createdAt) ?? "",
+    outcome: review.outcome,
+    outcomeLabel: review.outcome ? ELIGIBILITY_OUTCOME_LABELS[review.outcome] : null,
+    rationale: review.rationale,
+    decidedAtLabel: formatDate(review.decidedAt),
+  };
+}
+
+/**
+ * Begin Eligibility Review (AC1): SUBMITTED -> ELIGIBILITY_REVIEW, creating
+ * the EligibilityReview record (reviewer + start time) and the lifecycle
+ * event in one transaction. Only a Nova Operations action drives this — the
+ * applicant has no control once submitted.
+ */
+export async function beginEligibilityReview(
+  ctx: AuthContext,
+  applicationId: string,
+): Promise<void> {
+  requirePermission(ctx, "eligibilityReview.decide");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (application.status !== ApplicationStatus.SUBMITTED) {
+    throw new LifecycleError(
+      "Eligibility review can begin only on a submitted application.",
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     const result = await tx.application.updateMany({
-      where: { id: applicationId, status: application.status },
-      data: {
-        status: targetStatus,
-        decidedAt: new Date(),
-        decisionReason: category,
-      },
+      where: { id: applicationId, status: ApplicationStatus.SUBMITTED },
+      data: { status: ApplicationStatus.ELIGIBILITY_REVIEW },
     });
     if (result.count === 0) {
-      // Another decision or transition won the race.
       throw new ConflictError(
-        "This application changed while you were deciding. Review the latest state, then decide again if still needed.",
+        "This application changed while you were working. Review the latest state.",
       );
     }
+    await tx.eligibilityReview.create({
+      data: { applicationId, reviewerId: ctx.userId },
+    });
     await tx.applicationEvent.create({
       data: {
         applicationId,
-        fromStatus: application.status,
-        toStatus: targetStatus,
+        fromStatus: ApplicationStatus.SUBMITTED,
+        toStatus: ApplicationStatus.ELIGIBILITY_REVIEW,
         actorUserId: ctx.userId,
       },
     });
-    if (disqualifying) {
-      await tx.person.update({
-        where: { id: application.personId },
-        data: { disqualifiedAt: new Date() },
+  });
+}
+
+/**
+ * Record the eligibility determination (AC2/AC3) against the ADR-015 intake
+ * rubric — offense history is never part of eligibility. Eligible advances
+ * to INTERVIEW; Not Eligible invokes the SHARED rejection action (2.11) with
+ * the eligibility reason category — outcome, rationale, and the transition
+ * commit in ONE transaction.
+ */
+export async function recordEligibilityOutcome(
+  ctx: AuthContext,
+  applicationId: string,
+  outcome: EligibilityOutcome,
+  rationale: string,
+): Promise<void> {
+  requirePermission(ctx, "eligibilityReview.decide");
+  requireNovaScope(ctx);
+
+  const application = await loadVisibleApplication(ctx, applicationId);
+  if (application.status !== ApplicationStatus.ELIGIBILITY_REVIEW) {
+    throw new LifecycleError(
+      "An outcome can be recorded only while eligibility review is in progress.",
+    );
+  }
+  const review = await prisma.eligibilityReview.findUnique({ where: { applicationId } });
+  if (!review) {
+    throw new NotFoundError();
+  }
+  if (review.outcome) {
+    throw new LifecycleError("This eligibility review already has an outcome.");
+  }
+  const trimmed = rationale.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError(
+      "Record the rationale for this determination against the ADR-015 rubric.",
+    );
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep the rationale under 4,000 characters.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.eligibilityReview.update({
+      where: { id: review.id },
+      data: { outcome, rationale: trimmed, decidedAt: new Date() },
+    });
+    if (outcome === EligibilityOutcome.ELIGIBLE) {
+      const result = await tx.application.updateMany({
+        where: { id: applicationId, status: ApplicationStatus.ELIGIBILITY_REVIEW },
+        data: { status: ApplicationStatus.INTERVIEW },
       });
+      if (result.count === 0) {
+        throw new ConflictError(
+          "This application changed while you were working. Review the latest state.",
+        );
+      }
+      await tx.applicationEvent.create({
+        data: {
+          applicationId,
+          fromStatus: ApplicationStatus.ELIGIBILITY_REVIEW,
+          toStatus: ApplicationStatus.INTERVIEW,
+          actorUserId: ctx.userId,
+        },
+      });
+    } else {
+      await applyRejectionInTx(tx, application, "ELIGIBILITY", ctx.userId);
     }
-    await tx.auditEvent.create({
-      data: {
-        actorUserId: ctx.userId,
-        action: "application.reject",
-        subjectType: "Application",
-        subjectId: applicationId,
-        detail: category,
-      },
-    });
   });
 }
 

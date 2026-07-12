@@ -86,13 +86,12 @@ describe("resolveWorkspaceTab", () => {
   });
 });
 
-describe("contextualActionsFor (entry points for unbuilt workflows, 2.8–2.10)", () => {
-  it("offers phase-appropriate entry points for every in-flight phase", () => {
-    expect(contextualActionsFor(S.SUBMITTED).map((a) => a.label)).toEqual([
-      "Begin Eligibility Review",
-    ]);
+describe("contextualActionsFor (entry points for unbuilt workflows)", () => {
+  it("stubs only the workflows that are not built yet (2.9, 2.10)", () => {
+    // Eligibility (2.8) and decisions (2.11) are live panels, not stubs.
+    expect(contextualActionsFor(S.SUBMITTED)).toEqual([]);
+    expect(contextualActionsFor(S.ELIGIBILITY_REVIEW)).toEqual([]);
     expect(contextualActionsFor(S.INTERVIEW).length).toBeGreaterThan(0);
-    // Decision actions (2.11) are live in the Decision Panel, not stubs here.
     expect(contextualActionsFor(S.BACKGROUND_REVIEW).map((a) => a.label)).toEqual([
       "Record Background Decision",
     ]);

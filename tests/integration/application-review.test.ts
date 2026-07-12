@@ -162,6 +162,9 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
     });
     const userIds = runUsers.map((u) => u.id);
     await prisma.auditEvent.deleteMany({ where: { actorUserId: { in: userIds } } });
+    await prisma.eligibilityReview.deleteMany({
+      where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
+    });
     await prisma.caseNote.deleteMany({
       where: { application: { person: { user: { email: { startsWith: `${runId}-` } } } } },
     });
@@ -204,7 +207,8 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
 
     expect(workspace.statusLabel).toBe("Submitted");
     expect(workspace.answers.find((a) => a.value === "Steady work.")).toBeDefined();
-    expect(workspace.actions.map((a) => a.label)).toEqual(["Begin Eligibility Review"]);
+    // Eligibility (2.8) is a live panel now — no disabled stub for SUBMITTED.
+    expect(workspace.actions).toEqual([]);
 
     await expect(review.getApplicationWorkspace(ctx, draftAppId)).rejects.toBeInstanceOf(
       errors.NotFoundError,
@@ -421,6 +425,112 @@ describe.skipIf(!hasDatabase)("application review (integration)", () => {
       await expect(review.acceptApplication(shelterCtx, applicationId)).rejects.toBeInstanceOf(
         errors.AuthorizationError,
       );
+    });
+
+    it("runs eligibility end to end: begin, Eligible advances, rationale stays internal (Story 2.8)", async () => {
+      const { userId, applicationId } = await createSubmittedApplicant("elig-a");
+      const ctx = await contextFor(coordinatorId);
+
+      await review.beginEligibilityReview(ctx, applicationId);
+      let row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.ELIGIBILITY_REVIEW);
+
+      const started = await review.getEligibilityReview(ctx, applicationId);
+      expect(started?.outcome).toBeNull();
+
+      // Beginning twice is a lifecycle error — the review exists exactly once.
+      await expect(review.beginEligibilityReview(ctx, applicationId)).rejects.toBeInstanceOf(
+        errors.LifecycleError,
+      );
+
+      await review.recordEligibilityOutcome(
+        ctx,
+        applicationId,
+        enums.EligibilityOutcome.ELIGIBLE,
+        "Meets every ADR-015 rubric item.",
+      );
+      row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.INTERVIEW);
+
+      const events = await prisma.applicationEvent.findMany({
+        where: { applicationId },
+        orderBy: { createdAt: "asc" },
+      });
+      expect(events.map((e) => e.toStatus)).toEqual([
+        enums.ApplicationStatus.ELIGIBILITY_REVIEW,
+        enums.ApplicationStatus.INTERVIEW,
+      ]);
+
+      // A second outcome can never be recorded.
+      await expect(
+        review.recordEligibilityOutcome(
+          ctx,
+          applicationId,
+          enums.EligibilityOutcome.NOT_ELIGIBLE,
+          "changed my mind",
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
+
+      // The rationale never reaches the applicant's payload (AC5).
+      const applicantCtx = await contextFor(userId);
+      const views = await applications.getOwnApplications(applicantCtx);
+      const payload = JSON.stringify({
+        views,
+        journeys: views.map((v) => journey.toJourneyView(v)),
+      });
+      expect(payload).not.toContain("rubric item");
+      expect(payload).not.toContain("rationale");
+    });
+
+    it("routes Not Eligible through the shared rejection in one transaction (Story 2.8)", async () => {
+      const { applicationId } = await createSubmittedApplicant("elig-b");
+      const ctx = await contextFor(coordinatorId);
+
+      await review.beginEligibilityReview(ctx, applicationId);
+      await review.recordEligibilityOutcome(
+        ctx,
+        applicationId,
+        enums.EligibilityOutcome.NOT_ELIGIBLE,
+        "Outside the program window (ADR-015 rubric).",
+      );
+
+      const row = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+      expect(row.status).toBe(enums.ApplicationStatus.REJECTED); // ordinary — never DQ
+      expect(row.decisionReason).toBe("ELIGIBILITY");
+
+      const audit = await prisma.auditEvent.findFirstOrThrow({
+        where: { action: "application.reject", subjectId: applicationId },
+      });
+      expect(audit.detail).toBe("ELIGIBILITY");
+
+      const reviewRow = await prisma.eligibilityReview.findUniqueOrThrow({
+        where: { applicationId },
+      });
+      expect(reviewRow.outcome).toBe(enums.EligibilityOutcome.NOT_ELIGIBLE);
+    });
+
+    it("denies eligibility actions without the permission or on the wrong lifecycle (Story 2.8)", async () => {
+      const { applicationId } = await createSubmittedApplicant("elig-c");
+      const shelterCtx = await contextFor(shelterUserId);
+      const specialistCtx = await contextFor(specialistId);
+      const coordinatorCtx = await contextFor(coordinatorId);
+
+      await expect(
+        review.beginEligibilityReview(shelterCtx, applicationId),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
+      // RRS holds application.view but NOT eligibilityReview.decide.
+      await expect(
+        review.beginEligibilityReview(specialistCtx, applicationId),
+      ).rejects.toBeInstanceOf(errors.AuthorizationError);
+      // Recording before beginning is a lifecycle error.
+      await expect(
+        review.recordEligibilityOutcome(
+          coordinatorCtx,
+          applicationId,
+          enums.EligibilityOutcome.ELIGIBLE,
+          "too early",
+        ),
+      ).rejects.toBeInstanceOf(errors.LifecycleError);
     });
 
     it("keeps the decision category out of the participant payload", async () => {

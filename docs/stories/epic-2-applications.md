@@ -14,7 +14,7 @@ Allow applicants to apply and track progress.
 | 2.5 | Submit application | Done |
 | 2.6 | View participant-safe application journey | Done |
 | 2.7 | Operations applications queue | Done |
-| 2.8 | Eligibility review | Ready for Development |
+| 2.8 | Eligibility review | Done |
 | 2.9 | Interview workflow | Ready for Development |
 | 2.10 | Background decision workflow | Ready for Development |
 | 2.11 | Acceptance and rejection | Done |
@@ -368,7 +368,7 @@ The review actions themselves (2.8–2.11), reporting/analytics (Epic 7), full c
 ## Story 2.8 — Eligibility review
 
 ### Status
-Ready for Development
+Done
 
 ### User story
 As a Program Coordinator, I want to record an eligibility determination on a submitted application, so that only applicants who meet Nova's eligibility criteria advance toward an interview.
