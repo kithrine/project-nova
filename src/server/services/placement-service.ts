@@ -1,14 +1,32 @@
-import { PlacementStatus, Role } from "@/generated/prisma/client";
+import {
+  ActiveStatus,
+  OrganizationKind,
+  PlacementStatus,
+  Prisma,
+  Role,
+  ScheduleDay,
+} from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
-import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
+import { hasNovaScope, hasPermission, requireNovaScope } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
 import {
+  ACTIVE_PLACEMENT_STATUSES,
+  assertPlacementTransition,
   buildPlacementTimeline,
+  packageMissingPieces,
   PLACEMENT_STATUS_LABELS,
+  scheduleValidationError,
   TERMINAL_PLACEMENT_STATUSES,
+  type ScheduleDayInput,
   type TimelineStage,
 } from "@/server/domain/placement";
-import { AuthorizationError, NotFoundError } from "@/server/errors/app-error";
+import {
+  AuthorizationError,
+  ConflictError,
+  LifecycleError,
+  NotFoundError,
+  ValidationError,
+} from "@/server/errors/app-error";
 
 /**
  * Placement workspace reads (Story 5.1). One underlying Placement, three
@@ -78,6 +96,43 @@ export interface PlacementHistoryEntry {
   actorName: string;
 }
 
+const DAY_ORDER: ScheduleDay[] = [
+  ScheduleDay.MONDAY,
+  ScheduleDay.TUESDAY,
+  ScheduleDay.WEDNESDAY,
+  ScheduleDay.THURSDAY,
+  ScheduleDay.FRIDAY,
+  ScheduleDay.SATURDAY,
+  ScheduleDay.SUNDAY,
+];
+
+export const SCHEDULE_DAY_LABELS: Record<ScheduleDay, string> = {
+  [ScheduleDay.MONDAY]: "Monday",
+  [ScheduleDay.TUESDAY]: "Tuesday",
+  [ScheduleDay.WEDNESDAY]: "Wednesday",
+  [ScheduleDay.THURSDAY]: "Thursday",
+  [ScheduleDay.FRIDAY]: "Friday",
+  [ScheduleDay.SATURDAY]: "Saturday",
+  [ScheduleDay.SUNDAY]: "Sunday",
+};
+
+export interface ScheduleView {
+  days: { day: ScheduleDay; dayLabel: string; startTime: string; endTime: string }[];
+  /** Decimal-shaped string — floating point never touches it (RULES.md). */
+  weeklyHoursTarget: string;
+}
+
+export interface SelectOption {
+  id: string;
+  label: string;
+}
+
+export interface AssignmentOptions {
+  siteOptions: SelectOption[];
+  supervisorOptions: SelectOption[];
+  coordinatorOptions: SelectOption[];
+}
+
 export interface PlacementWorkspaceView {
   viewer: WorkspaceViewer;
   id: string;
@@ -99,6 +154,19 @@ export interface PlacementWorkspaceView {
   tabs: WorkspaceTab[];
   timeline: TimelineStage[];
   history: PlacementHistoryEntry[];
+  /** The structured working schedule once assigned (Story 5.2). */
+  structuredSchedule: ScheduleView | null;
+  /** The shelter's outstanding change-request note on the package (5.2). */
+  shelterReviewNote: string | null;
+  /** What the package still needs before proposing — Nova viewer, Draft only. */
+  packageMissing: string[];
+  /** Assignment form options — Nova viewer, Draft only; null otherwise. */
+  assignmentOptions: AssignmentOptions | null;
+  /** True for a Shelter Manager of this org while the package is in review. */
+  viewerCanApprovePackage: boolean;
+  siteId: string;
+  supervisorId: string | null;
+  coordinatorUserId: string | null;
 }
 
 function formatDate(date: Date | null): string | null {
@@ -154,6 +222,7 @@ export async function getPlacementWorkspace(
         },
       },
       fundingSource: { select: { name: true } },
+      structuredSchedule: { include: { days: true } },
       events: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -179,6 +248,7 @@ export async function getPlacementWorkspace(
   // Resolve people references to display names — ids never render.
   const userIds = [
     placement.supervisorId,
+    placement.coordinatorUserId,
     ...placement.events.map((event) => event.actorUserId),
   ].filter((id): id is string => !!id);
   const users = await prisma.user.findMany({
@@ -217,8 +287,9 @@ export async function getPlacementWorkspace(
     supervisorName: placement.supervisorId
       ? (nameById.get(placement.supervisorId) ?? "Unknown user")
       : null,
-    // Coordinator of record is assigned in 5.2; until then it is absent.
-    coordinatorName: null,
+    coordinatorName: placement.coordinatorUserId
+      ? (nameById.get(placement.coordinatorUserId) ?? "Unknown user")
+      : null,
     scheduleSummary: placement.schedule,
     startDateLabel: formatDate(placement.startDate),
     endDateLabel: formatDate(placement.endDate),
@@ -237,6 +308,86 @@ export async function getPlacementWorkspace(
       toLabel: PLACEMENT_STATUS_LABELS[event.toStatus],
       actorName: nameById.get(event.actorUserId) ?? "Nova system",
     })),
+    structuredSchedule: placement.structuredSchedule
+      ? {
+          days: [...placement.structuredSchedule.days]
+            .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day))
+            .map((entry) => ({
+              day: entry.day,
+              dayLabel: SCHEDULE_DAY_LABELS[entry.day],
+              startTime: entry.startTime,
+              endTime: entry.endTime,
+            })),
+          weeklyHoursTarget: placement.structuredSchedule.weeklyHoursTarget.toString(),
+        }
+      : null,
+    shelterReviewNote: placement.shelterReviewNote,
+    packageMissing:
+      viewer === "NOVA" && placement.status === PlacementStatus.DRAFT
+        ? packageMissingPieces({
+            supervisorId: placement.supervisorId,
+            coordinatorUserId: placement.coordinatorUserId,
+            hasStructuredSchedule: placement.structuredSchedule !== null,
+          })
+        : [],
+    assignmentOptions:
+      viewer === "NOVA" && placement.status === PlacementStatus.DRAFT
+        ? await loadAssignmentOptions(placement.hostOrganizationId)
+        : null,
+    viewerCanApprovePackage:
+      viewer === "SHELTER" &&
+      placement.status === PlacementStatus.SHELTER_REVIEW &&
+      ctx.memberships.some(
+        (membership) =>
+          membership.role === Role.SHELTER_MANAGER &&
+          membership.organizationId === placement.hostOrganizationId,
+      ),
+    siteId: placement.organizationSiteId,
+    supervisorId: placement.supervisorId,
+    coordinatorUserId: placement.coordinatorUserId,
+  };
+}
+
+/** Form options scoped to the placement's host organization (AC1/AC2). */
+async function loadAssignmentOptions(
+  hostOrganizationId: string,
+): Promise<AssignmentOptions> {
+  const [sites, supervisors, coordinators] = await Promise.all([
+    prisma.organizationSite.findMany({
+      where: { organizationId: hostOrganizationId, status: ActiveStatus.ACTIVE },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.membership.findMany({
+      where: {
+        organizationId: hostOrganizationId,
+        role: { in: [Role.SHELTER_SUPERVISOR, Role.SHELTER_MANAGER] },
+        status: ActiveStatus.ACTIVE,
+      },
+      include: { user: { select: { id: true, displayName: true } } },
+      orderBy: { user: { displayName: "asc" } },
+    }),
+    prisma.membership.findMany({
+      where: {
+        role: { in: [Role.PROGRAM_COORDINATOR, Role.NOVA_ADMINISTRATOR] },
+        status: ActiveStatus.ACTIVE,
+        organization: { kind: OrganizationKind.NOVA },
+      },
+      include: { user: { select: { id: true, displayName: true } } },
+      orderBy: { user: { displayName: "asc" } },
+    }),
+  ]);
+
+  const dedupe = (rows: { user: { id: string; displayName: string } }[]) => {
+    const seen = new Map<string, string>();
+    for (const row of rows) seen.set(row.user.id, row.user.displayName);
+    return [...seen.entries()].map(([id, label]) => ({ id, label }));
+  };
+
+  return {
+    siteOptions: sites.map((site) => ({ id: site.id, label: site.name })),
+    supervisorOptions: dedupe(supervisors),
+    coordinatorOptions: dedupe(coordinators),
   };
 }
 
@@ -417,4 +568,393 @@ export async function getOwnPlacement(
     startDateLabel: formatDate(placement.startDate),
     supervisorName: supervisor?.displayName ?? null,
   };
+}
+
+// --- Assign site, supervisor, and schedule (Story 5.2) ----------------------------
+
+function requireAssignAccess(ctx: AuthContext): void {
+  if (!hasPermission(ctx, "placement.assign")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+}
+
+export interface SaveAssignmentInput {
+  siteId: string;
+  supervisorId: string | null;
+  coordinatorUserId: string | null;
+  days: ScheduleDayInput[];
+  weeklyHoursTarget: string | null;
+}
+
+/**
+ * Save the review package while the placement is Draft (AC1/AC2):
+ * site must belong to the placement's host organization; the supervisor
+ * must hold an ACTIVE Shelter Supervisor or Shelter Manager membership
+ * there; the coordinator of record must be ACTIVE Nova Operations staff.
+ * Partial progress saves — the propose gate names whatever is missing.
+ * Weekly hours stay decimal-shaped end to end (RULES.md).
+ */
+export async function saveAssignment(
+  ctx: AuthContext,
+  placementId: string,
+  input: SaveAssignmentInput,
+): Promise<void> {
+  requireAssignAccess(ctx);
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, hostOrganizationId: true },
+  });
+  if (!placement) throw new NotFoundError();
+  if (placement.status !== PlacementStatus.DRAFT) {
+    throw new LifecycleError(
+      "The review package can only be edited while the placement is a draft.",
+    );
+  }
+
+  const site = await prisma.organizationSite.findUnique({
+    where: { id: input.siteId },
+    select: { id: true, organizationId: true, status: true },
+  });
+  if (
+    !site ||
+    site.organizationId !== placement.hostOrganizationId ||
+    site.status !== ActiveStatus.ACTIVE
+  ) {
+    throw new ValidationError(
+      "Choose an active site belonging to this placement's host organization.",
+    );
+  }
+
+  if (input.supervisorId) {
+    const eligible = await prisma.membership.count({
+      where: {
+        userId: input.supervisorId,
+        organizationId: placement.hostOrganizationId,
+        role: { in: [Role.SHELTER_SUPERVISOR, Role.SHELTER_MANAGER] },
+        status: ActiveStatus.ACTIVE,
+      },
+    });
+    if (eligible === 0) {
+      throw new ValidationError(
+        "The supervisor must hold an active Shelter Supervisor or Shelter Manager membership at this organization.",
+      );
+    }
+  }
+
+  if (input.coordinatorUserId) {
+    const eligible = await prisma.membership.count({
+      where: {
+        userId: input.coordinatorUserId,
+        role: { in: [Role.PROGRAM_COORDINATOR, Role.NOVA_ADMINISTRATOR] },
+        status: ActiveStatus.ACTIVE,
+        organization: { kind: OrganizationKind.NOVA },
+      },
+    });
+    if (eligible === 0) {
+      throw new ValidationError(
+        "The coordinator of record must be active Nova Operations staff.",
+      );
+    }
+  }
+
+  const hasSchedule = input.days.length > 0 || (input.weeklyHoursTarget ?? "") !== "";
+  if (hasSchedule) {
+    const problem = scheduleValidationError({
+      days: input.days,
+      weeklyHoursTarget: input.weeklyHoursTarget ?? "",
+    });
+    if (problem) throw new ValidationError(problem);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.DRAFT },
+      data: {
+        organizationSiteId: site.id,
+        supervisorId: input.supervisorId,
+        coordinatorUserId: input.coordinatorUserId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+
+    const existing = await tx.placementSchedule.findUnique({
+      where: { placementId },
+      select: { id: true },
+    });
+    if (existing) {
+      await tx.placementScheduleDay.deleteMany({ where: { scheduleId: existing.id } });
+      await tx.placementSchedule.delete({ where: { id: existing.id } });
+    }
+    if (hasSchedule) {
+      await tx.placementSchedule.create({
+        data: {
+          placementId,
+          weeklyHoursTarget: new Prisma.Decimal(input.weeklyHoursTarget ?? "0"),
+          days: {
+            create: input.days.map((entry) => ({
+              day: entry.day as ScheduleDay,
+              startTime: entry.startTime,
+              endTime: entry.endTime,
+            })),
+          },
+        },
+      });
+    }
+
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.assign",
+        subjectType: "Placement",
+        subjectId: placementId,
+        detail: "package-edited",
+      },
+    });
+  });
+}
+
+/**
+ * Propose the completed package to the shelter (AC3): Draft -> Proposed
+ * -> Shelter Review in one action — both documented transitions get
+ * their lifecycle events. Missing pieces are NAMED; the one-Onboarding/
+ * Active/Paused-placement rule is cited when a conflict blocks (AC5).
+ */
+export async function proposePlacementPackage(
+  ctx: AuthContext,
+  placementId: string,
+): Promise<void> {
+  requireAssignAccess(ctx);
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    include: { structuredSchedule: { select: { id: true } } },
+  });
+  if (!placement) throw new NotFoundError();
+  assertPlacementTransition(placement.status, PlacementStatus.PROPOSED);
+
+  const missing = packageMissingPieces({
+    supervisorId: placement.supervisorId,
+    coordinatorUserId: placement.coordinatorUserId,
+    hasStructuredSchedule: placement.structuredSchedule !== null,
+  });
+  if (missing.length > 0) {
+    throw new ValidationError(
+      `Complete these before proposing: ${missing.join("; ")}.`,
+    );
+  }
+
+  const conflicting = await prisma.placement.count({
+    where: {
+      participantId: placement.participantId,
+      id: { not: placementId },
+      status: { in: [...ACTIVE_PLACEMENT_STATUSES] },
+    },
+  });
+  if (conflicting > 0) {
+    throw new ConflictError(
+      "This participant already holds an onboarding, active, or paused placement — one placement at a time.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.DRAFT },
+      data: { status: PlacementStatus.SHELTER_REVIEW, shelterReviewNote: null },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    // The package walks Draft -> Proposed -> Shelter Review; Proposed is
+    // momentary but documented, so both transitions are evented.
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.DRAFT,
+        toStatus: PlacementStatus.PROPOSED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.PROPOSED,
+        toStatus: PlacementStatus.SHELTER_REVIEW,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.propose",
+        subjectType: "Placement",
+        subjectId: placementId,
+      },
+    });
+  });
+}
+
+function requirePackageReviewAccess(
+  ctx: AuthContext,
+  hostOrganizationId: string,
+): void {
+  const isHostManager = ctx.memberships.some(
+    (membership) =>
+      membership.role === Role.SHELTER_MANAGER &&
+      membership.organizationId === hostOrganizationId,
+  );
+  if (!hasPermission(ctx, "placement.approve") || !isHostManager) {
+    throw new AuthorizationError();
+  }
+}
+
+/**
+ * The Shelter Manager approves the site/supervisor/schedule package
+ * (AC4): Shelter Review -> Approved with its lifecycle event — ADR-013's
+ * placement-level gate, distinct from the Epic 4 match decision.
+ */
+export async function approvePlacementPackage(
+  ctx: AuthContext,
+  placementId: string,
+): Promise<void> {
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, hostOrganizationId: true },
+  });
+  if (!placement) throw new NotFoundError();
+  requirePackageReviewAccess(ctx, placement.hostOrganizationId);
+  assertPlacementTransition(placement.status, PlacementStatus.APPROVED);
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.SHELTER_REVIEW },
+      data: { status: PlacementStatus.APPROVED },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.SHELTER_REVIEW,
+        toStatus: PlacementStatus.APPROVED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.approvePackage",
+        subjectType: "Placement",
+        subjectId: placementId,
+      },
+    });
+  });
+}
+
+/**
+ * The Shelter Manager returns the package for revision instead of a dead
+ * end: Shelter Review -> Draft with a REQUIRED, actionable note — set as
+ * the outstanding note on the row and archived on the lifecycle event
+ * (never in audit detail), mirroring the match change-request pattern.
+ */
+export async function requestPlacementChanges(
+  ctx: AuthContext,
+  placementId: string,
+  note: string | null,
+): Promise<void> {
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, hostOrganizationId: true },
+  });
+  if (!placement) throw new NotFoundError();
+  requirePackageReviewAccess(ctx, placement.hostOrganizationId);
+  assertPlacementTransition(placement.status, PlacementStatus.DRAFT);
+
+  const trimmed = note?.trim() ? note.trim() : null;
+  if (!trimmed) {
+    throw new ValidationError(
+      "Add a note for the coordinator — what needs to change about the site, supervisor, or schedule.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.SHELTER_REVIEW },
+      data: { status: PlacementStatus.DRAFT, shelterReviewNote: trimmed },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.SHELTER_REVIEW,
+        toStatus: PlacementStatus.DRAFT,
+        actorUserId: ctx.userId,
+        detail: `Changes requested: "${trimmed}"`,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.requestChanges",
+        subjectType: "Placement",
+        subjectId: placementId,
+        detail: "changes requested",
+      },
+    });
+  });
+}
+
+export interface PackageReviewRow {
+  id: string;
+  placementNumber: string;
+  participantName: string;
+  siteName: string;
+}
+
+/** Packages awaiting this shelter's review (the manager's queue). */
+export async function listShelterPackageReviews(
+  ctx: AuthContext,
+): Promise<PackageReviewRow[]> {
+  if (!hasPermission(ctx, "placement.view")) {
+    throw new AuthorizationError();
+  }
+  const organizationIds = ctx.memberships
+    .filter((membership) => SHELTER_ROLES.includes(membership.role))
+    .map((membership) => membership.organizationId);
+  if (organizationIds.length === 0) {
+    throw new AuthorizationError();
+  }
+  const placements = await prisma.placement.findMany({
+    where: {
+      hostOrganizationId: { in: organizationIds },
+      status: PlacementStatus.SHELTER_REVIEW,
+    },
+    include: {
+      participant: {
+        include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+      },
+      organizationSite: { select: { name: true } },
+    },
+    orderBy: { updatedAt: "asc" },
+  });
+  return placements.map((placement) => ({
+    id: placement.id,
+    placementNumber: placement.placementNumber,
+    participantName: `${placement.participant.person.legalFirstName} ${placement.participant.person.legalLastName}`,
+    siteName: placement.organizationSite.name,
+  }));
 }

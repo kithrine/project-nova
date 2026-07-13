@@ -1210,6 +1210,111 @@ try {
     },
   });
 
+  // Placement-assignment fixture (Story 5.2): CASEY carries a fresh DRAFT
+  // placement each run for the assign -> propose -> shelter-review ->
+  // approve E2E cycle. No Clerk identity — staff act on it.
+  await prisma.user.upsert({
+    where: { id: "e2e_user_assignready" },
+    update: {},
+    create: {
+      id: "e2e_user_assignready",
+      email: "e2e-assignready-subject@synthetic.example",
+      displayName: "Synthetic Assignready Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_assignready" },
+    update: {},
+    create: {
+      id: "e2e_person_assignready",
+      userId: "e2e_user_assignready",
+      legalFirstName: "Casey",
+      legalLastName: "Synthetic-Assign",
+      dateOfBirth: new Date("1994-04-04T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_assignready" },
+    update: {},
+    create: {
+      id: "e2e_app_assignready",
+      personId: "e2e_person_assignready",
+      applicationNumber: "APP-E2E-ASSIGN1",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_assignready" },
+    update: {},
+    create: { id: "e2e_participant_assignready", personId: "e2e_person_assignready" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_assignready" },
+    update: { status: "READY_FOR_MATCHING" },
+    create: {
+      id: "e2e_enrollment_assignready",
+      participantId: "e2e_participant_assignready",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_assignready",
+      status: "READY_FOR_MATCHING",
+    },
+  });
+  await prisma.placementScheduleDay.deleteMany({
+    where: {
+      schedule: { placement: { participantId: "e2e_participant_assignready" } },
+    },
+  });
+  await prisma.placementSchedule.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_assignready" },
+  });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_assignready" } },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_assignready" },
+  });
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_assign_src",
+      participantId: "e2e_participant_assignready",
+      programEnrollmentId: "e2e_enrollment_assignready",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "APPROVED",
+      approvedAt: new Date(),
+      approvedByUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placement.create({
+    data: {
+      id: "e2e_placement_assign",
+      placementNumber: "PLC-E2E-CASEY01",
+      participantId: "e2e_participant_assignready",
+      programEnrollmentId: "e2e_enrollment_assignready",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      sourceMatchId: "e2e_match_assign_src",
+      status: "DRAFT",
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_assign",
+      fromStatus: null,
+      toStatus: "DRAFT",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

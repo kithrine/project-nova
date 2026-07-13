@@ -104,6 +104,14 @@ export const PERMISSIONS = [
   // Tab and field visibility are shaped server-side per role — a hidden
   // tab is never the only protection.
   "placement.view",
+  // Site/supervisor/schedule assignment and the propose action (Story
+  // 5.2): coordinator-side package building, Nova scope.
+  "placement.assign",
+  // The placement-level shelter gate (Story 5.2; ADR-013): the Shelter
+  // MANAGER approves the specific site/supervisor/schedule package or
+  // returns it — org-scoped, SHELTER_REVIEW-gated. Distinct from the
+  // match-level shelter decision in Epic 4.
+  "placement.approve",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -124,6 +132,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.view",
     "placementMatch.recordShelterDecision",
     "placement.view",
+    "placement.approve",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -151,6 +160,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.approve",
     "placement.create",
     "placement.view",
+    "placement.assign",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -184,6 +194,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.approve",
     "placement.create",
     "placement.view",
+    "placement.assign",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

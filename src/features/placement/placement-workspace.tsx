@@ -1,4 +1,5 @@
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
+import { PackageReviewPanel } from "@/features/placement/package-review-panel";
 import { WorkspaceTabNav } from "@/features/placement/workspace-tab-nav";
 import { WorkspaceTabContent } from "@/features/placement/workspace-tabs";
 import {
@@ -48,6 +49,28 @@ export function PlacementWorkspace({
           This placement is {view.statusLabel.toLowerCase()} — a final state. The
           record below is historical.
         </p>
+      ) : null}
+
+      {/* The shelter's outstanding change-request note (5.2): visible to
+          the coordinator while the package is back in Draft. */}
+      {view.viewer === "NOVA" && view.status === "DRAFT" && view.shelterReviewNote ? (
+        <div className="flex max-w-prose flex-col gap-1 rounded-md border border-warning/40 bg-warning/5 px-4 py-3">
+          <h2 className="text-sm font-semibold">The shelter requested changes</h2>
+          <p className="text-sm text-base-content/80">{view.shelterReviewNote}</p>
+          <p className="text-xs text-base-content/60">
+            Adjust the package on the Schedule tab, then propose it again.
+          </p>
+        </div>
+      ) : null}
+
+      {view.status === "SHELTER_REVIEW" && view.viewer === "NOVA" ? (
+        <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+          The package is with the Shelter Manager for review.
+        </p>
+      ) : null}
+
+      {view.viewerCanApprovePackage ? (
+        <PackageReviewPanel placementId={view.id} />
       ) : null}
 
       <div className="flex flex-col gap-4">

@@ -530,14 +530,25 @@ model Placement {
 
   status PlacementStatus @default(DRAFT)
 
-  // Carried over from the approved match; Epic 5 (5.2) refines them
-  // through the placement's own shelter-review gate.
+  // Carried over from the approved match; Story 5.2 refines them through
+  // the placement's own shelter-review gate (ADR-013's second gate).
   supervisorId    String?
   schedule        String?
   startDate       DateTime?      @db.Date
   endDate         DateTime?      @db.Date
   fundingSourceId String?
   fundingSource   FundingSource? @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
+
+  // Coordinator of record (Story 5.2) — confirmed or reassigned during
+  // site/supervisor/schedule assignment.
+  coordinatorUserId String?
+
+  // The shelter's outstanding change-request note on the review package
+  // (Story 5.2): set when the manager returns the package, cleared on the
+  // next propose; every note is archived in the event trail first.
+  shelterReviewNote String?
+
+  structuredSchedule PlacementSchedule?
 
   events PlacementEvent[]
 
@@ -560,9 +571,58 @@ model PlacementEvent {
   toStatus    PlacementStatus
   actorUserId String
 
+  // Cycle-boundary archive (Story 5.2): the shelter's change-request note
+  // rides the SHELTER_REVIEW -> DRAFT event, mirroring the match trail's
+  // pattern. Ops-internal only.
+  detail String?
+
   createdAt DateTime @default(now())
 
   @@index([placementId])
+}
+
+// --- Structured schedule (Story 5.2) -----------------------------------------
+
+enum ScheduleDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// The placement's working schedule: day/time entries plus a weekly hours
+// target. Decimal, never floating point (RULES.md). One current schedule
+// per placement; changes overwrite the rows with an audit event recording
+// the edit — lifecycle history lives on PlacementEvent.
+model PlacementSchedule {
+  id          String    @id @default(cuid())
+  placementId String    @unique
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  weeklyHoursTarget Decimal @db.Decimal(5, 2)
+
+  days PlacementScheduleDay[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One working day within a schedule. Times are local wall-clock "HH:MM"
+// strings — schedules describe shifts at a physical site, never
+// timezone-converted instants.
+model PlacementScheduleDay {
+  id         String            @id @default(cuid())
+  scheduleId String
+  schedule   PlacementSchedule @relation(fields: [scheduleId], references: [id])
+
+  day       ScheduleDay
+  startTime String
+  endTime   String
+
+  @@unique([scheduleId, day])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------

@@ -9,7 +9,7 @@ Operate an active transitional placement.
 | ID   | Story                                     | Status                              |
 | ---- | ----------------------------------------- | ----------------------------------- |
 | 5.1  | Placement workspace                       | Done                                |
-| 5.2  | Assign site, supervisor, and schedule     | Ready for Development               |
+| 5.2  | Assign site, supervisor, and schedule     | Done                                |
 | 5.3  | Assign funding                            | Ready for Development               |
 | 5.4  | Placement onboarding                      | Ready for Development               |
 | 5.5  | Activation blockers                       | Ready for Development               |
@@ -110,7 +110,23 @@ Epic 4 Story 4.8 (a Placement must exist, created from an approved match) provid
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: the propose action walks Draft -> Proposed -> Shelter
+> Review in one transaction, writing BOTH documented transitions'
+> events (Proposed is momentary but real). The change-request response
+> returns the package to Draft — the placement lifecycle has no Change
+> Requested state, so the loop reuses Draft — with the manager's
+> REQUIRED note set as the outstanding shelterReviewNote and archived in
+> the PlacementEvent detail (never audit detail), cleared on re-propose.
+> The schedule is PlacementSchedule + per-day rows (unique per day,
+> HH:MM wall-clock strings) with weeklyHoursTarget as Decimal(5,2) —
+> string-shaped end to end, floating point never touches it. The
+> assignment transition table (ALLOWED_PLACEMENT_TRANSITIONS) landed
+> covering the whole lifecycle for later stories. Coordinator-of-record
+> and supervisor eligibility are membership-validated (ACTIVE, correct
+> role, correct org); AC6's inactive-membership case preserves the
+> assignment unchanged — surfacing it is 5.5's blocker.
 
 ### User story
 

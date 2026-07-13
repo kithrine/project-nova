@@ -1,4 +1,115 @@
 import { PlacementStatus } from "@/generated/prisma/client";
+import { LifecycleError } from "@/server/errors/app-error";
+
+/**
+ * Placement transitions (docs/product/placement-lifecycle.md), enacted
+ * story by story: 5.2 owns Draft -> Proposed -> Shelter Review ->
+ * Approved plus the change-request return to Draft (the placement
+ * lifecycle has no Change Requested state — the loop reuses Draft); 5.4
+ * enters Onboarding; 5.6 activates; 5.7 runs the Active ⇄ Paused loop;
+ * 5.8 owns the four terminal outcomes. Terminal states transition
+ * nowhere, ever.
+ */
+export const ALLOWED_PLACEMENT_TRANSITIONS: Readonly<
+  Record<PlacementStatus, readonly PlacementStatus[]>
+> = {
+  [PlacementStatus.DRAFT]: [PlacementStatus.PROPOSED],
+  [PlacementStatus.PROPOSED]: [PlacementStatus.SHELTER_REVIEW],
+  [PlacementStatus.SHELTER_REVIEW]: [PlacementStatus.APPROVED, PlacementStatus.DRAFT],
+  [PlacementStatus.APPROVED]: [PlacementStatus.ONBOARDING],
+  [PlacementStatus.ONBOARDING]: [PlacementStatus.ACTIVE],
+  [PlacementStatus.ACTIVE]: [
+    PlacementStatus.PAUSED,
+    PlacementStatus.COMPLETED,
+    PlacementStatus.CONVERTED_TO_PERMANENT,
+    PlacementStatus.WITHDRAWN,
+    PlacementStatus.TERMINATED,
+  ],
+  [PlacementStatus.PAUSED]: [
+    PlacementStatus.ACTIVE,
+    PlacementStatus.COMPLETED,
+    PlacementStatus.CONVERTED_TO_PERMANENT,
+    PlacementStatus.WITHDRAWN,
+    PlacementStatus.TERMINATED,
+  ],
+  [PlacementStatus.COMPLETED]: [],
+  [PlacementStatus.CONVERTED_TO_PERMANENT]: [],
+  [PlacementStatus.WITHDRAWN]: [],
+  [PlacementStatus.TERMINATED]: [],
+};
+
+export function assertPlacementTransition(
+  from: PlacementStatus,
+  to: PlacementStatus,
+): void {
+  if (!ALLOWED_PLACEMENT_TRANSITIONS[from].includes(to)) {
+    throw new LifecycleError(
+      `A placement cannot move from ${PLACEMENT_STATUS_LABELS[from].toLowerCase()} to ${PLACEMENT_STATUS_LABELS[to].toLowerCase()}.`,
+    );
+  }
+}
+
+/**
+ * What the review package still needs before the coordinator can propose
+ * it to the shelter (Story 5.2 AC3) — each missing piece is NAMED. Site
+ * is structurally present on every placement; the rest are assigned here.
+ */
+export function packageMissingPieces(placement: {
+  supervisorId: string | null;
+  coordinatorUserId: string | null;
+  hasStructuredSchedule: boolean;
+}): string[] {
+  const missing: string[] = [];
+  if (!placement.supervisorId) missing.push("Supervisor");
+  if (!placement.coordinatorUserId) missing.push("Coordinator of record");
+  if (!placement.hasStructuredSchedule) missing.push("Work schedule");
+  return missing;
+}
+
+export interface ScheduleDayInput {
+  day: string;
+  startTime: string;
+  endTime: string;
+}
+
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** Positive, at most two decimals, at most 80 — Decimal-safe by shape. */
+const HOURS_PATTERN = /^\d{1,2}(\.\d{1,2})?$/;
+
+/**
+ * Why a schedule cannot be saved, or null when it can (Story 5.2).
+ * Weekly hours arrive as a STRING and stay decimal-shaped end to end —
+ * floating point never touches them (RULES.md).
+ */
+export function scheduleValidationError(input: {
+  days: ScheduleDayInput[];
+  weeklyHoursTarget: string;
+}): string | null {
+  if (input.days.length === 0) {
+    return "Pick at least one working day.";
+  }
+  const seen = new Set<string>();
+  for (const entry of input.days) {
+    if (seen.has(entry.day)) {
+      return "Each day can appear only once in the schedule.";
+    }
+    seen.add(entry.day);
+    if (!TIME_PATTERN.test(entry.startTime) || !TIME_PATTERN.test(entry.endTime)) {
+      return "Times must be in 24-hour HH:MM form.";
+    }
+    if (entry.endTime <= entry.startTime) {
+      return "Each working day must end after it starts.";
+    }
+  }
+  if (!HOURS_PATTERN.test(input.weeklyHoursTarget)) {
+    return "Weekly hours must be a number like 20 or 20.5 (up to two decimals).";
+  }
+  const hours = Number(input.weeklyHoursTarget);
+  if (hours <= 0 || hours > 80) {
+    return "Weekly hours must be between 0 and 80.";
+  }
+  return null;
+}
 
 export const PLACEMENT_STATUS_LABELS: Record<PlacementStatus, string> = {
   [PlacementStatus.DRAFT]: "Draft",
