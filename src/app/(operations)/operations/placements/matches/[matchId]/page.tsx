@@ -86,8 +86,8 @@ export default async function MatchWorkspacePage({
             {match.shelterDecisionAtLabel ? (
               <p className="text-xs text-base-content/60">
                 Requested {match.shelterDecisionAtLabel}. The prior proposed terms
-                are below — adjust what's needed, then re-propose to both parties
-                or withdraw the match.
+                are below — adjust what&apos;s needed, then re-propose to both
+                parties or withdraw the match.
               </p>
             ) : null}
           </div>
