@@ -113,6 +113,16 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("keeps placement lifecycle transitions to PC and NA — never shelters, GA, or participants (5.6)", () => {
+    for (const role of Object.values(Role)) {
+      const expected = role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      expect(
+        permissionsForRoles([role]).has("placement.activate"),
+        `activate for ${role}`,
+      ).toBe(expected);
+    }
+  });
+
   it("never grants shelter roles any application, document, or note permission", () => {
     for (const role of [Role.SHELTER_SUPERVISOR, Role.SHELTER_MANAGER]) {
       const granted = permissionsForRoles([role]);

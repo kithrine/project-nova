@@ -13,7 +13,7 @@ Operate an active transitional placement.
 | 5.3  | Assign funding                            | Done                                |
 | 5.4  | Placement onboarding                      | Done                                |
 | 5.5  | Activation blockers                       | Done                                |
-| 5.6  | Activate placement                        | Ready for Development               |
+| 5.6  | Activate placement                        | Done                                |
 | 5.7  | Pause and resume                          | Ready for Development               |
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
 | 5.9  | Case notes                                | Ready for Development               |
@@ -418,7 +418,25 @@ Resolving the blockers themselves — each is owned by its respective story (5.2
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: activatePlacement re-runs the 5.5 prerequisite evaluation
+> INSIDE its transaction against transaction-client reads — the
+> workspace's "all clear" is advisory; the transaction's is law, so a
+> stale client, a direct request, or a prerequisite reopened between
+> page load and click (for example, funding ended) all hit the same
+> wall, with the outstanding items named in the rejection. The
+> compare-and-set turns concurrent activations into one success and one
+> clean conflict with a single Onboarding → Active event; the
+> one-active-placement partial unique index remains the database
+> backstop. Activation stamps startDate — the participant's effective
+> start — over any candidate date carried from the match.
+> placement.activate is granted to PC/NA only (mvp.md lifecycle
+> transitions), asserted role-by-role in the registry test. The
+> ActivatePanel mirrors 4.8's gate: disabled — never hidden — with each
+> blocker named while any remain, then an explicit confirmation before
+> the transition. The E2E journey drives Casey's blockers to empty
+> (site checklist, then funding) and activates end to end.
 
 ### User story
 

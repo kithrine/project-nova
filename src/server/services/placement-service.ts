@@ -191,6 +191,12 @@ export interface PlacementWorkspaceView {
    * viewers (participant program internals stay Nova-side).
    */
   activation: ActivationView | null;
+  /**
+   * The Activate control renders (Story 5.6): Nova viewer holding
+   * placement.activate on an Onboarding placement. Disabled-not-hidden
+   * while blockers remain — the panel reads `activation.open`.
+   */
+  viewerCanActivate: boolean;
 }
 
 export interface ActivationBlockerView {
@@ -480,6 +486,10 @@ export async function getPlacementWorkspace(
       viewer === "NOVA" && activationBlocksApply(placement.status)
         ? await buildActivationView(prisma, placement)
         : null,
+    viewerCanActivate:
+      viewer === "NOVA" &&
+      hasPermission(ctx, "placement.activate") &&
+      placement.status === PlacementStatus.ONBOARDING,
   };
 }
 
@@ -663,6 +673,90 @@ export async function listUrgentBlockers(ctx: AuthContext): Promise<UrgentBlocke
     });
   }
   return rows;
+}
+
+// --- Activate placement (Story 5.6) ------------------------------------------------
+
+/**
+ * Onboarding -> Active behind the full prerequisite gate (AC1/AC2). The
+ * 5.5 evaluation re-runs INSIDE the transaction against live rows — a
+ * client that believes it is clear cannot slip a stale "blockers empty"
+ * past the server, and a direct or replayed request hits the same wall.
+ * The compare-and-set makes concurrent activations a conflict, never a
+ * duplicate event (AC3); the one-active-placement partial unique index
+ * remains the database backstop beneath it all (AC4). Activation stamps
+ * the placement's startDate — the participant's effective start — over
+ * any candidate date carried from the match.
+ */
+export async function activatePlacement(
+  ctx: AuthContext,
+  placementId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "placement.activate")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const existing = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true },
+  });
+  if (!existing) throw new NotFoundError();
+  assertPlacementTransition(existing.status, PlacementStatus.ACTIVE);
+
+  // The effective start date — today, as a UTC calendar date.
+  const activatedOn = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+
+  await prisma.$transaction(async (tx) => {
+    const placement = await tx.placement.findUnique({
+      where: { id: placementId },
+      include: {
+        programEnrollment: {
+          select: { id: true, status: true, participantId: true, programId: true },
+        },
+        sourceMatch: {
+          select: { id: true, participantDecision: true, shelterDecision: true },
+        },
+        structuredSchedule: { select: { id: true } },
+        fundingAssignments: { select: { status: true } },
+        onboardingTasks: { select: { required: true, status: true } },
+      },
+    });
+    if (!placement) throw new NotFoundError();
+
+    const open = openActivationBlockers(await loadActivationSnapshot(tx, placement));
+    if (open.length > 0) {
+      throw new LifecycleError(
+        `Activation is blocked. Outstanding: ${open.map((item) => item.title).join("; ")}.`,
+      );
+    }
+
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.ONBOARDING },
+      data: { status: PlacementStatus.ACTIVE, startDate: activatedOn },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.ONBOARDING,
+        toStatus: PlacementStatus.ACTIVE,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.activate",
+        subjectType: "Placement",
+        subjectId: placementId,
+      },
+    });
+  });
 }
 
 function toFundingAssignmentView(assignment: {

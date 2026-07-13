@@ -6,6 +6,7 @@ import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import type { ScheduleDayInput } from "@/server/domain/placement";
 import {
+  activatePlacement,
   approvePlacementPackage,
   assignFunding,
   completeOwnPlacementTask,
@@ -148,6 +149,28 @@ export async function initiatePlacementOnboardingAction(
     const ctx = await getOrProvisionAuthContext();
     if (!ctx) throw new AuthenticationError();
     await initiatePlacementOnboarding(ctx, placementId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function activatePlacementAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  _formData: FormData,
+): Promise<PlacementFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await activatePlacement(ctx, placementId);
   } catch (error) {
     if (error instanceof AppError) {
       revalidateWorkspaces(placementId);

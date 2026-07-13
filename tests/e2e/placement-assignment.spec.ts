@@ -113,7 +113,7 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
 
   // Phase 5 (Story 5.4) — the coordinator initiates placement onboarding:
   // the site-specific task set generates and the placement enters
-  // Onboarding; verifying a shelter task drops the remaining count.
+  // Onboarding. A retry may arrive already Active (Story 5.6 ends there).
   await clerk.signOut({ page });
   await signIn(page, E2E_OPS_USER_EMAIL);
   await page.goto(WORKSPACE);
@@ -124,49 +124,113 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
       .check();
     await startOnboarding.click();
   }
-  await expect(page.getByText(/Stage: .*Onboarding/)).toBeVisible({ timeout: 20_000 });
-  await expect(
-    page.getByRole("heading", { name: "Placement onboarding" }),
-  ).toBeVisible();
+  await expect(page.getByText(/· Stage: (Onboarding|Active)/)).toBeVisible({
+    timeout: 20_000,
+  });
 
-  // Branch on the SERVER-RENDERED progress line after it settles — a
-  // no-wait isVisible() probe here once sampled mid-hydration and skipped
-  // the click (the matching-prologue lesson, again).
-  const progress = page.getByText(/required steps? remain|All required steps are complete/);
-  await expect(progress.first()).toBeVisible({ timeout: 20_000 });
-  if (await page.getByText(/8 required steps remain/).isVisible().catch(() => false)) {
-    await page
-      .getByRole("button", {
-        name: "Mark Done: Site safety and hazard orientation delivered",
-      })
-      .click();
-    await expect(page.getByText(/7 required steps remain/)).toBeVisible({
+  // Phases 6-8 run only while still Onboarding — the stage line above is
+  // server-rendered and settled, so this branch guard is safe (the
+  // matching-prologue lesson: never probe during hydration).
+  if (await page.getByText(/· Stage: Onboarding/).isVisible().catch(() => false)) {
+    // Phase 6 (Story 5.4) — verifying a task drops the remaining count.
+    await expect(
+      page.getByRole("heading", { name: "Placement onboarding" }),
+    ).toBeVisible();
+    const progress = page.getByText(
+      /required steps? remain|All required steps are complete/,
+    );
+    await expect(progress.first()).toBeVisible({ timeout: 20_000 });
+    if (await page.getByText(/8 required steps remain/).isVisible().catch(() => false)) {
+      await page
+        .getByRole("button", {
+          name: "Mark Done: Site safety and hazard orientation delivered",
+        })
+        .click();
+      await expect(page.getByText(/7 required steps remain/)).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(
+        page.getByText(/Complete .*Synthetic E2E/).first(),
+      ).toBeVisible({ timeout: 20_000 });
+    }
+
+    // Phase 7 (Story 5.5) — at the deterministic mid-journey state (first
+    // task verified, funding unassigned) the Blocker List names exactly
+    // what still stands between this placement and Active. Everything
+    // already satisfied — the confirmed schedule, Casey's completed
+    // training, the match decisions — stays off the list. Guarded so a
+    // retry that already progressed past this state skips the snapshot.
+    if (await page.getByText(/7 required steps remain/).isVisible().catch(() => false)) {
+      const blockers = page.getByRole("list", { name: "Activation blockers" });
+      await expect(blockers).toBeVisible({ timeout: 20_000 });
+      await expect(
+        blockers.getByText("Open — Active funding assignment"),
+      ).toBeVisible();
+      await expect(
+        blockers.getByText(
+          "Open — Host-site safety orientation and assigned-task competency confirmed",
+        ),
+      ).toBeVisible();
+      await expect(blockers.getByText(/Schedule confirmed/)).toHaveCount(0);
+      await expect(blockers.getByText(/Portable training/)).toHaveCount(0);
+      await expect(blockers.getByText(/Valid enrollment/)).toHaveCount(0);
+      await expect(
+        blockers.getByRole("link", { name: "Assign a funding source." }),
+      ).toBeVisible();
+      // The Activate control is disabled — not hidden — while blockers
+      // remain, with the outstanding items named beside it (Story 5.6).
+      await expect(
+        page.getByRole("button", { name: "Activate Placement" }),
+      ).toBeDisabled();
+      await expect(page.getByText("Activation is waiting on:")).toBeVisible();
+    }
+
+    // Phase 8 (Story 5.6) — resolve every blocker, then activate. Drive
+    // the progress count to zero; each click waits for the next
+    // server-rendered count before proceeding.
+    for (let remaining = 8; remaining > 0; remaining--) {
+      const line = page.getByText(new RegExp(`${remaining} required steps? remain`));
+      if (!(await line.isVisible().catch(() => false))) continue;
+      await page.getByRole("button", { name: /^Mark Done:/ }).first().click();
+      await expect(
+        page.getByText(
+          new RegExp(
+            `${remaining - 1} required steps? remain|All required steps are complete`,
+          ),
+        ),
+      ).toBeVisible({ timeout: 20_000 });
+    }
+    await expect(page.getByText("All required steps are complete.")).toBeVisible({
       timeout: 20_000,
     });
-  }
-  await expect(
-    page.getByText(/Complete .*Synthetic E2E/).first(),
-  ).toBeVisible({ timeout: 20_000 });
 
-  // Phase 6 (Story 5.5) — the activation Blocker List names exactly what
-  // still stands between this placement and Active: the unfinished site
-  // checklist and funding. Everything already satisfied — the confirmed
-  // schedule, Casey's completed training, the match decisions — stays off
-  // the list. Each open item links to its resolving surface.
-  const blockers = page.getByRole("list", { name: "Activation blockers" });
-  await expect(blockers).toBeVisible({ timeout: 20_000 });
-  await expect(
-    blockers.getByText("Open — Active funding assignment"),
-  ).toBeVisible();
-  await expect(
-    blockers.getByText(
-      "Open — Host-site safety orientation and assigned-task competency confirmed",
-    ),
-  ).toBeVisible();
-  await expect(blockers.getByText(/Schedule confirmed/)).toHaveCount(0);
-  await expect(blockers.getByText(/Portable training/)).toHaveCount(0);
-  await expect(blockers.getByText(/Valid enrollment/)).toHaveCount(0);
-  await expect(
-    blockers.getByRole("link", { name: "Assign a funding source." }),
-  ).toBeVisible();
+    await page.goto(`${WORKSPACE}?tab=funding`);
+    const sourceSelect = page.getByLabel("Funding source");
+    if (await sourceSelect.isVisible({ timeout: 20_000 }).catch(() => false)) {
+      await sourceSelect.selectOption({ label: "E2E Grant Fund (Synthetic)" });
+      await page.getByLabel("Effective start date").fill("2026-08-01");
+      await page.getByRole("button", { name: "Assign Funding" }).click();
+    }
+    await expect(
+      page.getByRole("list", { name: "Funding assignments" }).getByText("Active"),
+    ).toBeVisible({ timeout: 20_000 });
+
+    await page.goto(WORKSPACE);
+    await expect(
+      page.getByText("All activation prerequisites are met."),
+    ).toBeVisible({ timeout: 20_000 });
+    await page
+      .getByRole("checkbox", { name: /activate this placement/i })
+      .check();
+    await page.getByRole("button", { name: "Activate Placement" }).click();
+  }
+
+  // The placement is Active with its lifecycle trail complete (5.6 AC5).
+  await expect(page.getByText(/· Stage: Active/)).toBeVisible({ timeout: 20_000 });
+  const timeline = page.getByRole("list", { name: "Placement lifecycle" });
+  await expect(timeline.getByText("(current stage)")).toBeVisible();
+  await page.goto(`${WORKSPACE}?tab=history`);
+  await expect(page.getByText(/Onboarding → .*Active/)).toBeVisible({
+    timeout: 20_000,
+  });
 });

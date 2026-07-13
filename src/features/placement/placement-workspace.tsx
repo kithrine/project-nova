@@ -1,3 +1,4 @@
+import { ActivatePanel } from "@/features/placement/activate-panel";
 import { ActivationBlockers } from "@/features/placement/activation-blockers";
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
 import { PackageReviewPanel } from "@/features/placement/package-review-panel";
@@ -48,6 +49,13 @@ export function PlacementWorkspace({
           Terminal placements get history only — no reopening control ever
           renders (AC4). */}
       {view.activation ? <ActivationBlockers activation={view.activation} /> : null}
+
+      {view.viewerCanActivate && view.activation ? (
+        <ActivatePanel
+          placementId={view.id}
+          blockers={view.activation.open.map((item) => item.title)}
+        />
+      ) : null}
 
       {view.isTerminal ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
