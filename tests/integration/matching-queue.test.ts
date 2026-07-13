@@ -256,6 +256,60 @@ describe.skipIf(!hasDatabase)("matching queue (integration)", () => {
       errors.AuthorizationError,
     );
   });
+
+  it("evaluates live pairing compatibility with explainable factors (Story 4.2)", async () => {
+    const ctx = await contextFor(coordinatorId);
+
+    // The host has a MANAGER but no SUPERVISOR membership yet: supervision
+    // blocks, and the read names it.
+    let evaluation = await service.evaluatePairingCompatibility(
+      ctx,
+      readyEnrollmentId,
+      siteId,
+    );
+    expect(evaluation.result.category).toBe("BLOCKING_INCOMPATIBILITY");
+    expect(
+      evaluation.result.factors.find((f) => f.key === "supervision"),
+    ).toMatchObject({
+      status: "BLOCKING",
+      detail: "No active supervisors at this shelter — daily supervision is required.",
+    });
+    expect(
+      evaluation.result.factors.find((f) => f.key === "availability")?.detail,
+    ).toContain("Weekday mornings");
+
+    // Add a supervisor: the same inputs now produce Unknown / needs review
+    // (transportation, schedule, and dates are honestly undetermined at the
+    // pairing stage) — never a guessed Compatible (AC4).
+    await prisma.user.create({
+      data: {
+        email: `${runId}-supervisor@synthetic.example`,
+        displayName: testScopedName(runId, "Supervisor"),
+        isSynthetic: true,
+        memberships: {
+          create: { organizationId: hostOrgId, role: enums.Role.SHELTER_SUPERVISOR },
+        },
+      },
+    });
+    evaluation = await service.evaluatePairingCompatibility(ctx, readyEnrollmentId, siteId);
+    expect(evaluation.result.category).toBe("UNKNOWN_NEEDS_REVIEW");
+    expect(
+      evaluation.result.factors
+        .filter((f) => f.status === "UNKNOWN")
+        .map((f) => f.key)
+        .sort(),
+    ).toEqual(["dates", "schedule", "transportation"]);
+
+    // No numeric score exists anywhere in the payload (ADR-011).
+    expect(JSON.stringify(evaluation.result)).not.toMatch(/score|\b\d{1,3}%/i);
+  });
+
+  it("denies the compatibility read to shelter users (Story 4.2)", async () => {
+    const shelterCtx = await contextFor(shelterUserId);
+    await expect(
+      service.evaluatePairingCompatibility(shelterCtx, readyEnrollmentId, siteId),
+    ).rejects.toBeInstanceOf(errors.AuthorizationError);
+  });
 });
 
 describe.skipIf(hasDatabase)("matching queue (unconfigured)", () => {

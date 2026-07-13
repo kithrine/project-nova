@@ -1,14 +1,25 @@
-import { ActiveStatus, EnrollmentStatus, OrganizationKind } from "@/generated/prisma/client";
+import {
+  ActiveStatus,
+  EnrollmentStatus,
+  OrganizationKind,
+  Role,
+  TrainingEnrollmentStatus,
+} from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import { hasPermission, requireNovaScope } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
+import { certificationSatisfies } from "@/server/domain/certification";
+import {
+  evaluateCompatibility,
+  type CompatibilityResult,
+} from "@/server/domain/compatibility";
 import {
   classifyQueueCandidate,
   NON_TERMINAL_MATCH_STATUSES,
   type QueueCandidateState,
 } from "@/server/domain/matching-queue";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
-import { AuthorizationError } from "@/server/errors/app-error";
+import { AuthorizationError, NotFoundError } from "@/server/errors/app-error";
 
 /**
  * Matching queue reads (Story 4.1). A coordinator worklist, not a public
@@ -148,6 +159,117 @@ export async function getMatchingQueue(ctx: AuthContext): Promise<MatchingQueueV
         name: host.name,
         sites: host.sites,
       })),
+  };
+}
+
+export interface PairingHeader {
+  participantName: string;
+  organizationName: string;
+  siteName: string;
+  siteCapacity: number;
+}
+
+/**
+ * The categorical, explainable compatibility read for one pairing
+ * (Story 4.2). Coordinator decision support only —
+ * placementMatch.viewCompatibility under Nova scope; shelters and
+ * participants can never load it. Draft-stage details (schedule/dates)
+ * arrive with 4.3's match; before that they evaluate as Unknown rather
+ * than guessed. The approved-placement-restriction store does not exist
+ * yet — the input is wired false, and the evaluator's fixed-sentence
+ * factor (never a narrative) activates when that workflow lands.
+ */
+export async function evaluatePairingCompatibility(
+  ctx: AuthContext,
+  enrollmentId: string,
+  siteId: string,
+): Promise<{ header: PairingHeader; result: CompatibilityResult }> {
+  if (!hasPermission(ctx, "placementMatch.viewCompatibility")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const [enrollment, site] = await Promise.all([
+    prisma.programEnrollment.findUnique({
+      where: { id: enrollmentId },
+      include: {
+        application: { select: { availabilityNotes: true, transportationNotes: true } },
+        participant: {
+          include: {
+            person: { select: { legalFirstName: true, legalLastName: true } },
+            certifications: {
+              where: { requiredForMatching: true },
+              select: { name: true, status: true, expiresOn: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.organizationSite.findUnique({
+      where: { id: siteId },
+      include: { organization: { select: { id: true, name: true } } },
+    }),
+  ]);
+  if (!enrollment || !site) {
+    throw new NotFoundError();
+  }
+
+  const [requiredTraining, completedTraining, supervisorCount] = await Promise.all([
+    prisma.trainingProgram.count({
+      where: {
+        programId: enrollment.programId,
+        status: ActiveStatus.ACTIVE,
+        requiredForMatching: true,
+      },
+    }),
+    prisma.trainingEnrollment
+      .findMany({
+        where: {
+          programEnrollmentId: enrollment.id,
+          status: TrainingEnrollmentStatus.COMPLETED,
+          trainingProgram: { requiredForMatching: true, status: ActiveStatus.ACTIVE },
+        },
+        select: { trainingProgramId: true },
+        distinct: ["trainingProgramId"],
+      })
+      .then((rows) => rows.length),
+    prisma.membership.count({
+      where: {
+        organizationId: site.organization.id,
+        role: Role.SHELTER_SUPERVISOR,
+        status: ActiveStatus.ACTIVE,
+      },
+    }),
+  ]);
+
+  const result = evaluateCompatibility({
+    availabilityNotes: enrollment.application.availabilityNotes,
+    transportationNotes: enrollment.application.transportationNotes,
+    requiredTrainingTotal: requiredTraining,
+    requiredTrainingCompleted: completedTraining,
+    requiredCertifications: enrollment.participant.certifications.map(
+      (certification) => ({
+        name: certification.name,
+        satisfied: certificationSatisfies(certification),
+      }),
+    ),
+    siteCapacity: site.capacity,
+    supervisorCount,
+    // Draft-stage details arrive with 4.3's match record.
+    proposedSchedule: null,
+    proposedStartDate: null,
+    proposedEndDate: null,
+    hasApprovedRestriction: false,
+  });
+
+  return {
+    header: {
+      participantName: `${enrollment.participant.person.legalFirstName} ${enrollment.participant.person.legalLastName}`,
+      organizationName: site.organization.name,
+      siteName: site.name,
+      siteCapacity: site.capacity,
+    },
+    result,
   };
 }
 
