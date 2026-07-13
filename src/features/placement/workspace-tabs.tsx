@@ -67,6 +67,14 @@ export function WorkspaceTabContent({
           />
           <OverviewField label="Funding" value={view.fundingSummary} />
           <OverviewField label="Lifecycle stage" value={view.statusLabel} />
+          {view.outcome ? (
+            <OverviewField
+              label="Employment outcome"
+              value={`Hired by ${view.outcome.employerName} on ${view.outcome.hiredOnLabel}${
+                view.outcome.jobTitle ? ` — ${view.outcome.jobTitle}` : ""
+              }`}
+            />
+          ) : null}
         </dl>
       );
     case "schedule":

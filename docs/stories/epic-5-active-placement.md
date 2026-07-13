@@ -15,7 +15,7 @@ Operate an active transitional placement.
 | 5.5  | Activation blockers                       | Done                                |
 | 5.6  | Activate placement                        | Done                                |
 | 5.7  | Pause and resume                          | Done                                |
-| 5.8  | Complete, convert, withdraw, or terminate | Ready for Development               |
+| 5.8  | Complete, convert, withdraw, or terminate | Done                                |
 | 5.9  | Case notes                                | Done                                |
 | 5.10 | Evaluations                               | Done                                |
 | 5.11 | Incidents                                 | Done                                |
@@ -577,7 +577,28 @@ Automatic pause triggers (for example, from an incident) — pause is always an 
 
 ### Status
 
-Ready for Development — the termination-authority question is resolved by `ADR-018` (Nova Operations only, single actor; counsel review gated at launch)
+Done — closes Epic 5
+
+> Built note: one service write path (recordTerminalOutcome) behind two
+> permissions per ADR-018 — placement.complete for the three standard
+> outcomes, placement.terminate for the involuntary one with a required
+> reason category AND note. Each ending is its own labeled control with
+> its own confirmation naming the finality; no status dropdown exists.
+> The compare-and-set on the loaded status makes racing endings a clean
+> conflict, the lifecycle event carries the ops-internal reason detail
+> (terminalEventDetail, pause-pattern), endDate records the effective
+> date, and the audit detail carries the outcome or reason CATEGORY —
+> never free-text notes. Conversion creates the EmploymentOutcome row
+> (the domain-model chain's final entity — one per placement, unique)
+> in the same transaction and surfaces it on the Overview tab. Terminal
+> immutability is triple-guarded: the transition table admits nothing
+> out of terminal states, the CAS re-checks, and the workspace offers
+> no controls. E2E: the eleven-phase Casey journey now ends by marking
+> the placement Completed; a separate Rowan fixture converts to
+> permanent employment with the employer prefilled to the host
+> organization. Terminated is integration- and component-covered (the
+> policy resolved same-day; a dedicated E2E fixture chain wasn't worth
+> a third participant).
 
 ### User story
 

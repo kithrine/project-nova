@@ -144,6 +144,16 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("keeps terminal outcomes to PC and NA — placement.complete and placement.terminate (5.8; ADR-018)", () => {
+    for (const role of Object.values(Role)) {
+      const granted = permissionsForRoles([role]);
+      const expected =
+        role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      expect(granted.has("placement.complete"), `complete for ${role}`).toBe(expected);
+      expect(granted.has("placement.terminate"), `terminate for ${role}`).toBe(expected);
+    }
+  });
+
   it("scopes incidents: shelters and Nova report, Nova alone reviews, RRS alone reads restricted narratives (5.11)", () => {
     for (const role of Object.values(Role)) {
       const granted = permissionsForRoles([role]);

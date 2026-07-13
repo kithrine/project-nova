@@ -176,6 +176,59 @@ export function resumeEventDetail(input: { effectiveDateLabel: string }): string
   return `Resumed effective ${input.effectiveDateLabel}`;
 }
 
+/**
+ * Termination reason categories (Story 5.8; ADR-018). Ops-internal like
+ * the pause categories — the reason rides the lifecycle event's detail,
+ * never shelter or participant views; the terminal STATUS itself is
+ * visible everywhere.
+ */
+export const TERMINATION_REASON_CATEGORIES = [
+  { key: "SAFETY_CONCERN", label: "Safety concern" },
+  { key: "CONDUCT_POLICY_VIOLATION", label: "Conduct or policy violation" },
+  { key: "SUSTAINED_NON_ATTENDANCE", label: "Sustained non-attendance" },
+  { key: "OTHER", label: "Other" },
+] as const;
+
+export function terminationReasonLabel(key: string): string | null {
+  return (
+    TERMINATION_REASON_CATEGORIES.find((category) => category.key === key)?.label ??
+    null
+  );
+}
+
+/**
+ * The four terminal outcomes (Story 5.8): each is its own clearly
+ * labeled action — never a generic status dropdown (RULES.md) — split
+ * across two permissions per ADR-018. The transition table above
+ * already admits each from Active and Paused only.
+ */
+export const TERMINAL_OUTCOMES = [
+  { status: PlacementStatus.COMPLETED, permission: "placement.complete" },
+  { status: PlacementStatus.CONVERTED_TO_PERMANENT, permission: "placement.complete" },
+  { status: PlacementStatus.WITHDRAWN, permission: "placement.complete" },
+  { status: PlacementStatus.TERMINATED, permission: "placement.terminate" },
+] as const;
+
+/** Ops-internal event records for the four endings (Story 5.8 AC6). */
+export function terminalEventDetail(input: {
+  status: PlacementStatus;
+  effectiveDateLabel: string;
+  /** Terminated: the ADR-018 reason label. Others: none. */
+  reasonLabel?: string;
+  /** Withdrawn: the participant's stated reason. Others: optional note. */
+  note?: string | null;
+  /** Converted: who hired them. */
+  employerName?: string;
+}): string {
+  const base =
+    input.status === PlacementStatus.CONVERTED_TO_PERMANENT
+      ? `Converted to permanent employment — hired by ${input.employerName} effective ${input.effectiveDateLabel}`
+      : input.status === PlacementStatus.TERMINATED
+        ? `Terminated (${input.reasonLabel}) effective ${input.effectiveDateLabel}`
+        : `${PLACEMENT_STATUS_LABELS[input.status]} effective ${input.effectiveDateLabel}`;
+  return input.note ? `${base} — ${input.note}` : base;
+}
+
 export interface ScheduleDayInput {
   day: string;
   startTime: string;

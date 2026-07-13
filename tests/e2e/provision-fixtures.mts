@@ -1338,6 +1338,11 @@ try {
   await prisma.incident.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });
+  // Employment outcomes (Story 5.8) before placements — the journey ends
+  // Casey's placement each run.
+  await prisma.employmentOutcome.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
   await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });
@@ -1394,6 +1399,123 @@ try {
       placementId: "e2e_placement_assign",
       fromStatus: null,
       toStatus: "DRAFT",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
+  // Conversion fixture (Story 5.8): ROWAN carries an ACTIVE placement so
+  // the Record Permanent Hire E2E can convert it and see the Employment
+  // Outcome. Own participant chain — the one-active-placement index bars
+  // reusing Parker (ONBOARDING) or Casey (journey-owned). Reset each run.
+  await prisma.user.upsert({
+    where: { id: "e2e_user_convertready" },
+    update: {},
+    create: {
+      id: "e2e_user_convertready",
+      email: "e2e-convertready-subject@synthetic.example",
+      displayName: "Synthetic Convertready Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_convertready" },
+    update: {},
+    create: {
+      id: "e2e_person_convertready",
+      userId: "e2e_user_convertready",
+      legalFirstName: "Rowan",
+      legalLastName: "Synthetic-Convert",
+      dateOfBirth: new Date("1996-06-06T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_convertready" },
+    update: {},
+    create: {
+      id: "e2e_app_convertready",
+      personId: "e2e_person_convertready",
+      applicationNumber: "APP-E2E-CONVERT1",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_convertready" },
+    update: {},
+    create: {
+      id: "e2e_participant_convertready",
+      personId: "e2e_person_convertready",
+    },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_convertready" },
+    update: { status: "READY_FOR_MATCHING" },
+    create: {
+      id: "e2e_enrollment_convertready",
+      participantId: "e2e_participant_convertready",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_convertready",
+      status: "READY_FOR_MATCHING",
+    },
+  });
+  await prisma.employmentOutcome.deleteMany({
+    where: { placement: { participantId: "e2e_participant_convertready" } },
+  });
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_convertready" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_convertready" },
+  });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_convertready" } },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_convertready" },
+  });
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_convert_src",
+      participantId: "e2e_participant_convertready",
+      programEnrollmentId: "e2e_enrollment_convertready",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "APPROVED",
+      participantDecision: "ACCEPTED",
+      shelterDecision: "APPROVED",
+      approvedAt: new Date(),
+      approvedByUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placement.create({
+    data: {
+      id: "e2e_placement_convert",
+      placementNumber: "PLC-E2E-ROWAN01",
+      participantId: "e2e_participant_convertready",
+      programEnrollmentId: "e2e_enrollment_convertready",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      sourceMatchId: "e2e_match_convert_src",
+      status: "ACTIVE",
+      supervisorId: "e2e_user_shelter",
+      schedule: "Mon/Wed mornings",
+      startDate: new Date("2026-07-01T00:00:00Z"),
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_convert",
+      fromStatus: null,
+      toStatus: "DRAFT",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_convert",
+      fromStatus: "ONBOARDING",
+      toStatus: "ACTIVE",
       actorUserId: "e2e_user_ops",
     },
   });

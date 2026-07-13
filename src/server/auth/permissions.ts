@@ -158,6 +158,13 @@ export const PERMISSIONS = [
   // permission pattern as backgroundReview.view — RRS only by default,
   // every delivered narrative audited.
   "incident.viewRestricted",
+  // Terminal outcomes (Story 5.8; ADR-018): Nova Operations only,
+  // single actor. placement.complete covers Completed, Converted to
+  // Permanent Employment, and Withdrawn; Terminated has its own
+  // permission and a required reason category. Shelters escalate via
+  // incidents or case notes — no termination capability, ever.
+  "placement.complete",
+  "placement.terminate",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -224,6 +231,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.view",
     "incident.create",
     "incident.review",
+    "placement.complete",
+    "placement.terminate",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -268,6 +277,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.view",
     "incident.create",
     "incident.review",
+    "placement.complete",
+    "placement.terminate",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
