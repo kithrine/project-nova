@@ -442,4 +442,124 @@ describe.skipIf(!hasDatabase)("activation blockers (integration)", () => {
       service.listUrgentBlockers(await contextFor(managerId)),
     ).rejects.toMatchObject({ code: "AUTHORIZATION" });
   });
+
+  // --- Story 5.6: activate placement -----------------------------------------
+
+  it("re-validates inside the transaction: a blocked activation rejects with no partial state (5.6 AC2)", { timeout: 30_000 }, async () => {
+    const coordinator = await contextFor(coordinatorId);
+
+    // Reopen one prerequisite AFTER the workspace could have shown "all
+    // clear" — the in-transaction re-check must catch it.
+    await service.endFundingAssignment(
+      coordinator,
+      placementId,
+      new Date("2026-09-30T00:00:00.000Z"),
+    );
+    await expect(
+      service.activatePlacement(coordinator, placementId),
+    ).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("Active funding assignment"),
+    });
+
+    const placement = await prisma.placement.findUniqueOrThrow({
+      where: { id: placementId },
+      include: { events: true },
+    });
+    expect(placement.status).toBe(enums.PlacementStatus.ONBOARDING);
+    expect(
+      placement.events.filter(
+        (event) => event.toStatus === enums.PlacementStatus.ACTIVE,
+      ),
+    ).toHaveLength(0);
+
+    // Restore funding for the activation tests below.
+    await service.assignFunding(coordinator, placementId, {
+      fundingSourceId,
+      startDate: new Date("2026-10-01T00:00:00.000Z"),
+      hourlyRate: "17.50",
+      hoursCap: null,
+    });
+  });
+
+  it("denies activation without placement.activate, server-side (5.6 AC6)", async () => {
+    for (const userId of [managerId, supervisorUserId]) {
+      await expect(
+        service.activatePlacement(await contextFor(userId), placementId),
+      ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+    }
+  });
+
+  it("activates exactly once under concurrency, with one event and the start date (5.6 AC1/AC3/AC5)", { timeout: 30_000 }, async () => {
+    const coordinator = await contextFor(coordinatorId);
+
+    const results = await Promise.allSettled([
+      service.activatePlacement(coordinator, placementId),
+      service.activatePlacement(coordinator, placementId),
+    ]);
+    const fulfilled = results.filter((result) => result.status === "fulfilled");
+    const rejected = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({
+      code: expect.stringMatching(/CONFLICT|LIFECYCLE/),
+    });
+
+    const placement = await prisma.placement.findUniqueOrThrow({
+      where: { id: placementId },
+      include: { events: { orderBy: { createdAt: "asc" } } },
+    });
+    expect(placement.status).toBe(enums.PlacementStatus.ACTIVE);
+    expect(placement.startDate).not.toBeNull();
+    expect(
+      placement.events.filter(
+        (event) =>
+          event.fromStatus === enums.PlacementStatus.ONBOARDING &&
+          event.toStatus === enums.PlacementStatus.ACTIVE,
+      ),
+    ).toHaveLength(1);
+
+    // The one-active-placement partial unique index stands beneath the
+    // application checks (5.6 AC4): a second active-tier row is refused
+    // at the database. A fresh source match isolates the assertion to
+    // the partial index (sourceMatchId has its own unique constraint).
+    const dupeMatch = await prisma.placementMatch.create({
+      data: {
+        participantId: placement.participantId,
+        programEnrollmentId: placement.programEnrollmentId,
+        hostOrganizationId: placement.hostOrganizationId,
+        organizationSiteId: placement.organizationSiteId,
+        status: enums.MatchStatus.APPROVED,
+        participantDecision: enums.ParticipantMatchDecision.ACCEPTED,
+        shelterDecision: enums.ShelterMatchDecision.APPROVED,
+      },
+    });
+    await expect(
+      prisma.placement.create({
+        data: {
+          placementNumber: `PLC-${runId.slice(-4).toUpperCase()}-DUPE01`,
+          participantId: placement.participantId,
+          programEnrollmentId: placement.programEnrollmentId,
+          hostOrganizationId: placement.hostOrganizationId,
+          organizationSiteId: placement.organizationSiteId,
+          sourceMatchId: dupeMatch.id,
+          status: enums.PlacementStatus.ONBOARDING,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+
+    // Past the gate, the workspace no longer computes a checklist
+    // (5.5 AC6) and the timeline reads Active.
+    const view = await service.getPlacementWorkspace(coordinator, placementId);
+    expect(view.activation).toBeNull();
+    expect(view.statusLabel).toBe("Active");
+  });
+
+  it("rejects a replayed activation once Active (5.6 AC2)", async () => {
+    await expect(
+      service.activatePlacement(await contextFor(coordinatorId), placementId),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+  });
 });

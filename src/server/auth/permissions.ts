@@ -119,6 +119,11 @@ export const PERMISSIONS = [
   // Administrator primary, coordinator-tier per the role mapping. Exactly
   // one ACTIVE assignment per placement; shelters never assign funding.
   "funding.assign",
+  // The activation gate (Story 5.6): Onboarding -> Active after full
+  // in-transaction re-validation of every activation prerequisite.
+  // Lifecycle transitions are Nova Operations only (mvp.md) — never
+  // shelter or participant roles.
+  "placement.activate",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -171,6 +176,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.view",
     "placement.assign",
     "funding.assign",
+    "placement.activate",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -207,6 +213,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.view",
     "placement.assign",
     "funding.assign",
+    "placement.activate",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
