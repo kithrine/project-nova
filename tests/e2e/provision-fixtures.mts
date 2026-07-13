@@ -775,6 +775,119 @@ try {
     },
   });
 
+  // Readiness fixture (Story 3.6): its OWN program with exactly one
+  // required training, one required task, and one required-but-EXPIRED
+  // certification — the E2E watches three blockers shrink to none. Fully
+  // reset every run.
+  await prisma.program.upsert({
+    where: { code: "E2E-RDY" },
+    update: {},
+    create: { id: "e2e_program_readiness", code: "E2E-RDY", name: "E2E Readiness Program (Synthetic)" },
+  });
+  await prisma.trainingProgram.upsert({
+    where: { id: "e2e_training_readiness" },
+    update: { status: ActiveStatus.ACTIVE },
+    create: {
+      id: "e2e_training_readiness",
+      programId: "e2e_program_readiness",
+      code: "E2E-RDY-CORE",
+      name: "Core Readiness Training (Synthetic)",
+      description: "Synthetic training for the readiness E2E.",
+      requiredForMatching: true,
+      sortOrder: 1,
+    },
+  });
+  await prisma.user.upsert({
+    where: { id: "e2e_user_readiness" },
+    update: {},
+    create: {
+      id: "e2e_user_readiness",
+      email: "e2e-readiness-subject@synthetic.example",
+      displayName: "Synthetic Readiness Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_readiness" },
+    update: {},
+    create: {
+      id: "e2e_person_readiness",
+      userId: "e2e_user_readiness",
+      legalFirstName: "Riley",
+      legalLastName: "Synthetic-Readiness",
+      dateOfBirth: new Date("1991-09-09T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_readiness" },
+    update: {},
+    create: {
+      id: "e2e_app_readiness",
+      personId: "e2e_person_readiness",
+      applicationNumber: "APP-E2E-READY1",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_readiness" },
+    update: {},
+    create: { id: "e2e_participant_readiness", personId: "e2e_person_readiness" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_readiness" },
+    update: { status: "ONBOARDING" },
+    create: {
+      id: "e2e_enrollment_readiness",
+      participantId: "e2e_participant_readiness",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_readiness",
+    },
+  });
+  await prisma.onboardingTask.upsert({
+    where: { id: "e2e_task_readiness" },
+    update: { status: OnboardingTaskStatus.NOT_STARTED, completedAt: null, completedByUserId: null },
+    create: {
+      id: "e2e_task_readiness",
+      enrollmentId: "e2e_enrollment_readiness",
+      title: "Confirm readiness paperwork",
+      description: "Synthetic required task.",
+      required: true,
+      participantCompletable: false,
+      sortOrder: 1,
+    },
+  });
+  const readinessAttempts = await prisma.trainingEnrollment.findMany({
+    where: { programEnrollmentId: "e2e_enrollment_readiness" },
+    select: { id: true },
+  });
+  if (readinessAttempts.length > 0) {
+    await prisma.trainingEnrollmentEvent.deleteMany({
+      where: { trainingEnrollmentId: { in: readinessAttempts.map((a) => a.id) } },
+    });
+    await prisma.trainingEnrollment.deleteMany({
+      where: { id: { in: readinessAttempts.map((a) => a.id) } },
+    });
+  }
+  await prisma.certification.upsert({
+    where: { id: "e2e_cert_readiness" },
+    update: {
+      status: ActiveStatus.ACTIVE,
+      requiredForMatching: true,
+      expiresOn: new Date("2025-01-01T00:00:00Z"),
+    },
+    create: {
+      id: "e2e_cert_readiness",
+      participantId: "e2e_participant_readiness",
+      name: "Safety Credential (Synthetic)",
+      issuer: "Synthetic Issuer",
+      issuedOn: new Date("2024-01-01T00:00:00Z"),
+      expiresOn: new Date("2025-01-01T00:00:00Z"),
+      requiredForMatching: true,
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

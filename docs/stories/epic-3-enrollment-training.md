@@ -354,7 +354,15 @@ Training enrollment tracking (3.4, though related), automatic certification issu
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: the shared policy is `computeMatchingReadiness`
+> (src/server/domain/matching-readiness.ts) — pure, evaluated live on every
+> call, and reused verbatim as 3.7's gate. The coordinator surface uses the
+> enrollment workspace's established access gate (`application.view` +
+> Nova scope, per 3.2's convention) rather than a new `enrollment.view`
+> permission. Per ADR-017/3.5, a certification that was never recorded is
+> not a blocker; an EXPIRED required one is.
 
 ### User story
 

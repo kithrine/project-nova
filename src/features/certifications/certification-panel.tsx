@@ -50,13 +50,16 @@ function ExpiryIcon({ state }: { state: CertificationView["expiryState"] }) {
 
 function CertificationFields({
   defaults,
+  idPrefix,
 }: {
   defaults?: Pick<
     CertificationView,
     "name" | "issuer" | "issuedOnValue" | "expiresOnValue" | "requiredForMatching"
   >;
+  /** Unique per form instance — several edit forms can be open at once. */
+  idPrefix: string;
 }) {
-  const prefix = defaults ? "edit" : "new";
+  const prefix = idPrefix;
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="flex flex-col gap-1">
@@ -255,7 +258,7 @@ function CertificationRow({
 
       {editing ? (
         <form action={formAction} className="flex flex-col gap-3 border-t border-base-300 pt-3">
-          <CertificationFields defaults={certification} />
+          <CertificationFields defaults={certification} idPrefix={`edit-${certification.id}`} />
           <div className="flex flex-col gap-1">
             <label htmlFor={`status-${certification.id}`} className="text-sm font-medium">
               Record status
@@ -324,7 +327,7 @@ export function CertificationPanel({
 
       <form action={formAction} className="flex flex-col gap-3 border-t border-base-300 pt-4">
         <h3 className="text-sm font-semibold">Record a certification</h3>
-        <CertificationFields />
+        <CertificationFields idPrefix="new" />
         {state.status === "error" && state.formError ? (
           <p role="alert" className="rounded-md border border-error/40 bg-error/5 px-3 py-2 text-sm">
             {state.formError}
