@@ -8,8 +8,17 @@ import { DocumentType } from "@/generated/prisma/enums";
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   [DocumentType.GOVERNMENT_ID]: "Government-issued ID",
+  [DocumentType.CERTIFICATION]: "Certification document",
   [DocumentType.OTHER]: "Other supporting document",
 };
+
+/** The document types that belong to an APPLICATION's checklist (2.3/2.4).
+ *  CERTIFICATION documents belong to the certification owning context (3.5)
+ *  and must never appear as application upload rows. */
+export const APPLICATION_DOCUMENT_TYPES: readonly DocumentType[] = [
+  DocumentType.GOVERNMENT_ID,
+  DocumentType.OTHER,
+];
 
 /** Which document types an application requires (admin tooling later).
  *  Lives here (not in document-service) so submission completeness (2.5)

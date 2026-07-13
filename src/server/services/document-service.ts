@@ -24,12 +24,14 @@ import { NON_TERMINAL_STATUSES } from "@/server/services/application-service";
 
 export {
   ALLOWED_CONTENT_TYPES,
+  APPLICATION_DOCUMENT_TYPES,
   DOCUMENT_TYPE_LABELS,
   MAX_DOCUMENT_BYTES,
   REQUIRED_DOCUMENT_TYPES,
   validateDocumentFile,
 } from "@/lib/documents";
 import {
+  APPLICATION_DOCUMENT_TYPES,
   DOCUMENT_TYPE_LABELS,
   REQUIRED_DOCUMENT_TYPES,
   validateDocumentFile,
@@ -101,7 +103,9 @@ export async function authorizeUpload(
   applicationId: string,
   documentType: DocumentType,
 ): Promise<{ pathnamePrefix: string }> {
-  if (!Object.values(DocumentType).includes(documentType)) {
+  // Only application-context types here — CERTIFICATION uploads go through
+  // the coordinator path (authorizeCertificationUpload, 3.5).
+  if (!APPLICATION_DOCUMENT_TYPES.includes(documentType)) {
     throw new ValidationError("Choose a document type from the list.");
   }
   await requireOwnedNonTerminalApplication(ctx, applicationId);
@@ -200,7 +204,7 @@ export async function getDocumentChecklist(
   });
   const byType = new Map(documents.map((d) => [d.documentType, toDocumentView(d)]));
 
-  return Object.values(DocumentType).map((documentType) => ({
+  return APPLICATION_DOCUMENT_TYPES.map((documentType) => ({
     documentType,
     typeLabel: DOCUMENT_TYPE_LABELS[documentType],
     required: REQUIRED_DOCUMENT_TYPES.includes(documentType),
@@ -239,9 +243,11 @@ export async function listDocumentsForReview(
 
 /**
  * Authorize a download and return the server-side storage location for
- * streaming. Owners always; Nova staff with document.view under Nova scope
- * (Operations review, 2.7/2.8). Shelters: never. The store is PRIVATE
- * (ADR-014): objects require authenticated access even with the URL.
+ * streaming. Owners always — the applicant for application documents, the
+ * participant for their certification documents (3.5) — plus Nova staff
+ * with document.view under Nova scope (Operations review, 2.7/2.8).
+ * Shelters: never. The store is PRIVATE (ADR-014): objects require
+ * authenticated access even with the URL.
  */
 export async function authorizeDownload(
   ctx: AuthContext,
@@ -251,13 +257,20 @@ export async function authorizeDownload(
     where: { id: documentId },
     include: {
       application: { include: { person: { select: { userId: true } } } },
+      certification: {
+        include: { participant: { include: { person: { select: { userId: true } } } } },
+      },
     },
   });
   if (!document) {
     throw new NotFoundError();
   }
 
-  const isOwner = document.application.person.userId === ctx.userId;
+  const isOwner = document.application
+    ? document.application.person.userId === ctx.userId
+    : document.certification
+      ? document.certification.participant.person.userId === ctx.userId
+      : false;
   const isNovaReviewer = hasPermission(ctx, "document.view") && hasNovaScope(ctx);
   if (!isOwner && !isNovaReviewer) {
     // Non-owners get the same 404 as a missing record — no existence leak.
@@ -269,4 +282,102 @@ export async function authorizeDownload(
     fileName: document.fileName,
     contentType: document.contentType,
   };
+}
+
+// --- Certification documents (Story 3.5) ---------------------------------------
+
+/** The blob pathname prefix a certification attachment must live under. */
+export function certificationUploadPrefix(certificationId: string) {
+  return `certifications/${certificationId}/`;
+}
+
+/**
+ * Authorize a certification-attachment upload (coordinator path): requires
+ * certification.record under Nova scope and an existing certification.
+ */
+export async function authorizeCertificationUpload(
+  ctx: AuthContext,
+  certificationId: string,
+): Promise<{ pathnamePrefix: string }> {
+  if (!hasPermission(ctx, "certification.record") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const certification = await prisma.certification.findUnique({
+    where: { id: certificationId },
+    select: { id: true },
+  });
+  if (!certification) {
+    throw new NotFoundError();
+  }
+  return { pathnamePrefix: certificationUploadPrefix(certificationId) };
+}
+
+/**
+ * Confirm a completed certification-attachment upload: same storage-truth
+ * verification as the application path, with the certification as the
+ * document's single owning context (XOR, database-design.md). Supersedes
+ * the prior ACTIVE attachment in one transaction; idempotent by pathname.
+ */
+export async function confirmCertificationUpload(
+  ctx: AuthContext,
+  input: { certificationId: string; pathname: string; fileName?: string },
+): Promise<DocumentView> {
+  const { pathnamePrefix } = await authorizeCertificationUpload(
+    ctx,
+    input.certificationId,
+  );
+  if (!input.pathname.startsWith(pathnamePrefix)) {
+    throw new AuthorizationError();
+  }
+
+  let blob;
+  try {
+    blob = await head(input.pathname);
+  } catch {
+    throw new ValidationError("We couldn't find that upload. Please try again.");
+  }
+  const invalid = validateDocumentFile({
+    contentType: blob.contentType ?? "application/octet-stream",
+    sizeBytes: blob.size,
+  });
+  if (invalid) {
+    throw new ValidationError(invalid);
+  }
+
+  const existing = await prisma.document.findUnique({
+    where: { storagePathname: input.pathname },
+  });
+  if (existing) {
+    return toDocumentView(existing);
+  }
+
+  const fileName = (
+    input.fileName ?? decodeURIComponent(input.pathname.split("/").pop() ?? "document")
+  )
+    .replace(/[^\w.\- ]/g, "_")
+    .slice(0, 200);
+
+  const created = await prisma.$transaction(async (tx) => {
+    await tx.document.updateMany({
+      where: {
+        certificationId: input.certificationId,
+        status: DocumentStatus.ACTIVE,
+      },
+      data: { status: DocumentStatus.SUPERSEDED, supersededAt: new Date() },
+    });
+    return tx.document.create({
+      data: {
+        certificationId: input.certificationId,
+        documentType: DocumentType.CERTIFICATION,
+        fileName,
+        contentType: blob.contentType ?? "application/octet-stream",
+        sizeBytes: blob.size,
+        storagePathname: input.pathname,
+        storageUrl: blob.url,
+        uploadedByUserId: ctx.userId,
+      },
+    });
+  });
+
+  return toDocumentView(created);
 }

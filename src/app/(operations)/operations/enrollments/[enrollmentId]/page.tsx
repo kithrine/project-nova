@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { TaskList } from "@/features/enrollment/task-list";
+import { CertificationPanel } from "@/features/certifications/certification-panel";
 import { TrainingList } from "@/features/training/training-list";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import { NotFoundError } from "@/server/errors/app-error";
 import { getEnrollment, listOnboardingTasks } from "@/server/services/enrollment-service";
+import { listCertificationsForParticipant } from "@/server/services/certification-service";
 import { listTrainingForEnrollment } from "@/server/services/training-service";
 
 export const metadata = { title: "Enrollment" };
@@ -111,6 +113,29 @@ export default async function EnrollmentPage({
         ) : (
           <p className="max-w-prose text-sm text-base-content/70">
             You don&apos;t have access to training records.
+          </p>
+        )}
+      </div>
+
+      <div id="certifications" className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6">
+        <h2 className="text-lg font-semibold">Certifications</h2>
+        <p className="max-w-prose text-sm text-base-content/70">
+          Credentials on record (ADR-017): required ones must be unexpired for
+          matching readiness; corrections preserve prior values in the audit
+          trail.
+        </p>
+        {hasPermission(ctx, "certification.record") ? (
+          <CertificationPanel
+            participantId={enrollment.participantId}
+            enrollmentId={enrollment.id}
+            certifications={await listCertificationsForParticipant(
+              ctx,
+              enrollment.participantId,
+            )}
+          />
+        ) : (
+          <p className="max-w-prose text-sm text-base-content/70">
+            You don&apos;t have access to certification records.
           </p>
         )}
       </div>

@@ -57,6 +57,9 @@ export const PERMISSIONS = [
   // writes in Nova scope. Participants see only the rolled-up journey step.
   "trainingEnrollment.create",
   "trainingEnrollment.update",
+  // Certifications (Story 3.5; ADR-017): coordinator-recorded credentials.
+  // Participants read their OWN certifications via ownership, never this.
+  "certification.record",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -84,6 +87,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "onboardingTask.reopen",
     "trainingEnrollment.create",
     "trainingEnrollment.update",
+    "certification.record",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -102,6 +106,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "onboardingTask.reopen",
     "trainingEnrollment.create",
     "trainingEnrollment.update",
+    "certification.record",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

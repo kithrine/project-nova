@@ -6,11 +6,20 @@ import { DocumentType } from "@/generated/prisma/client";
 import { requireAuthContext } from "@/server/auth/context";
 import { ValidationError } from "@/server/errors/app-error";
 import { toErrorResponse } from "@/server/errors/http";
-import { confirmUpload } from "@/server/services/document-service";
+import {
+  confirmCertificationUpload,
+  confirmUpload,
+} from "@/server/services/document-service";
 
-const confirmSchema = z.object({
+const applicationConfirmSchema = z.object({
   applicationId: z.string().min(1),
   documentType: z.enum(DocumentType),
+  pathname: z.string().min(1),
+  fileName: z.string().trim().min(1).max(200),
+});
+
+const certificationConfirmSchema = z.object({
+  certificationId: z.string().min(1),
   pathname: z.string().min(1),
   fileName: z.string().trim().min(1).max(200),
 });
@@ -24,12 +33,21 @@ const confirmSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const ctx = await requireAuthContext();
-    const parsed = confirmSchema.safeParse(await request.json());
-    if (!parsed.success) {
-      throw new ValidationError();
+    const body: unknown = await request.json();
+
+    // Certification attachments (3.5) carry certificationId; application
+    // documents (2.4) carry applicationId + documentType. XOR by shape.
+    const certification = certificationConfirmSchema.safeParse(body);
+    if (certification.success) {
+      return NextResponse.json(
+        await confirmCertificationUpload(ctx, certification.data),
+      );
     }
-    const view = await confirmUpload(ctx, parsed.data);
-    return NextResponse.json(view);
+    const application = applicationConfirmSchema.safeParse(body);
+    if (application.success) {
+      return NextResponse.json(await confirmUpload(ctx, application.data));
+    }
+    throw new ValidationError();
   } catch (error) {
     return toErrorResponse(error);
   }

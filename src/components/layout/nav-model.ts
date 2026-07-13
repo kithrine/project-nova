@@ -20,7 +20,7 @@ export const PARTICIPANT_NAV: readonly NavItem[] = [
   { label: "My Application", href: "/participant/application", icon: "file", available: true },
   { label: "My Placement", href: "/participant/placement", icon: "briefcase", available: false },
   { label: "My Hours", href: "/participant/hours", icon: "clock", available: false },
-  { label: "Certifications", href: "/participant/certifications", icon: "award", available: false },
+  { label: "Certifications", href: "/participant/certifications", icon: "award", available: true },
   { label: "Profile", href: "/participant/profile", icon: "user", available: false },
   { label: "Help", href: "/participant/help", icon: "help", available: false },
 ];

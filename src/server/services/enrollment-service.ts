@@ -471,6 +471,7 @@ export async function getOwnOnboardingSummary(
 
 export interface EnrollmentView {
   id: string;
+  participantId: string;
   participantName: string;
   programName: string;
   status: EnrollmentStatus;
@@ -497,10 +498,11 @@ function toEnrollmentView(enrollment: {
   applicationId: string;
   program: { name: string };
   application: { applicationNumber: string };
-  participant: { person: { legalFirstName: string; legalLastName: string } };
+  participant: { id: string; person: { legalFirstName: string; legalLastName: string } };
 }): EnrollmentView {
   return {
     id: enrollment.id,
+    participantId: enrollment.participant.id,
     participantName: `${enrollment.participant.person.legalFirstName} ${enrollment.participant.person.legalLastName}`,
     programName: enrollment.program.name,
     status: enrollment.status,
@@ -520,7 +522,10 @@ const ENROLLMENT_INCLUDE = {
   program: { select: { name: true } },
   application: { select: { applicationNumber: true } },
   participant: {
-    select: { person: { select: { legalFirstName: true, legalLastName: true } } },
+    select: {
+      id: true,
+      person: { select: { legalFirstName: true, legalLastName: true } },
+    },
   },
 } as const;
 

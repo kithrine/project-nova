@@ -742,6 +742,39 @@ try {
     },
   });
 
+  // Certification fixtures (Story 3.5): reset the training subject's
+  // certifications (the coordinator E2E records + attaches each run —
+  // delete stored blobs before their metadata rows) and pin a deterministic
+  // certification on the participant identity for the read-only view test.
+  const fixtureParticipantIds = ["e2e_participant_training", "e2e_participant_main"];
+  const certDocs = await prisma.document.findMany({
+    where: { certification: { participantId: { in: fixtureParticipantIds } } },
+    select: { storagePathname: true },
+  });
+  if (certDocs.length > 0) {
+    const { del } = await import("@vercel/blob");
+    await del(certDocs.map((d) => d.storagePathname)).catch(() => {});
+  }
+  await prisma.document.deleteMany({
+    where: { certification: { participantId: { in: fixtureParticipantIds } } },
+  });
+  await prisma.certification.deleteMany({
+    where: { participantId: "e2e_participant_training" },
+  });
+  await prisma.certification.upsert({
+    where: { id: "e2e_cert_participant" },
+    update: { status: ActiveStatus.ACTIVE },
+    create: {
+      id: "e2e_cert_participant",
+      participantId: "e2e_participant_main",
+      name: "Pet First Aid & CPR (Synthetic)",
+      issuer: "Synthetic Animal Care Academy",
+      issuedOn: new Date("2026-01-05T00:00:00Z"),
+      expiresOn: new Date("2030-01-05T00:00:00Z"),
+      requiredForMatching: false,
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds
