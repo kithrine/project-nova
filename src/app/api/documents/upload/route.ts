@@ -9,6 +9,7 @@ import { toErrorResponse } from "@/server/errors/http";
 import {
   ALLOWED_CONTENT_TYPES,
   MAX_DOCUMENT_BYTES,
+  authorizeCertificationUpload,
   authorizeUpload,
 } from "@/server/services/document-service";
 
@@ -29,15 +30,21 @@ export async function POST(request: NextRequest) {
       body,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const parsed = JSON.parse(clientPayload ?? "{}") as {
+          kind?: string;
           applicationId?: string;
+          certificationId?: string;
           documentType?: string;
         };
-        const documentType = parsed.documentType as DocumentType;
-        const { pathnamePrefix } = await authorizeUpload(
-          ctx,
-          String(parsed.applicationId ?? ""),
-          documentType,
-        );
+        // Two authorized upload contexts (XOR ownership): the applicant's
+        // own application (2.4) or a coordinator-recorded certification (3.5).
+        const { pathnamePrefix } =
+          parsed.kind === "certification"
+            ? await authorizeCertificationUpload(ctx, String(parsed.certificationId ?? ""))
+            : await authorizeUpload(
+                ctx,
+                String(parsed.applicationId ?? ""),
+                parsed.documentType as DocumentType,
+              );
         // Private-store presigned flow: the CLIENT-requested pathname is what
         // gets signed (server overrides are not applied), so the authorization
         // binding is validation — the request must target the exact prefix

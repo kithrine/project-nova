@@ -12,7 +12,7 @@ Prepare accepted participants for matching.
 | 3.2 | Generate onboarding tasks                         | Done                  |
 | 3.3 | Complete onboarding tasks                         | Done                  |
 | 3.4 | Record training enrollment                        | Done                  |
-| 3.5 | Record certifications                             | Ready for Development |
+| 3.5 | Record certifications                             | Done                  |
 | 3.6 | Display matching blockers                         | Ready for Development |
 | 3.7 | Mark participant ready for matching               | Ready for Development |
 
@@ -288,7 +288,15 @@ Certification records (3.5), a dedicated participant-facing training page, catal
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: per ADR-017, certifications default to NOT required for
+> matching (credentials gate task eligibility). A coordinator may mark one
+> required; 3.6 then treats an EXPIRED required certification as an
+> outstanding blocker. A certification that was never recorded is not a
+> blocker. This story also performed the planned Document XOR expansion:
+> Application XOR Certification owning contexts, enforced by a Postgres
+> CHECK constraint.
 
 ### User story
 

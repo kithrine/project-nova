@@ -14,7 +14,7 @@ PostgreSQL hosted by Neon and accessed through Prisma.
 - One active placement per participant through a partial unique index
 - One active funding assignment per placement through a partial unique index
 - XOR ownership checks for case notes and onboarding tasks
-- Exactly one owning context for each document
+- Exactly one owning context for each document (Application XOR Certification since Story 3.5, via CHECK constraint)
 - Money stored as Decimal
 - Historical records archived, not deleted
 

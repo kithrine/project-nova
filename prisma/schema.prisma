@@ -357,6 +357,7 @@ model AuditEvent {
 
 enum DocumentType {
   GOVERNMENT_ID
+  CERTIFICATION
   OTHER
 }
 
@@ -369,14 +370,17 @@ enum DocumentStatus {
 // Uploaded-document METADATA only — file contents live in secure object
 // storage (Vercel Blob, ADR-014) and are Highly Restricted
 // (docs/architecture/security-privacy.md): never logged, never in view
-// models, never exposed to shelters. One owning context per document
-// (database-design.md); Application is the only owner that exists today.
-// Replacement supersedes (archive-not-delete); exactly one ACTIVE document
-// per (application, type) via a partial unique index in the migration SQL.
+// models, never exposed to shelters. EXACTLY ONE owning context per
+// document (database-design.md): Application (2.4) XOR Certification (3.5),
+// enforced by a CHECK constraint in the migration SQL. Replacement
+// supersedes (archive-not-delete); partial unique indexes keep one ACTIVE
+// document per (application, type) and one per certification.
 model Document {
-  id            String      @id @default(cuid())
-  applicationId String
-  application   Application @relation(fields: [applicationId], references: [id])
+  id              String         @id @default(cuid())
+  applicationId   String?
+  application     Application?   @relation(fields: [applicationId], references: [id])
+  certificationId String?
+  certification   Certification? @relation(fields: [certificationId], references: [id])
 
   documentType DocumentType
   status       DocumentStatus @default(ACTIVE)
@@ -396,6 +400,38 @@ model Document {
   updatedAt DateTime @updatedAt
 
   @@index([applicationId])
+  @@index([certificationId])
+}
+
+// --- Certifications (Story 3.5; ADR-017) --------------------------------------
+
+// A credential held by a participant (CPR/First Aid, Fear Free, etc.).
+// Expiry is COMPUTED from expiresOn — never stored, so it can't go stale.
+// requiredForMatching defaults false per ADR-017 (credentials gate task
+// eligibility, not universal readiness); when a coordinator marks one
+// required, 3.6 treats an expired one as an outstanding blocker. Archive-
+// not-delete: corrections are edits; prior values are preserved in the
+// audit trail (certification.update events snapshot the previous row).
+model Certification {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+
+  name     String
+  issuer   String
+  issuedOn DateTime  @db.Date
+  // Valid through this date, inclusive; null = no expiration.
+  expiresOn DateTime? @db.Date
+
+  requiredForMatching Boolean      @default(false)
+  status              ActiveStatus @default(ACTIVE)
+
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participantId])
 }
 
 // --- Enrollment (Story 3.1) ---------------------------------------------------
@@ -429,7 +465,8 @@ model Participant {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id])
 
-  enrollments ProgramEnrollment[]
+  enrollments    ProgramEnrollment[]
+  certifications Certification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -33,6 +33,7 @@ describe("toDocumentView (Highly Restricted shaping)", () => {
   const document: Document = {
     id: "doc_1",
     applicationId: "app_1",
+    certificationId: null,
     documentType: DocumentType.GOVERNMENT_ID,
     status: DocumentStatus.ACTIVE,
     fileName: "id-front.png",
