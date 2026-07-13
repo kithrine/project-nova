@@ -29,6 +29,7 @@
 - A participant may have only one onboarding/active/paused placement at a time in MVP.
 - Placement activation requires accepted participant decision, shelter approval, supervisor, schedule, site, training, onboarding, and active funding.
 - Terminal placements are not reopened.
+- Terminal outcomes are recorded by Nova Operations only; termination is a single-actor `placement.terminate` action with a required reason category (`ADR-018`) — shelters escalate through incidents or case notes.
 
 ## Timesheets
 

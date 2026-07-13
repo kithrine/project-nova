@@ -15,7 +15,7 @@ Operate an active transitional placement.
 | 5.5  | Activation blockers                       | Done                                |
 | 5.6  | Activate placement                        | Done                                |
 | 5.7  | Pause and resume                          | Done                                |
-| 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
+| 5.8  | Complete, convert, withdraw, or terminate | Ready for Development               |
 | 5.9  | Case notes                                | Done                                |
 | 5.10 | Evaluations                               | Done                                |
 | 5.11 | Incidents                                 | Done                                |
@@ -577,7 +577,7 @@ Automatic pause triggers (for example, from an incident) — pause is always an 
 
 ### Status
 
-Blocked — pending policy validation
+Ready for Development — the termination-authority question is resolved by `ADR-018` (Nova Operations only, single actor; counsel review gated at launch)
 
 ### User story
 
@@ -588,7 +588,7 @@ As a Program Coordinator, I want to move a placement to its appropriate terminal
 - Four distinct terminal transitions from Active or Paused: Completed (successful natural end), Converted to Permanent Employment (participant hired permanently, feeding an Employment Outcome record), Withdrawn (participant-initiated end), Terminated (involuntary end).
 - Each transition captures a reason/category, an effective date, and a free-text summary where relevant; Converted to Permanent Employment additionally creates or links an Employment Outcome record.
 - Terminal placements are never reopened (RULES.md; `docs/product/business-rules.md`) — no UI path exists back to Active from any of the four terminal states.
-- Completed, Converted to Permanent Employment, and Withdrawn can proceed under the standard Nova-Operations lifecycle-transition pattern (`docs/product/mvp.md`). The Terminated transition's authorization is not yet defined (see Status and Dependencies) and must not be built as a guess.
+- All four transitions proceed under the standard Nova-Operations lifecycle-transition pattern (`docs/product/mvp.md`): Completed, Converted to Permanent Employment, and Withdrawn behind `placement.complete`, and Terminated behind `placement.terminate` per `ADR-018` — Nova Operations only, single actor, required reason category, with shelters escalating through incidents (5.11) or case notes (5.9) rather than holding any termination capability.
 
 ### Acceptance criteria
 
@@ -596,12 +596,12 @@ As a Program Coordinator, I want to move a placement to its appropriate terminal
 2. Given a participant is hired permanently during or at the end of a placement, when a coordinator records Converted to Permanent Employment, then the placement transitions to that terminal state and an Employment Outcome record is created or linked in the same transaction.
 3. Given a participant chooses to leave the placement voluntarily, when a coordinator records Withdrawn with the participant's stated reason, then the placement transitions to the terminal Withdrawn state.
 4. Given a placement reaches any terminal state, when later viewed, then no action in the UI permits reopening it or transitioning it further — the workspace shows only historical detail consistent with the viewer's role.
-5. Given the Terminated outcome, when its implementation is scoped, then it must follow the same mechanics as the other three transitions (reason, effective date, lifecycle event, transaction) but its permission gating cannot be finalized or shipped until the authorized role(s) are confirmed (see Dependencies).
+5. Given the Terminated outcome, when a Program Coordinator or Nova Administrator with `placement.terminate` records it, then it follows the same mechanics as the other three transitions (reason category, effective date, lifecycle event, transaction) per `ADR-018`, and no Shelter or Participant role can reach the action.
 6. Given any terminal transition completes, when it is recorded, then the lifecycle event (and, for Conversion, the Employment Outcome linkage) is written in the same transaction, so no terminal state is ever recorded without full history.
 
 ### Authorization
 
-Completed, Converted to Permanent Employment, and Withdrawn: a `placement.complete`-family permission scoped to Nova Operations (Program Coordinator, Nova Administrator), consistent with `docs/product/mvp.md` placing "Lifecycle transitions" under Nova Operations. Terminated: no permission holder is defined yet. `docs/planning/assumptions.md` lists "Who may terminate a placement" under Needs validation — implementation must gate behind a named permission (for example, `placement.terminate`) once a role (and any required approval chain, such as whether a Shelter Manager can request termination versus only report incidents that lead a coordinator to act) is confirmed. Do not default to a guessed role.
+Completed, Converted to Permanent Employment, and Withdrawn: `placement.complete`, scoped to Nova Operations (Program Coordinator, Nova Administrator), consistent with `docs/product/mvp.md` placing "Lifecycle transitions" under Nova Operations. Terminated: `placement.terminate`, same two roles, single actor, per `ADR-018` — a Shelter Manager reports incidents (5.11) or documents context (5.9/5.10) that lead a coordinator to act, and holds no termination or termination-request capability in MVP.
 
 ### Lifecycle rules
 
@@ -628,7 +628,7 @@ Employment Outcome detail/follow-up tracking beyond creation and linkage. Re-app
 
 ### Dependencies
 
-**Blocked — pending policy validation.** `docs/planning/assumptions.md` lists "Who may terminate a placement" under Needs validation. The Terminated transition's authorization must be resolved before this story can be fully built and shipped; because Terminated is one of the four outcomes this single story delivers, the story as a whole is blocked even though Completed/Converted/Withdrawn are independently well-specified. Also depends on 5.6/5.7 (the placement must be Active or Paused) and the Employment Outcome model (`docs/architecture/domain-model.md`).
+`ADR-018` resolves the termination-authority question (open-questions.md #4) as working policy; Washington employment-counsel review of the termination process is a launch-checklist gate, not a build blocker. Also depends on 5.6/5.7 (the placement must be Active or Paused) and the Employment Outcome model (`docs/architecture/domain-model.md`).
 
 ---
 
