@@ -101,6 +101,9 @@ describe("permissionsForRoles (deny-by-default)", () => {
         granted.has("placementMatch.viewCompatibility"),
         `compatibility for ${role}`,
       ).toBe(expected);
+      expect(granted.has("placementMatch.manageDraft"), `draft for ${role}`).toBe(
+        expected,
+      );
     }
   });
 
