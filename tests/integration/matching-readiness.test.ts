@@ -258,6 +258,74 @@ describe.skipIf(!hasDatabase)("matching readiness (integration)", () => {
       service.getEnrollmentReadiness(shelterCtx, enrollmentId),
     ).rejects.toBeInstanceOf(errors.AuthorizationError);
   });
+
+  it("gates, transitions, and refuses to repeat Ready for Matching (Story 3.7)", async () => {
+    const ctx = await contextFor(coordinatorId);
+
+    // The prior test left the required certification EXPIRED: a direct
+    // service call is rejected with the blocker NAMED (AC2 — bypassing the
+    // UI changes nothing), and nothing transitions.
+    await expect(service.markReadyForMatching(ctx, enrollmentId)).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("Required Cert"),
+    });
+    let row = await prisma.programEnrollment.findUniqueOrThrow({
+      where: { id: enrollmentId },
+    });
+    expect(row.status).toBe(enums.EnrollmentStatus.ONBOARDING);
+
+    // No permission -> denied server-side (AC5), for shelters AND the
+    // participant themself.
+    const shelterCtx = await contextFor(shelterUserId);
+    const participantCtx = await contextFor(participantUserId);
+    await expect(
+      service.markReadyForMatching(shelterCtx, enrollmentId),
+    ).rejects.toBeInstanceOf(errors.AuthorizationError);
+    await expect(
+      service.markReadyForMatching(participantCtx, enrollmentId),
+    ).rejects.toBeInstanceOf(errors.AuthorizationError);
+
+    // Clear the last blocker: the transition commits atomically with
+    // exactly one lifecycle event and one audit event (AC1).
+    await prisma.certification.update({
+      where: { id: certificationId },
+      data: { expiresOn: new Date("2030-01-01T00:00:00Z") },
+    });
+    await service.markReadyForMatching(ctx, enrollmentId);
+
+    row = await prisma.programEnrollment.findUniqueOrThrow({ where: { id: enrollmentId } });
+    expect(row.status).toBe(enums.EnrollmentStatus.READY_FOR_MATCHING);
+
+    const events = await prisma.enrollmentEvent.findMany({
+      where: {
+        enrollmentId,
+        toStatus: enums.EnrollmentStatus.READY_FOR_MATCHING,
+      },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0].fromStatus).toBe(enums.EnrollmentStatus.ONBOARDING);
+    expect(events[0].actorUserId).toBe(coordinatorId);
+    expect(
+      await prisma.auditEvent.count({
+        where: { action: "enrollment.markReadyForMatching", subjectId: enrollmentId },
+      }),
+    ).toBe(1);
+
+    // Repeating is a rejected no-op — never a duplicate transition (AC3).
+    await expect(service.markReadyForMatching(ctx, enrollmentId)).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringMatching(/already marked ready/i),
+    });
+    expect(
+      await prisma.enrollmentEvent.count({
+        where: { enrollmentId, toStatus: enums.EnrollmentStatus.READY_FOR_MATCHING },
+      }),
+    ).toBe(1);
+
+    // The participant's dashboard reflects the new step (AC4, server side).
+    const own = await service.getOwnReadiness(participantCtx);
+    expect(own?.ready).toBe(true);
+  });
 });
 
 describe.skipIf(hasDatabase)("matching readiness (unconfigured)", () => {

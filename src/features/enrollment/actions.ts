@@ -9,6 +9,7 @@ import {
   completeOwnOnboardingTask,
   reopenOnboardingTask,
 } from "@/server/services/enrollment-service";
+import { markReadyForMatching } from "@/server/services/readiness-service";
 
 /**
  * Onboarding task Server Actions (Story 3.3; ADR-009). Thin: delegate,
@@ -65,6 +66,29 @@ export async function staffCompleteTaskAction(
   }
 
   revalidatePath(`/operations/enrollments/${enrollmentId}`);
+  return { status: "done" };
+}
+
+export async function markReadyForMatchingAction(
+  enrollmentId: string,
+  _prev: TaskActionState,
+  _formData: FormData,
+): Promise<TaskActionState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await markReadyForMatching(ctx, enrollmentId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath(`/operations/enrollments/${enrollmentId}`);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/enrollments/${enrollmentId}`);
+  revalidatePath("/participant");
   return { status: "done" };
 }
 

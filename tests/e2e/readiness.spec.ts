@@ -109,4 +109,16 @@ test("the blocker list shrinks to the ready state as requirements complete", asy
   await expect(
     page.getByText(/No outstanding requirements — this enrollment is ready for matching/),
   ).toBeVisible({ timeout: 20_000 });
+
+  // Story 3.7: the Status Transition Control unlocks, the coordinator marks
+  // the enrollment ready, and the workspace reflects the new lifecycle state.
+  const markReady = page.getByRole("button", { name: "Mark Ready for Matching" });
+  if (await markReady.isVisible().catch(() => false)) {
+    await expect(markReady).toBeEnabled();
+    await markReady.click();
+  }
+  await expect(
+    page.getByText(/Marked ready for matching — visible to placement matching/),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/· Ready for matching ·/)).toBeVisible();
 });

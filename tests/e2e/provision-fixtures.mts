@@ -858,6 +858,14 @@ try {
       sortOrder: 1,
     },
   });
+  // Reset the 3.7 transition too: prior runs' lifecycle/audit events go,
+  // and the enrollment returns to ONBOARDING (the upsert above).
+  await prisma.enrollmentEvent.deleteMany({
+    where: { enrollmentId: "e2e_enrollment_readiness" },
+  });
+  await prisma.auditEvent.deleteMany({
+    where: { subjectType: "ProgramEnrollment", subjectId: "e2e_enrollment_readiness" },
+  });
   const readinessAttempts = await prisma.trainingEnrollment.findMany({
     where: { programEnrollmentId: "e2e_enrollment_readiness" },
     select: { id: true },
