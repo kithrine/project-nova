@@ -39,7 +39,7 @@ export const OPERATIONS_NAV: readonly NavItem[] = [
   { label: "Dashboard", href: "/operations", icon: "home", available: true },
   { label: "Applications", href: "/operations/applications", icon: "file", available: true },
   { label: "Participants", href: "/operations/participants", icon: "users", available: false },
-  { label: "Placements", href: "/operations/placements", icon: "briefcase", available: false },
+  { label: "Placements", href: "/operations/placements", icon: "briefcase", available: true },
   { label: "Shelters", href: "/operations/shelters", icon: "building", available: false },
   { label: "Training", href: "/operations/training", icon: "book", available: false },
   { label: "Reports", href: "/operations/reports", icon: "chart", available: false },

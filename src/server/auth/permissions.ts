@@ -63,6 +63,9 @@ export const PERMISSIONS = [
   // The gated Training -> Ready for Matching transition (Story 3.7):
   // re-evaluates the 3.6 blocker policy inside the transaction.
   "enrollment.markReadyForMatching",
+  // The Epic 4 matching queue (Story 4.1): spans ALL shelters, so it is
+  // Nova-scoped and never granted to shelter or participant roles.
+  "placementMatch.viewQueue",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -92,6 +95,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "trainingEnrollment.update",
     "certification.record",
     "enrollment.markReadyForMatching",
+    "placementMatch.viewQueue",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -112,6 +116,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "trainingEnrollment.update",
     "certification.record",
     "enrollment.markReadyForMatching",
+    "placementMatch.viewQueue",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
