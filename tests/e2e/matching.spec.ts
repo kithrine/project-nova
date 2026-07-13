@@ -31,6 +31,28 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
     page.getByRole("heading", { level: 1, name: "Matching queue" }),
   ).toBeVisible({ timeout: 20_000 });
 
+  // Retry safety: a previous attempt may have left Quinn mid-match. Clear
+  // it through the product's own paths — withdraw a Draft, or record an
+  // assisted decline on a Proposed match (Story 4.5).
+  const leftover = page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" });
+  if (await leftover.isVisible().catch(() => false)) {
+    await leftover.click();
+    const withdrawConfirm = page.getByLabel(/I no longer want to pursue this match/);
+    if (await withdrawConfirm.isVisible().catch(() => false)) {
+      await withdrawConfirm.check();
+      await page.getByRole("button", { name: "Withdraw Draft" }).click();
+    } else {
+      await page.getByLabel("The participant declines this placement").check();
+      await page.getByLabel(/I confirmed this decision with the participant/).check();
+      await page.getByRole("button", { name: "Record Participant Decision" }).click();
+      await expect(page.getByText(/Status: .*Declined/)).toBeVisible({ timeout: 20_000 });
+      await page.goto("/operations/placements");
+    }
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Matching queue" }),
+    ).toBeVisible({ timeout: 20_000 });
+  }
+
   // The ready fixture participant appears as awaiting, with readiness
   // context and the blockers carried over from 3.6 (a required training
   // with no attempt on this fixture program).
@@ -118,7 +140,8 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
 
   await page.getByRole("button", { name: "Propose Match" }).click();
   await expect(page.getByText(/Status: .*Proposed/)).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText(/Both parties are reviewing it/)).toBeVisible();
+  await expect(page.getByText(/Participant decision: .*Pending/)).toBeVisible();
+  await expect(page.getByText(/Shelter decision: .*Pending/)).toBeVisible();
 
   // The shelter side sees it under Placement approvals — their org only.
   await clerk.signOut({ page });
@@ -129,7 +152,101 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Quinn Synthetic-Match")).toBeVisible();
   await expect(page.getByText("Schedule: Mon/Wed mornings")).toBeVisible();
-  await expect(page.getByText(/Supervisor: Synthetic E2E/)).toBeVisible();
+  await expect(page.getByText(/Supervisor: Synthetic E2E/).first()).toBeVisible();
+
+  // Story 4.5 (AC3): Quinn communicated a decline by phone — the
+  // coordinator records it on Quinn's behalf. The decline is a unilateral
+  // veto: the match becomes Declined and Quinn returns to the queue.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements");
+  await page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }).click();
+  await expect(page.getByText(/Participant decision: .*Pending/)).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByLabel("The participant declines this placement").check();
+  await page
+    .getByLabel(/Note \(optional — Operations-only/)
+    .fill("Prefers afternoons — told us by phone");
+  await page.getByLabel(/I confirmed this decision with the participant/).check();
+  await page.getByRole("button", { name: "Record Participant Decision" }).click();
+  await expect(page.getByText(/Status: .*Declined/)).toBeVisible({ timeout: 20_000 });
+  // The declined workspace keeps the decision trail: who, when, on whose
+  // behalf, and the Operations-only note (4.5 AC6).
+  await expect(
+    page.getByText(/Participant decision: .*Declined.*recorded by staff/),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Participant note: Prefers afternoons — told us by phone"),
+  ).toBeVisible();
+
+  // Quinn is awaiting match again — assemble and propose a fresh match,
+  // leaving a live pending proposal for the 4.6 shelter-decision journey.
+  await page.goto("/operations/placements");
+  await expect(
+    page
+      .getByLabel("Participants awaiting match")
+      .getByText("Quinn Synthetic-Match", { exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+  await page
+    .getByLabel("Candidate shelter site")
+    .selectOption({ label: "E2E Test Shelter (Synthetic) — Main Site (Synthetic) (capacity 3)" });
+  await page.getByRole("button", { name: "Review Pairing: Quinn Synthetic-Match" }).click();
+  await page.getByRole("button", { name: "Create Match Draft" }).click();
+  await expect(page.getByText(/Status: .*Draft/)).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Candidate schedule").fill("Mon/Wed mornings");
+  await page.getByLabel("Candidate start date").fill("2026-08-03");
+  await page.getByLabel("Candidate end date").fill("2026-12-04");
+  await page.getByLabel("Candidate supervisor").selectOption({ label: "Synthetic E2E" });
+  await page.getByRole("button", { name: "Save Draft Details" }).click();
+  await expect(page.getByText(/Draft saved — the compatibility read/)).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole("button", { name: "Propose Match" }).click();
+  await expect(page.getByText(/Status: .*Proposed/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Participant decision: .*Pending/)).toBeVisible();
+});
+
+test("a participant accepts their proposed placement on their dashboard (Story 4.5, AC1)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_PARTICIPANT_USER_EMAIL);
+  await page.goto("/participant");
+
+  const proposedHeading = page.getByRole("heading", {
+    name: "A placement has been proposed for you",
+  });
+  const acceptedHeading = page.getByRole("heading", {
+    name: "You accepted this placement",
+  });
+  await expect(proposedHeading.or(acceptedHeading)).toBeVisible({ timeout: 20_000 });
+
+  // Retry safety: acceptance is one-way, so a prior attempt may already
+  // have recorded it — the accepted state is then the thing to verify.
+  if (await proposedHeading.isVisible().catch(() => false)) {
+    await expect(
+      page.getByText(/E2E Test Shelter \(Synthetic\) — Main Site \(Synthetic\)/),
+    ).toBeVisible();
+    await expect(page.getByText("Tue/Thu afternoons")).toBeVisible();
+
+    // Both choices are offered; accepting goes through a confirmation.
+    await expect(
+      page.getByRole("button", { name: "Decline This Placement" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Accept This Placement" }).click();
+    await expect(
+      page.getByText(/You're accepting this placement at E2E Test Shelter/),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Yes, Accept This Placement" }).click();
+  }
+
+  await expect(acceptedHeading).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/nothing more is needed from you right now/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Accept This Placement" }),
+  ).not.toBeVisible();
 });
 
 test("a shelter manager is denied the queue (AC6)", async ({ page }) => {

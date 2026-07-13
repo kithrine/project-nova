@@ -11,7 +11,7 @@ Create safe, approved participant-to-shelter matches.
 | 4.2 | Compatibility panel | Done |
 | 4.3 | Create match draft | Done |
 | 4.4 | Propose match | Done |
-| 4.5 | Record participant decision | Ready for Development |
+| 4.5 | Record participant decision | Done |
 | 4.6 | Record shelter decision | Ready for Development |
 | 4.7 | Request changes | Ready for Development |
 | 4.8 | Approve match and create placement | Ready for Development |
@@ -267,7 +267,22 @@ Story 4.3 (a Draft must exist); Story 1.7 (participant and shelter protected lay
 ## Story 4.5 — Record participant decision
 
 ### Status
-Ready for Development
+Done
+
+> Built note: both recording paths run through ONE service function —
+> ownership (Person -> Participant) for self-service, and the new
+> placementMatch.recordParticipantDecision permission for the assisted
+> path, with the participant always the decision owner and recordedBy the
+> recording actor. An accept writes a PROPOSED -> PROPOSED lifecycle event
+> (the decision moment in the trail without a status change); a decline is
+> the unilateral veto. The decline note is Operations-visible only and
+> never enters audit detail. The participant dashboard's post-decline
+> notice is time-boxed to one decision window — a decline is a choice, not
+> a flag. E2E: the self-service Accept runs on the real participant login
+> against a provisioned proposal (the queue fixture participant has no
+> signable identity); the decline + assisted path (AC3) runs end-to-end in
+> the coordinator journey, which is now retry-safe via the product's own
+> withdraw/decline paths.
 
 ### User story
 As a participant, I want to accept or decline a placement that has been proposed to me, so that I retain control over my own transitional employment.

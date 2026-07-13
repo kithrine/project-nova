@@ -2,11 +2,17 @@ import { redirect } from "next/navigation";
 
 import { ParticipantTasks } from "@/features/enrollment/participant-tasks";
 import { ReadinessCard } from "@/features/enrollment/readiness-card";
-import { ParticipantProposedCard } from "@/features/matching/proposed-placement-card";
+import {
+  ParticipantDeclinedNotice,
+  ParticipantProposedCard,
+} from "@/features/matching/proposed-placement-card";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnPerson } from "@/server/services/applicant-onboarding";
 import { getOwnOnboardingSummary } from "@/server/services/enrollment-service";
-import { getOwnProposedMatch } from "@/server/services/matching-service";
+import {
+  getOwnDeclinedPlacementNotice,
+  getOwnProposedMatch,
+} from "@/server/services/matching-service";
 import { getOwnReadiness } from "@/server/services/readiness-service";
 import { getOwnTrainingJourney } from "@/server/services/training-service";
 
@@ -31,6 +37,10 @@ export default async function ParticipantDashboardPage() {
   const trainingJourney = ctx && person ? await getOwnTrainingJourney(ctx) : null;
   const readiness = ctx && person ? await getOwnReadiness(ctx) : null;
   const proposedMatch = ctx && person ? await getOwnProposedMatch(ctx) : null;
+  // The respectful, time-boxed post-decline notice (4.5) — only when no
+  // newer proposal has replaced it.
+  const declinedNotice =
+    ctx && person && !proposedMatch ? await getOwnDeclinedPlacementNotice(ctx) : null;
   // While the tasks card below is the actionable checklist, the readiness
   // card lists only what it DOESN'T cover — no duplicate rows (Story 3.6).
   const readinessForCard =
@@ -42,6 +52,7 @@ export default async function ParticipantDashboardPage() {
     <section className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold tracking-tight">Welcome to Project Nova</h1>
       {proposedMatch ? <ParticipantProposedCard match={proposedMatch} /> : null}
+      {declinedNotice ? <ParticipantDeclinedNotice notice={declinedNotice} /> : null}
       {onboarding ? (
         <>
           <p className="max-w-prose text-base leading-relaxed text-base-content/80">

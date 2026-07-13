@@ -1,4 +1,8 @@
-import { EnrollmentStatus, MatchStatus } from "@/generated/prisma/client";
+import {
+  EnrollmentStatus,
+  MatchStatus,
+  ParticipantMatchDecision,
+} from "@/generated/prisma/client";
 import { LifecycleError } from "@/server/errors/app-error";
 
 /**
@@ -90,6 +94,39 @@ export function isExpiredProposal(
     match.participantDecision === "PENDING" &&
     match.shelterDecision === "PENDING"
   );
+}
+
+/**
+ * Why a decision cannot be recorded on this match's track right now, or
+ * null when it can (Stories 4.5/4.6, AC4/AC6). Decisions exist only on a
+ * live proposal, and each track is one-way for the current proposal cycle
+ * — a changed mind routes through Operations, never a reopened control
+ * (RULES.md: no arbitrary lifecycle status dropdowns).
+ */
+export function decisionBlockReason(match: {
+  status: MatchStatus;
+  decision: string;
+}): string | null {
+  if (match.status !== MatchStatus.PROPOSED) {
+    return "Decisions can only be recorded while a match is proposed.";
+  }
+  if (match.decision !== "PENDING") {
+    return "This decision has already been recorded for the current proposal.";
+  }
+  return null;
+}
+
+/**
+ * A participant decline is a unilateral veto (Story 4.5 AC2): the match
+ * itself becomes Declined regardless of the shelter track. An accept only
+ * satisfies one of the two 4.8 prerequisites — the match stays Proposed.
+ */
+export function matchStatusAfterParticipantDecision(
+  decision: ParticipantMatchDecision,
+): MatchStatus {
+  return decision === ParticipantMatchDecision.DECLINED
+    ? MatchStatus.DECLINED
+    : MatchStatus.PROPOSED;
 }
 
 /**

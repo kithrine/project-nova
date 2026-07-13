@@ -978,6 +978,46 @@ try {
     },
   });
 
+  // Participant-decision fixture (Story 4.5): Quinn has no signable Clerk
+  // identity, so the self-service Accept flow is exercised on PARKER — the
+  // real participant login — via a PROPOSED match written directly (the
+  // service's draft/propose path is E2E'd on Quinn's journey). Reset to a
+  // fresh pending proposal every run; schedule text is distinct from
+  // Quinn's so shelter-dashboard assertions never collide.
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_main" } },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_main" },
+  });
+  const parkerProposedAt = new Date();
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_participant",
+      participantId: "e2e_participant_main",
+      programEnrollmentId: "e2e_enrollment_participant",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "PROPOSED",
+      proposedSupervisorId: "e2e_user_shelter",
+      proposedSchedule: "Tue/Thu afternoons",
+      proposedStartDate: new Date("2026-08-10T00:00:00Z"),
+      proposedEndDate: new Date("2026-12-11T00:00:00Z"),
+      proposedAt: parkerProposedAt,
+      decisionWindowEndsAt: new Date(
+        parkerProposedAt.getTime() + 14 * 86_400_000,
+      ),
+    },
+  });
+  await prisma.placementMatchEvent.create({
+    data: {
+      placementMatchId: "e2e_match_participant",
+      fromStatus: "DRAFT",
+      toStatus: "PROPOSED",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds
