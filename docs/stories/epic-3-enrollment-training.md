@@ -13,8 +13,8 @@ Prepare accepted participants for matching.
 | 3.3 | Complete onboarding tasks                         | Done                  |
 | 3.4 | Record training enrollment                        | Done                  |
 | 3.5 | Record certifications                             | Done                  |
-| 3.6 | Display matching blockers                         | Ready for Development |
-| 3.7 | Mark participant ready for matching               | Ready for Development |
+| 3.6 | Display matching blockers                         | Done                  |
+| 3.7 | Mark participant ready for matching               | Done                  |
 
 > Sequencing note: build order is 3.1 → 3.2 → 3.3 in strict sequence; 3.4 and 3.5 depend only on 3.1 and can proceed in parallel with 3.2/3.3. 3.6 depends on both onboarding (3.2/3.3) and training/certifications (3.4/3.5) because it aggregates all three sources, and 3.7 depends on 3.6's blocker policy as its server-side gate; see each story's Dependencies.
 
