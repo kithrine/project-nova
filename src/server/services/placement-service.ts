@@ -20,7 +20,10 @@ import {
   PLACEMENT_ONBOARDING_CATALOG,
   buildPlacementTimeline,
   packageMissingPieces,
+  pauseEventDetail,
+  pauseReasonLabel,
   PLACEMENT_STATUS_LABELS,
+  resumeEventDetail,
   scheduleValidationError,
   TERMINAL_PLACEMENT_STATUSES,
   type ScheduleDayInput,
@@ -108,6 +111,12 @@ export interface PlacementHistoryEntry {
   fromLabel: string | null;
   toLabel: string;
   actorName: string;
+  /**
+   * The event's ops-internal record — pause reasons (Story 5.7), archived
+   * change-request notes (5.2). Populated for Nova viewers only; shelter
+   * history carries the transitions without it.
+   */
+  detail: string | null;
 }
 
 const DAY_ORDER: ScheduleDay[] = [
@@ -197,6 +206,9 @@ export interface PlacementWorkspaceView {
    * while blockers remain — the panel reads `activation.open`.
    */
   viewerCanActivate: boolean;
+  /** Pause/Resume controls (Story 5.7): Nova lifecycle-transition roles. */
+  viewerCanPause: boolean;
+  viewerCanResume: boolean;
 }
 
 export interface ActivationBlockerView {
@@ -412,6 +424,7 @@ export async function getPlacementWorkspace(
       fromLabel: event.fromStatus ? PLACEMENT_STATUS_LABELS[event.fromStatus] : null,
       toLabel: PLACEMENT_STATUS_LABELS[event.toStatus],
       actorName: nameById.get(event.actorUserId) ?? "Nova system",
+      detail: viewer === "NOVA" ? event.detail : null,
     })),
     structuredSchedule: placement.structuredSchedule
       ? {
@@ -490,6 +503,14 @@ export async function getPlacementWorkspace(
       viewer === "NOVA" &&
       hasPermission(ctx, "placement.activate") &&
       placement.status === PlacementStatus.ONBOARDING,
+    viewerCanPause:
+      viewer === "NOVA" &&
+      hasPermission(ctx, "placement.pause") &&
+      placement.status === PlacementStatus.ACTIVE,
+    viewerCanResume:
+      viewer === "NOVA" &&
+      hasPermission(ctx, "placement.resume") &&
+      placement.status === PlacementStatus.PAUSED,
   };
 }
 
@@ -752,6 +773,152 @@ export async function activatePlacement(
       data: {
         actorUserId: ctx.userId,
         action: "placement.activate",
+        subjectType: "Placement",
+        subjectId: placementId,
+      },
+    });
+  });
+}
+
+// --- Pause and resume (Story 5.7) ---------------------------------------------------
+
+function requireLifecycleTransition(
+  ctx: AuthContext,
+  permission: "placement.pause" | "placement.resume",
+): void {
+  if (!hasPermission(ctx, permission)) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+}
+
+export interface PausePlacementInput {
+  reasonKey: string;
+  note: string | null;
+  effectiveDate: Date;
+}
+
+/**
+ * Active -> Paused with a required reason and effective date (AC1). The
+ * reason (category + optional note) and effective date ride the
+ * lifecycle event's ops-internal detail — medical and personal
+ * circumstances never reach shelter viewers, while the Paused status
+ * itself is visible everywhere the placement appears (AC5). Audit detail
+ * stays non-sensitive. Cycles accumulate as append-only events, never
+ * overwritten (AC3).
+ */
+export async function pausePlacement(
+  ctx: AuthContext,
+  placementId: string,
+  input: PausePlacementInput,
+): Promise<void> {
+  requireLifecycleTransition(ctx, "placement.pause");
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true },
+  });
+  if (!placement) throw new NotFoundError();
+  assertPlacementTransition(placement.status, PlacementStatus.PAUSED);
+
+  const reasonLabel = pauseReasonLabel(input.reasonKey);
+  if (!reasonLabel) {
+    throw new ValidationError("Choose the reason for this pause.");
+  }
+  if (Number.isNaN(input.effectiveDate.getTime())) {
+    throw new ValidationError("Provide the date the pause takes effect.");
+  }
+
+  const detail = pauseEventDetail({
+    reasonLabel,
+    effectiveDateLabel: formatDate(input.effectiveDate) ?? "",
+    note: input.note?.trim() ? input.note.trim() : null,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.ACTIVE },
+      data: { status: PlacementStatus.PAUSED },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.ACTIVE,
+        toStatus: PlacementStatus.PAUSED,
+        actorUserId: ctx.userId,
+        detail,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.pause",
+        subjectType: "Placement",
+        subjectId: placementId,
+      },
+    });
+  });
+}
+
+/**
+ * Paused -> Active with a resume date (AC2) — the loop's other half,
+ * evented and audited the same way. A placement may pause and resume any
+ * number of times; History shows every cycle in order.
+ */
+export async function resumePlacement(
+  ctx: AuthContext,
+  placementId: string,
+  resumeDate: Date,
+): Promise<void> {
+  requireLifecycleTransition(ctx, "placement.resume");
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true },
+  });
+  if (!placement) throw new NotFoundError();
+  // ONBOARDING -> ACTIVE is also a legal table transition (activation),
+  // so resume checks its source state explicitly: paused placements only.
+  if (placement.status !== PlacementStatus.PAUSED) {
+    throw new LifecycleError("Only a paused placement can resume.");
+  }
+  assertPlacementTransition(placement.status, PlacementStatus.ACTIVE);
+
+  if (Number.isNaN(resumeDate.getTime())) {
+    throw new ValidationError("Provide the date work resumes.");
+  }
+  const detail = resumeEventDetail({
+    effectiveDateLabel: formatDate(resumeDate) ?? "",
+  });
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.PAUSED },
+      data: { status: PlacementStatus.ACTIVE },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.PAUSED,
+        toStatus: PlacementStatus.ACTIVE,
+        actorUserId: ctx.userId,
+        detail,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.resume",
         subjectType: "Placement",
         subjectId: placementId,
       },

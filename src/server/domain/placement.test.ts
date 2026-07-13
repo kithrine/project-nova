@@ -7,7 +7,11 @@ import {
   buildPlacementTimeline,
   NON_TERMINAL_PLACEMENT_STATUSES,
   packageMissingPieces,
+  PAUSE_REASON_CATEGORIES,
+  pauseEventDetail,
+  pauseReasonLabel,
   PLACEMENT_STATUS_LABELS,
+  resumeEventDetail,
   scheduleValidationError,
   TERMINAL_PLACEMENT_STATUSES,
 } from "./placement";
@@ -157,6 +161,50 @@ describe("scheduleValidationError (Story 5.2)", () => {
     );
     expect(scheduleValidationError({ ...good, weeklyHoursTarget: "81" })).toMatch(
       /between 0 and 80/,
+    );
+  });
+});
+
+describe("pause reasons and cycle records (Story 5.7)", () => {
+  it("only Active pauses and only Paused resumes, per the transition table (AC4)", () => {
+    for (const status of Object.values(PlacementStatus)) {
+      const canPause = ALLOWED_PLACEMENT_TRANSITIONS[status].includes(
+        PlacementStatus.PAUSED,
+      );
+      expect(canPause, `pause from ${status}`).toBe(status === PlacementStatus.ACTIVE);
+    }
+    expect(ALLOWED_PLACEMENT_TRANSITIONS[PlacementStatus.PAUSED]).toContain(
+      PlacementStatus.ACTIVE,
+    );
+  });
+
+  it("resolves reason labels and rejects unknown categories", () => {
+    expect(pauseReasonLabel("MEDICAL_LEAVE")).toBe("Medical leave");
+    expect(pauseReasonLabel("NOT_A_REASON")).toBeNull();
+    expect(pauseReasonLabel("")).toBeNull();
+    // Every category is label-bearing for the select control.
+    for (const category of PAUSE_REASON_CATEGORIES) {
+      expect(category.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("composes the ops-internal cycle records with reason and dates (AC1/AC2)", () => {
+    expect(
+      pauseEventDetail({
+        reasonLabel: "Medical leave",
+        effectiveDateLabel: "July 20, 2026",
+        note: "Expected back mid-August",
+      }),
+    ).toBe("Paused (Medical leave) effective July 20, 2026 — Expected back mid-August");
+    expect(
+      pauseEventDetail({
+        reasonLabel: "Personal circumstances",
+        effectiveDateLabel: "July 20, 2026",
+        note: null,
+      }),
+    ).toBe("Paused (Personal circumstances) effective July 20, 2026");
+    expect(resumeEventDetail({ effectiveDateLabel: "August 3, 2026" })).toBe(
+      "Resumed effective August 3, 2026",
     );
   });
 });

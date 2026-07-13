@@ -124,6 +124,12 @@ export const PERMISSIONS = [
   // Lifecycle transitions are Nova Operations only (mvp.md) — never
   // shelter or participant roles.
   "placement.activate",
+  // The Active <-> Paused loop (Story 5.7): pause with a reason and
+  // effective date, resume with a resume date — every cycle historized.
+  // Nova Operations only, like every lifecycle transition; shelters
+  // document circumstances through case notes or incidents instead.
+  "placement.pause",
+  "placement.resume",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -177,6 +183,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.assign",
     "funding.assign",
     "placement.activate",
+    "placement.pause",
+    "placement.resume",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -214,6 +222,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.assign",
     "funding.assign",
     "placement.activate",
+    "placement.pause",
+    "placement.resume",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

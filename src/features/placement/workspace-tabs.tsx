@@ -154,6 +154,11 @@ export function WorkspaceTabContent({
               <p className="text-xs text-base-content/60">
                 {entry.atLabel} · {entry.actorName}
               </p>
+              {/* Ops-internal record (5.7 pause reasons, 5.2 change-request
+                  archives) — the service nulls it for shelter viewers. */}
+              {entry.detail ? (
+                <p className="text-xs text-base-content/70">{entry.detail}</p>
+              ) : null}
             </li>
           ))}
         </ol>

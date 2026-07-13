@@ -48,6 +48,8 @@ const baseView: PlacementWorkspaceView = {
   },
   activation: null,
   viewerCanActivate: false,
+  viewerCanPause: false,
+  viewerCanResume: false,
 };
 
 describe("AssignmentForm (Story 5.2)", () => {

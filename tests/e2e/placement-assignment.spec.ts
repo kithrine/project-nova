@@ -97,10 +97,11 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     await page.getByRole("button", { name: "Yes, Approve Package" }).click();
   }
   // Anchor on the exact stage line — the wildcard form once matched more
-  // than the header and let a failed approve slip past this guard.
-  await expect(page.getByText(/· Stage: (Approved|Onboarding)/)).toBeVisible({
-    timeout: 20_000,
-  });
+  // than the header and let a failed approve slip past this guard. Later
+  // stages are legal here on a retry that already progressed.
+  await expect(
+    page.getByText(/· Stage: (Approved|Onboarding|Active|Paused)/),
+  ).toBeVisible({ timeout: 20_000 });
 
   // Full history is visible on the workspace (AC4: actor + timestamps).
   await page.goto("/shelter/placements/e2e_placement_assign?tab=history");
@@ -124,7 +125,7 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
       .check();
     await startOnboarding.click();
   }
-  await expect(page.getByText(/· Stage: (Onboarding|Active)/)).toBeVisible({
+  await expect(page.getByText(/· Stage: (Onboarding|Active|Paused)/)).toBeVisible({
     timeout: 20_000,
   });
 
@@ -226,11 +227,52 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   }
 
   // The placement is Active with its lifecycle trail complete (5.6 AC5).
-  await expect(page.getByText(/· Stage: Active/)).toBeVisible({ timeout: 20_000 });
-  const timeline = page.getByRole("list", { name: "Placement lifecycle" });
-  await expect(timeline.getByText("(current stage)")).toBeVisible();
-  await page.goto(`${WORKSPACE}?tab=history`);
-  await expect(page.getByText(/Onboarding → .*Active/)).toBeVisible({
+  await expect(page.getByText(/· Stage: (Active|Paused)/)).toBeVisible({
     timeout: 20_000,
   });
+  await page.goto(`${WORKSPACE}?tab=history`);
+  await expect(page.getByText(/Onboarding → .*Active/).first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Phase 9 (Story 5.7) — one pause/resume cycle: the pause carries a
+  // required reason, Paused reads distinctly on the stage line and
+  // timeline, and both transitions land in History with the reason
+  // visible to the coordinator. A retry that finds the placement already
+  // Active simply runs another cycle — history accumulates, never
+  // overwrites (AC3), so the matchers take .first().
+  await page.goto(WORKSPACE);
+  const pauseOpen = page.getByRole("button", { name: "Pause Placement…" });
+  if (await pauseOpen.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await pauseOpen.click();
+    await page
+      .getByLabel("Reason (required)")
+      .selectOption({ label: "Medical leave" });
+    await page
+      .getByLabel("Details (optional, internal)")
+      .fill("Synthetic pause for the E2E cycle");
+    await page.getByRole("button", { name: "Yes, Pause Placement" }).click();
+    await expect(page.getByText(/· Stage: Paused/)).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page
+        .getByRole("list", { name: "Placement lifecycle" })
+        .getByText("Paused"),
+    ).toBeVisible();
+  }
+
+  const resumeOpen = page.getByRole("button", { name: "Resume Placement…" });
+  if (await resumeOpen.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await resumeOpen.click();
+    await page.getByRole("button", { name: "Yes, Resume Placement" }).click();
+  }
+  await expect(page.getByText(/· Stage: Active/)).toBeVisible({ timeout: 20_000 });
+
+  await page.goto(`${WORKSPACE}?tab=history`);
+  await expect(page.getByText(/Active → .*Paused/).first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText(/Paused → .*Active/).first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText(/Paused \(Medical leave\)/).first()).toBeVisible();
 });

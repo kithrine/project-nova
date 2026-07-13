@@ -13,8 +13,10 @@ import {
   completePlacementTask,
   endFundingAssignment,
   initiatePlacementOnboarding,
+  pausePlacement,
   proposePlacementPackage,
   requestPlacementChanges,
+  resumePlacement,
   saveAssignment,
 } from "@/server/services/placement-service";
 
@@ -171,6 +173,52 @@ export async function activatePlacementAction(
     const ctx = await getOrProvisionAuthContext();
     if (!ctx) throw new AuthenticationError();
     await activatePlacement(ctx, placementId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function pausePlacementAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await pausePlacement(ctx, placementId, {
+      reasonKey: String(formData.get("reasonKey") ?? ""),
+      note: textOrNull(formData.get("note")),
+      effectiveDate: utcDate(formData.get("effectiveDate")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function resumePlacementAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await resumePlacement(ctx, placementId, utcDate(formData.get("resumeDate")));
   } catch (error) {
     if (error instanceof AppError) {
       revalidateWorkspaces(placementId);

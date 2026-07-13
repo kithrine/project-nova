@@ -138,6 +138,44 @@ export const PLACEMENT_ONBOARDING_CATALOG = [
   },
 ] as const;
 
+/**
+ * Pause reason categories (Story 5.7). A pause always carries a reason;
+ * the category keeps it structured while the optional note carries the
+ * specifics. The composed record rides the lifecycle event's ops-internal
+ * detail — medical and personal circumstances are the participant's
+ * business and Nova's, never surfaced to shelter viewers (the Paused
+ * STATUS itself is visible everywhere).
+ */
+export const PAUSE_REASON_CATEGORIES = [
+  { key: "MEDICAL_LEAVE", label: "Medical leave" },
+  { key: "SHELTER_CLOSURE", label: "Shelter closure or site disruption" },
+  { key: "PERSONAL", label: "Personal circumstances" },
+  { key: "OTHER", label: "Other" },
+] as const;
+
+export type PauseReasonKey = (typeof PAUSE_REASON_CATEGORIES)[number]["key"];
+
+export function pauseReasonLabel(key: string): string | null {
+  return (
+    PAUSE_REASON_CATEGORIES.find((category) => category.key === key)?.label ?? null
+  );
+}
+
+/** The pause cycle's ops-internal event record (Story 5.7 AC1/AC3). */
+export function pauseEventDetail(input: {
+  reasonLabel: string;
+  effectiveDateLabel: string;
+  note: string | null;
+}): string {
+  const base = `Paused (${input.reasonLabel}) effective ${input.effectiveDateLabel}`;
+  return input.note ? `${base} — ${input.note}` : base;
+}
+
+/** The resume record (Story 5.7 AC2). */
+export function resumeEventDetail(input: { effectiveDateLabel: string }): string {
+  return `Resumed effective ${input.effectiveDateLabel}`;
+}
+
 export interface ScheduleDayInput {
   day: string;
   startTime: string;

@@ -562,4 +562,127 @@ describe.skipIf(!hasDatabase)("activation blockers (integration)", () => {
       service.activatePlacement(await contextFor(coordinatorId), placementId),
     ).rejects.toMatchObject({ code: "LIFECYCLE" });
   });
+
+  // --- Story 5.7: pause and resume --------------------------------------------
+
+  it("pauses with a required reason and resumes, each cycle evented (5.7 AC1/AC2)", { timeout: 30_000 }, async () => {
+    const coordinator = await contextFor(coordinatorId);
+
+    // The reason category is validated before anything changes.
+    await expect(
+      service.pausePlacement(coordinator, placementId, {
+        reasonKey: "NOT_A_CATEGORY",
+        note: null,
+        effectiveDate: new Date("2026-11-02T00:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION" });
+
+    await service.pausePlacement(coordinator, placementId, {
+      reasonKey: "MEDICAL_LEAVE",
+      note: "Expected back within a month",
+      effectiveDate: new Date("2026-11-02T00:00:00.000Z"),
+    });
+    let placement = await prisma.placement.findUniqueOrThrow({
+      where: { id: placementId },
+      include: { events: { orderBy: { createdAt: "asc" } } },
+    });
+    expect(placement.status).toBe(enums.PlacementStatus.PAUSED);
+    const pauseEvent = placement.events.at(-1)!;
+    expect(pauseEvent.fromStatus).toBe(enums.PlacementStatus.ACTIVE);
+    expect(pauseEvent.toStatus).toBe(enums.PlacementStatus.PAUSED);
+    expect(pauseEvent.detail).toBe(
+      "Paused (Medical leave) effective November 2, 2026 — Expected back within a month",
+    );
+
+    await service.resumePlacement(
+      coordinator,
+      placementId,
+      new Date("2026-11-30T00:00:00.000Z"),
+    );
+    placement = await prisma.placement.findUniqueOrThrow({
+      where: { id: placementId },
+      include: { events: { orderBy: { createdAt: "asc" } } },
+    });
+    expect(placement.status).toBe(enums.PlacementStatus.ACTIVE);
+    expect(placement.events.at(-1)!.detail).toBe("Resumed effective November 30, 2026");
+  });
+
+  it("preserves every cycle in order, none overwritten (5.7 AC3), with the reason Nova-only", { timeout: 30_000 }, async () => {
+    const coordinator = await contextFor(coordinatorId);
+
+    // A second full cycle on top of the first.
+    await service.pausePlacement(coordinator, placementId, {
+      reasonKey: "SHELTER_CLOSURE",
+      note: null,
+      effectiveDate: new Date("2026-12-07T00:00:00.000Z"),
+    });
+    await service.resumePlacement(
+      coordinator,
+      placementId,
+      new Date("2026-12-14T00:00:00.000Z"),
+    );
+
+    const view = await service.getPlacementWorkspace(coordinator, placementId);
+    const cycleDetails = view.history
+      .map((entry) => entry.detail)
+      .filter((detail): detail is string => detail !== null);
+    expect(cycleDetails).toEqual([
+      "Paused (Medical leave) effective November 2, 2026 — Expected back within a month",
+      "Resumed effective November 30, 2026",
+      "Paused (Shelter closure or site disruption) effective December 7, 2026",
+      "Resumed effective December 14, 2026",
+    ]);
+    // The placement stayed detectably Paused/Active through it all (AC5)
+    // and ends Active.
+    expect(view.statusLabel).toBe("Active");
+
+    // Shelter history carries the transitions without the ops-internal
+    // reasons — medical circumstances are not shelter business.
+    const shelterView = await service.getPlacementWorkspace(
+      await contextFor(managerId),
+      placementId,
+    );
+    expect(
+      shelterView.history.filter(
+        (entry) => entry.toLabel === "Paused" || entry.fromLabel === "Paused",
+      ).length,
+    ).toBeGreaterThanOrEqual(4);
+    expect(shelterView.history.every((entry) => entry.detail === null)).toBe(true);
+  });
+
+  it("rejects pause and resume from any wrong source state (5.7 AC4)", async () => {
+    const coordinator = await contextFor(coordinatorId);
+
+    // The subject is ACTIVE: resume is the wrong action.
+    await expect(
+      service.resumePlacement(coordinator, placementId, new Date()),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+    // The conflict participant's draft can do neither.
+    await expect(
+      service.pausePlacement(coordinator, conflictPlacementId, {
+        reasonKey: "PERSONAL",
+        note: null,
+        effectiveDate: new Date(),
+      }),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+    await expect(
+      service.resumePlacement(coordinator, conflictPlacementId, new Date()),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+  });
+
+  it("denies pause and resume to shelter roles, server-side (5.7 AC6)", async () => {
+    for (const userId of [managerId, supervisorUserId]) {
+      const ctx = await contextFor(userId);
+      await expect(
+        service.pausePlacement(ctx, placementId, {
+          reasonKey: "PERSONAL",
+          note: null,
+          effectiveDate: new Date(),
+        }),
+      ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+      await expect(
+        service.resumePlacement(ctx, placementId, new Date()),
+      ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+    }
+  });
 });

@@ -14,7 +14,7 @@ Operate an active transitional placement.
 | 5.4  | Placement onboarding                      | Done                                |
 | 5.5  | Activation blockers                       | Done                                |
 | 5.6  | Activate placement                        | Done                                |
-| 5.7  | Pause and resume                          | Ready for Development               |
+| 5.7  | Pause and resume                          | Done                                |
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
 | 5.9  | Case notes                                | Ready for Development               |
 | 5.10 | Evaluations                               | Ready for Development               |
@@ -496,7 +496,29 @@ Timesheet creation, evaluation scheduling, or incident-reporting activation (ind
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: placement.pause and placement.resume are PC/NA-only,
+> swept role-by-role in the registry test alongside activate. Pause
+> requires a reason — a structured category (medical leave, shelter
+> closure, personal circumstances, other) plus an optional note — and
+> an effective date; resume carries its resume date. Both compose into
+> the lifecycle event's ops-internal detail, so every cycle is
+> append-only history (never overwritten), visible with actor, reason,
+> and timestamps in the coordinator's History. The reason is
+> deliberately Nova-only: medical and personal circumstances are the
+> participant's business and Nova's, while the Paused STATUS itself
+> reads everywhere the placement appears (workspace stage line,
+> timeline's Paused entry, records lists) — which is all downstream
+> capabilities like Epic 6 timesheets need. The history view model
+> gained the detail line for Nova viewers, which also surfaces 5.2's
+> archived change-request notes to ops. Resume checks its source state
+> explicitly because Onboarding -> Active is also a legal table
+> transition (activation) — a resume on the wrong state is a lifecycle
+> rejection, not a confusing conflict. Wrong-state, denial, multi-cycle
+> ordering, and the shelter's detail-free history are integration-
+> proven; the E2E journey runs a full pause/resume cycle after
+> activation.
 
 ### User story
 
