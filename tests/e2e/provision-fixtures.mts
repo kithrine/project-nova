@@ -1183,6 +1183,10 @@ try {
       hostOrganizationId: "e2e_org_shelter",
       organizationSiteId: "e2e_site_shelter",
       status: "APPROVED",
+      // A real 4.8 approval requires both decisions — mirror that here so
+      // the 5.5 activation checklist reads a truthful source match.
+      participantDecision: "ACCEPTED",
+      shelterDecision: "APPROVED",
       proposedSupervisorId: "e2e_user_shelter",
       proposedSchedule: "Tue/Thu afternoons",
       approvedAt: new Date(),
@@ -1287,6 +1291,31 @@ try {
       status: "READY_FOR_MATCHING",
     },
   });
+  // Casey's completed required training (ADR-017 Layer 1): the E2E-RDY
+  // program requires Core Readiness Training, and the 5.5/5.6 journey
+  // needs Casey's Layer 1 already satisfied — the E2E exercises the
+  // placement-side blockers (site checklist, funding), not Epic 3's.
+  await prisma.trainingEnrollment.upsert({
+    where: { id: "e2e_trainenroll_assignready" },
+    update: { status: "COMPLETED" },
+    create: {
+      id: "e2e_trainenroll_assignready",
+      programEnrollmentId: "e2e_enrollment_assignready",
+      trainingProgramId: "e2e_training_readiness",
+      status: "COMPLETED",
+      enrolledAt: new Date("2026-06-01T00:00:00Z"),
+      startedAt: new Date("2026-06-01T00:00:00Z"),
+      completedAt: new Date("2026-06-20T00:00:00Z"),
+      completionMethod: "PROVIDER_VERIFICATION",
+      completionVerifiedByUserId: "e2e_user_ops",
+      completionVerifiedAt: new Date("2026-06-20T00:00:00Z"),
+    },
+  });
+  // Funding assignments before placements (RESTRICT) — the 5.6 journey
+  // assigns funding to Casey's placement each run.
+  await prisma.fundingAssignment.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
   await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });
@@ -1318,6 +1347,10 @@ try {
       hostOrganizationId: "e2e_org_shelter",
       organizationSiteId: "e2e_site_shelter",
       status: "APPROVED",
+      // Both decisions recorded, as a real 4.8 approval requires — the
+      // 5.5/5.6 journey drives Casey's blockers to empty and activates.
+      participantDecision: "ACCEPTED",
+      shelterDecision: "APPROVED",
       approvedAt: new Date(),
       approvedByUserId: "e2e_user_ops",
     },

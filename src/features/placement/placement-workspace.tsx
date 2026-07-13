@@ -1,3 +1,4 @@
+import { ActivationBlockers } from "@/features/placement/activation-blockers";
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
 import { PackageReviewPanel } from "@/features/placement/package-review-panel";
 import { PlacementOnboardingPanel } from "@/features/placement/placement-onboarding-panel";
@@ -42,9 +43,12 @@ export function PlacementWorkspace({
 
       <LifecycleTimeline stages={view.timeline} />
 
-      {/* Blockers-and-actions region: 5.5 renders the blocker list here;
-          5.6–5.8 add lifecycle actions. Terminal placements get history
-          only — no reopening control ever renders (AC4). */}
+      {/* Blockers-and-actions region: the 5.5 activation checklist (Nova,
+          pre-Active only) leads it; 5.6–5.8 add lifecycle actions.
+          Terminal placements get history only — no reopening control ever
+          renders (AC4). */}
+      {view.activation ? <ActivationBlockers activation={view.activation} /> : null}
+
       {view.isTerminal ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
           This placement is {view.statusLabel.toLowerCase()} — a final state. The

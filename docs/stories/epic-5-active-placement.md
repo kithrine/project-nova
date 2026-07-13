@@ -12,7 +12,7 @@ Operate an active transitional placement.
 | 5.2  | Assign site, supervisor, and schedule     | Done                                |
 | 5.3  | Assign funding                            | Done                                |
 | 5.4  | Placement onboarding                      | Done                                |
-| 5.5  | Activation blockers                       | Ready for Development               |
+| 5.5  | Activation blockers                       | Done                                |
 | 5.6  | Activate placement                        | Ready for Development               |
 | 5.7  | Pause and resume                          | Ready for Development               |
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
@@ -341,7 +341,25 @@ Program Enrollment onboarding (Epic 3, pre-matching); training and certification
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: one pure policy (placement-activation.ts:
+> evaluateActivationPrerequisites) matches the authoritative
+> placement-lifecycle.md list item for item — eleven entries, since
+> ADR-017 split onboarding into its portable (Layer 1) and site-specific
+> (Layer 2) halves after this story's "ten" was drafted. Three
+> prerequisites reuse the 3.6 matching-readiness computation through its
+> shared input loader, so "complete" means exactly what Ready for
+> Matching meant. The service aggregates live rows on every load (never
+> cached), shapes the checklist Nova-side only, and links each open item
+> to its resolving surface (workspace tabs, the enrollment workspace's
+> 3.6 anchors, the source match, or the onboarding panel anchor).
+> "Schedule confirmed" requires the structured schedule AND package
+> approval, so a change-requested package correctly reopens it. The
+> Operations dashboard's Urgent blockers surface lists Onboarding-stage
+> placements with open items — the activation gate — not earlier stages
+> whose open items are expected. 5.6 re-runs this same evaluation inside
+> its activation transaction.
 
 ### User story
 

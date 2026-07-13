@@ -7,6 +7,9 @@ import {
   Prisma,
   Role,
   ScheduleDay,
+  type EnrollmentStatus,
+  type ParticipantMatchDecision,
+  type ShelterMatchDecision,
 } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission, requireNovaScope } from "@/server/auth/authorize";
@@ -23,6 +26,14 @@ import {
   type ScheduleDayInput,
   type TimelineStage,
 } from "@/server/domain/placement";
+import {
+  activationBlocksApply,
+  openActivationBlockers,
+  type ActivationPrerequisiteKey,
+  type ActivationSnapshot,
+} from "@/server/domain/placement-activation";
+import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
+import { loadReadinessInputs } from "@/server/services/readiness-service";
 import {
   AuthorizationError,
   ConflictError,
@@ -174,6 +185,27 @@ export interface PlacementWorkspaceView {
   funding: FundingTabView;
   /** Placement onboarding (Story 5.4): tasks plus viewer capabilities. */
   onboarding: PlacementOnboardingView;
+  /**
+   * The activation checklist (Story 5.5) — Nova viewer, pre-Active
+   * statuses only; null once the placement activates or for shelter
+   * viewers (participant program internals stay Nova-side).
+   */
+  activation: ActivationView | null;
+}
+
+export interface ActivationBlockerView {
+  key: ActivationPrerequisiteKey;
+  /** The prerequisite name per docs/product/placement-lifecycle.md. */
+  title: string;
+  /** Plain-language resolving step. */
+  action: string;
+  /** Where the resolving tab or action lives; null when structural. */
+  href: string | null;
+}
+
+export interface ActivationView {
+  /** Unmet prerequisites in the documented order — empty means clear. */
+  open: ActivationBlockerView[];
 }
 
 export interface PlacementTaskView {
@@ -261,6 +293,12 @@ export async function getPlacementWorkspace(
     include: {
       participant: {
         include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+      },
+      programEnrollment: {
+        select: { id: true, status: true, participantId: true, programId: true },
+      },
+      sourceMatch: {
+        select: { id: true, participantDecision: true, shelterDecision: true },
       },
       organizationSite: {
         select: {
@@ -438,7 +476,193 @@ export async function getPlacementWorkspace(
         (placement.status === PlacementStatus.APPROVED ||
           placement.status === PlacementStatus.ONBOARDING),
     },
+    activation:
+      viewer === "NOVA" && activationBlocksApply(placement.status)
+        ? await buildActivationView(prisma, placement)
+        : null,
   };
+}
+
+/** The rows the activation snapshot is computed from. */
+interface ActivationSource {
+  id: string;
+  status: PlacementStatus;
+  participantId: string;
+  hostOrganizationId: string;
+  organizationSiteId: string;
+  supervisorId: string | null;
+  coordinatorUserId: string | null;
+  programEnrollment: {
+    id: string;
+    status: EnrollmentStatus;
+    participantId: string;
+    programId: string;
+  };
+  sourceMatch: {
+    id: string;
+    participantDecision: ParticipantMatchDecision;
+    shelterDecision: ShelterMatchDecision;
+  };
+  structuredSchedule: { id: string } | null;
+  onboardingTasks: { required: boolean; status: OnboardingTaskStatus }[];
+  fundingAssignments: { status: FundingAssignmentStatus }[];
+}
+
+/**
+ * Aggregate the live activation snapshot (Story 5.5): the 3.6 readiness
+ * sources through their shared loader, this placement's own package and
+ * task state, and the conflicting-placement probe. Computed on every
+ * evaluation — never cached — so the list reflects server truth on each
+ * load (AC3), and 5.6 re-runs the same aggregation inside its activation
+ * transaction.
+ */
+async function loadActivationSnapshot(
+  db: Prisma.TransactionClient,
+  placement: ActivationSource,
+): Promise<ActivationSnapshot> {
+  const [readiness, conflict] = await Promise.all([
+    loadReadinessInputs(db, placement.programEnrollment).then(computeMatchingReadiness),
+    db.placement.findFirst({
+      where: {
+        participantId: placement.participantId,
+        id: { not: placement.id },
+        status: { in: [...ACTIVE_PLACEMENT_STATUSES] },
+      },
+      select: { placementNumber: true },
+    }),
+  ]);
+  const outstanding = (kind: "task" | "training" | "certification") =>
+    readiness.blockers.filter((blocker) => blocker.kind === kind).length;
+
+  return {
+    status: placement.status,
+    enrollmentStatus: placement.programEnrollment.status,
+    participantDecision: placement.sourceMatch.participantDecision,
+    shelterDecision: placement.sourceMatch.shelterDecision,
+    hostOrganizationAssigned: Boolean(placement.hostOrganizationId),
+    siteAssigned: Boolean(placement.organizationSiteId),
+    supervisorAssigned: placement.supervisorId !== null,
+    coordinatorAssigned: placement.coordinatorUserId !== null,
+    enrollmentTasksOutstanding: outstanding("task"),
+    trainingOutstanding: outstanding("training"),
+    certificationsOutstanding: outstanding("certification"),
+    siteTasksGenerated: placement.onboardingTasks.length > 0,
+    siteTasksOutstanding: placement.onboardingTasks.filter(
+      (task) => task.required && task.status !== OnboardingTaskStatus.COMPLETE,
+    ).length,
+    scheduleAssigned: placement.structuredSchedule !== null,
+    fundingActive: placement.fundingAssignments.some(
+      (assignment) => assignment.status === FundingAssignmentStatus.ACTIVE,
+    ),
+    conflictingPlacementNumber: conflict?.placementNumber ?? null,
+  };
+}
+
+/**
+ * Where each blocker's resolving tab or action lives (AC on linking).
+ * Operations paths only — the checklist is Nova-shaped.
+ */
+function activationHref(
+  key: ActivationPrerequisiteKey,
+  ids: { placementId: string; enrollmentId: string; matchId: string },
+): string | null {
+  const workspace = `/operations/placements/records/${ids.placementId}`;
+  switch (key) {
+    case "validEnrollment":
+      return `/operations/enrollments/${ids.enrollmentId}`;
+    case "participantAccepted":
+    case "shelterApproved":
+      return `/operations/placements/matches/${ids.matchId}`;
+    case "hostAndSite":
+    case "supervisorAndCoordinator":
+    case "schedule":
+      return `${workspace}?tab=schedule`;
+    case "enrollmentOnboarding":
+      return `/operations/enrollments/${ids.enrollmentId}#onboarding-tasks`;
+    case "portableTraining":
+      return `/operations/enrollments/${ids.enrollmentId}#training`;
+    case "siteOnboarding":
+      return `${workspace}#placement-onboarding`;
+    case "funding":
+      return `${workspace}?tab=funding`;
+    case "noConflict":
+      return "/operations/placements";
+  }
+}
+
+async function buildActivationView(
+  db: Prisma.TransactionClient,
+  placement: ActivationSource,
+): Promise<ActivationView> {
+  const snapshot = await loadActivationSnapshot(db, placement);
+  return {
+    open: openActivationBlockers(snapshot).map((item) => ({
+      key: item.key,
+      title: item.title,
+      action: item.action,
+      href: activationHref(item.key, {
+        placementId: placement.id,
+        enrollmentId: placement.programEnrollment.id,
+        matchId: placement.sourceMatch.id,
+      }),
+    })),
+  };
+}
+
+export interface UrgentBlockerRow {
+  placementId: string;
+  placementNumber: string;
+  participantName: string;
+  siteName: string;
+  /** Open prerequisite titles, in the documented order. */
+  openTitles: string[];
+}
+
+/**
+ * The Operations dashboard's "Urgent blockers" surface (Story 5.5;
+ * docs/ux/wireframes-layouts.md): placements at the activation gate —
+ * Onboarding, the last pre-Active stage — that still have open
+ * prerequisites. Earlier-stage placements have expected open items and
+ * are worked from their own workspaces, not flagged as urgent.
+ */
+export async function listUrgentBlockers(ctx: AuthContext): Promise<UrgentBlockerRow[]> {
+  if (!hasPermission(ctx, "placement.view") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const placements = await prisma.placement.findMany({
+    where: { status: PlacementStatus.ONBOARDING },
+    include: {
+      participant: {
+        include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+      },
+      programEnrollment: {
+        select: { id: true, status: true, participantId: true, programId: true },
+      },
+      sourceMatch: {
+        select: { id: true, participantDecision: true, shelterDecision: true },
+      },
+      organizationSite: { select: { name: true } },
+      structuredSchedule: { select: { id: true } },
+      fundingAssignments: { select: { status: true } },
+      onboardingTasks: { select: { required: true, status: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const rows: UrgentBlockerRow[] = [];
+  for (const placement of placements) {
+    const snapshot = await loadActivationSnapshot(prisma, placement);
+    const open = openActivationBlockers(snapshot);
+    if (open.length === 0) continue;
+    rows.push({
+      placementId: placement.id,
+      placementNumber: placement.placementNumber,
+      participantName: `${placement.participant.person.legalFirstName} ${placement.participant.person.legalLastName}`,
+      siteName: placement.organizationSite.name,
+      openTitles: open.map((item) => item.title),
+    });
+  }
+  return rows;
 }
 
 function toFundingAssignmentView(assignment: {

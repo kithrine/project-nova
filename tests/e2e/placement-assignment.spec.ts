@@ -96,14 +96,20 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     await approve.click();
     await page.getByRole("button", { name: "Yes, Approve Package" }).click();
   }
-  await expect(page.getByText(/Stage: .*Approved/)).toBeVisible({ timeout: 20_000 });
+  // Anchor on the exact stage line — the wildcard form once matched more
+  // than the header and let a failed approve slip past this guard.
+  await expect(page.getByText(/· Stage: (Approved|Onboarding)/)).toBeVisible({
+    timeout: 20_000,
+  });
 
   // Full history is visible on the workspace (AC4: actor + timestamps).
   await page.goto("/shelter/placements/e2e_placement_assign?tab=history");
   await expect(page.getByText(/Draft → .*Proposed/).first()).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByText(/Shelter review → .*Approved/)).toBeVisible();
+  await expect(page.getByText(/Shelter review → .*Approved/)).toBeVisible({
+    timeout: 20_000,
+  });
 
   // Phase 5 (Story 5.4) — the coordinator initiates placement onboarding:
   // the site-specific task set generates and the placement enters
@@ -141,4 +147,26 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   await expect(
     page.getByText(/Complete .*Synthetic E2E/).first(),
   ).toBeVisible({ timeout: 20_000 });
+
+  // Phase 6 (Story 5.5) — the activation Blocker List names exactly what
+  // still stands between this placement and Active: the unfinished site
+  // checklist and funding. Everything already satisfied — the confirmed
+  // schedule, Casey's completed training, the match decisions — stays off
+  // the list. Each open item links to its resolving surface.
+  const blockers = page.getByRole("list", { name: "Activation blockers" });
+  await expect(blockers).toBeVisible({ timeout: 20_000 });
+  await expect(
+    blockers.getByText("Open — Active funding assignment"),
+  ).toBeVisible();
+  await expect(
+    blockers.getByText(
+      "Open — Host-site safety orientation and assigned-task competency confirmed",
+    ),
+  ).toBeVisible();
+  await expect(blockers.getByText(/Schedule confirmed/)).toHaveCount(0);
+  await expect(blockers.getByText(/Portable training/)).toHaveCount(0);
+  await expect(blockers.getByText(/Valid enrollment/)).toHaveCount(0);
+  await expect(
+    blockers.getByRole("link", { name: "Assign a funding source." }),
+  ).toBeVisible();
 });

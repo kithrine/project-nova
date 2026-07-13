@@ -154,7 +154,11 @@ export function PlacementOnboardingPanel({
     onboarding.viewerCanCompleteAllTasks || onboarding.viewerCanCompleteShelterTasks;
 
   return (
-    <section aria-labelledby="placement-onboarding-heading" className="flex flex-col gap-3">
+    <section
+      id="placement-onboarding"
+      aria-labelledby="placement-onboarding-heading"
+      className="flex scroll-mt-4 flex-col gap-3"
+    >
       <h2 id="placement-onboarding-heading" className="text-lg font-semibold">
         Placement onboarding
       </h2>
