@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_OTHER_MANAGER_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
@@ -94,6 +95,51 @@ test("the participant sees My Placement in plain language (AC3)", async ({ page 
   await expect(page.getByText("PLC-E2E-PARKER1")).toBeVisible();
   // Plain language only — no internal tab shell, no case notes, no codes.
   await expect(page.getByText(/Case Notes|ONBOARDING|blocker/)).toHaveCount(0);
+});
+
+test("a Grant Administrator assigns, ends, and replaces funding (Story 5.3)", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await signIn(page, E2E_GRANT_ADMIN_USER_EMAIL);
+  await page.goto(
+    "/operations/placements/records/e2e_placement_participant?tab=funding",
+  );
+  await expect(
+    page.getByRole("heading", { name: /Parker Synthetic-Participant/ }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // Phase 1 — assign (skipped on retry if an assignment already exists).
+  const sourceSelect = page.getByLabel("Funding source");
+  if (await sourceSelect.isVisible().catch(() => false)) {
+    await sourceSelect.selectOption({ label: "E2E Grant Fund (Synthetic)" });
+    await page.getByLabel("Effective start date").fill("2026-08-01");
+    await page.getByLabel(/Hourly rate/).fill("18.50");
+    await page.getByRole("button", { name: "Assign Funding" }).click();
+  }
+  const list = page.getByRole("list", { name: "Funding assignments" });
+  await expect(
+    list.getByText("E2E Grant Fund (Synthetic)").first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(list.getByText("Active")).toBeVisible();
+  await expect(list.getByText(/\$18\.5\/hr/)).toBeVisible();
+
+  // Phase 2 — end it (ADR-010: end before a replacement can be active).
+  const endDate = page.getByLabel("End date");
+  if (await endDate.isVisible().catch(() => false)) {
+    await endDate.fill("2026-09-30");
+    await page.getByRole("button", { name: "End Assignment" }).click();
+    await expect(list.getByText("Ended").first()).toBeVisible({ timeout: 20_000 });
+  }
+
+  // Phase 3 — replace: exactly one active again, history keeps the ended one.
+  if (await sourceSelect.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await sourceSelect.selectOption({ label: "E2E Grant Fund (Synthetic)" });
+    await page.getByLabel("Effective start date").fill("2026-10-01");
+    await page.getByRole("button", { name: "Assign Funding" }).click();
+  }
+  await expect(list.getByText("Active")).toBeVisible({ timeout: 20_000 });
+  await expect(list.getByText("Ended").first()).toBeVisible();
 });
 
 test("the workspace stays usable at 360px with no horizontal page scroll (AC6)", async ({

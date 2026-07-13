@@ -1,5 +1,6 @@
 import {
   ActiveStatus,
+  FundingAssignmentStatus,
   OrganizationKind,
   PlacementStatus,
   Prisma,
@@ -167,6 +168,28 @@ export interface PlacementWorkspaceView {
   siteId: string;
   supervisorId: string | null;
   coordinatorUserId: string | null;
+  /** Funding tab data (Story 5.3): the active assignment plus history. */
+  funding: FundingTabView;
+}
+
+export interface FundingAssignmentView {
+  id: string;
+  fundingSourceName: string;
+  statusLabel: "Active" | "Ended";
+  startDateLabel: string;
+  endDateLabel: string | null;
+  /** Decimal-shaped strings with unit labels applied in the UI. */
+  hourlyRate: string | null;
+  hoursCap: string | null;
+}
+
+export interface FundingTabView {
+  active: FundingAssignmentView | null;
+  history: FundingAssignmentView[];
+  /** Nova viewer holding funding.assign — the write controls render. */
+  viewerCanAssign: boolean;
+  /** Active funding-source master records to choose from (Story 1.8). */
+  sourceOptions: SelectOption[];
 }
 
 function formatDate(date: Date | null): string | null {
@@ -223,6 +246,10 @@ export async function getPlacementWorkspace(
       },
       fundingSource: { select: { name: true } },
       structuredSchedule: { include: { days: true } },
+      fundingAssignments: {
+        include: { fundingSource: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+      },
       events: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -293,9 +320,15 @@ export async function getPlacementWorkspace(
     scheduleSummary: placement.schedule,
     startDateLabel: formatDate(placement.startDate),
     endDateLabel: formatDate(placement.endDate),
-    fundingSummary: placement.fundingSource
-      ? `Candidate: ${placement.fundingSource.name}`
-      : null,
+    fundingSummary: (() => {
+      const active = placement.fundingAssignments.find(
+        (assignment) => assignment.status === FundingAssignmentStatus.ACTIVE,
+      );
+      if (active) return `${active.fundingSource.name} (active)`;
+      return placement.fundingSource
+        ? `Candidate: ${placement.fundingSource.name}`
+        : null;
+    })(),
     tabs: viewer === "NOVA" ? [...NOVA_TABS] : [...SHELTER_TABS],
     timeline: buildPlacementTimeline(
       placement.status,
@@ -345,6 +378,54 @@ export async function getPlacementWorkspace(
     siteId: placement.organizationSiteId,
     supervisorId: placement.supervisorId,
     coordinatorUserId: placement.coordinatorUserId,
+    funding: await buildFundingTab(ctx, viewer, placement.fundingAssignments),
+  };
+}
+
+function toFundingAssignmentView(assignment: {
+  id: string;
+  status: FundingAssignmentStatus;
+  startDate: Date;
+  endDate: Date | null;
+  hourlyRate: Prisma.Decimal | null;
+  hoursCap: Prisma.Decimal | null;
+  fundingSource: { name: string };
+}): FundingAssignmentView {
+  return {
+    id: assignment.id,
+    fundingSourceName: assignment.fundingSource.name,
+    statusLabel: assignment.status === FundingAssignmentStatus.ACTIVE ? "Active" : "Ended",
+    startDateLabel: formatDate(assignment.startDate) ?? "",
+    endDateLabel: formatDate(assignment.endDate),
+    hourlyRate: assignment.hourlyRate?.toString() ?? null,
+    hoursCap: assignment.hoursCap?.toString() ?? null,
+  };
+}
+
+async function buildFundingTab(
+  ctx: AuthContext,
+  viewer: WorkspaceViewer,
+  assignments: Parameters<typeof toFundingAssignmentView>[0][],
+): Promise<FundingTabView> {
+  const viewerCanAssign =
+    viewer === "NOVA" && hasPermission(ctx, "funding.assign") && hasNovaScope(ctx);
+  const sourceOptions = viewerCanAssign
+    ? (
+        await prisma.fundingSource.findMany({
+          where: { status: ActiveStatus.ACTIVE },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        })
+      ).map((source) => ({ id: source.id, label: source.name }))
+    : [];
+  return {
+    active:
+      assignments
+        .filter((assignment) => assignment.status === FundingAssignmentStatus.ACTIVE)
+        .map(toFundingAssignmentView)[0] ?? null,
+    history: assignments.map(toFundingAssignmentView),
+    viewerCanAssign,
+    sourceOptions,
   };
 }
 
@@ -913,6 +994,156 @@ export async function requestPlacementChanges(
         subjectType: "Placement",
         subjectId: placementId,
         detail: "changes requested",
+      },
+    });
+  });
+}
+
+// --- Funding assignments (Story 5.3; ADR-010) -------------------------------------
+
+function requireFundingAssignAccess(ctx: AuthContext): void {
+  if (!hasPermission(ctx, "funding.assign")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+}
+
+/** Money and hour caps: digits with up to two decimals — Decimal-safe. */
+const MONEY_PATTERN = /^\d{1,6}(\.\d{1,2})?$/;
+
+export interface AssignFundingInput {
+  fundingSourceId: string;
+  startDate: Date;
+  hourlyRate: string | null;
+  hoursCap: string | null;
+}
+
+/**
+ * Create the placement's ACTIVE funding assignment (AC1). Exactly one at
+ * a time (ADR-010): the application check names the rule and the partial
+ * unique index backstops the race (AC2). Amount fields are validated as
+ * decimal-shaped strings and stored as Decimal — never floating point.
+ */
+export async function assignFunding(
+  ctx: AuthContext,
+  placementId: string,
+  input: AssignFundingInput,
+): Promise<void> {
+  requireFundingAssignAccess(ctx);
+
+  const [placement, source] = await Promise.all([
+    prisma.placement.findUnique({
+      where: { id: placementId },
+      select: { id: true },
+    }),
+    prisma.fundingSource.findUnique({
+      where: { id: input.fundingSourceId },
+      select: { id: true, status: true },
+    }),
+  ]);
+  if (!placement) throw new NotFoundError();
+  if (!source || source.status !== ActiveStatus.ACTIVE) {
+    throw new ValidationError("Choose an active funding source.");
+  }
+  if (Number.isNaN(input.startDate.getTime())) {
+    throw new ValidationError("Provide an effective start date.");
+  }
+  for (const [label, value] of [
+    ["hourly rate", input.hourlyRate],
+    ["hours cap", input.hoursCap],
+  ] as const) {
+    if (value !== null && !MONEY_PATTERN.test(value)) {
+      throw new ValidationError(
+        `The ${label} must be a number like 18 or 18.50 (up to two decimals).`,
+      );
+    }
+  }
+
+  const existingActive = await prisma.fundingAssignment.count({
+    where: { placementId, status: FundingAssignmentStatus.ACTIVE },
+  });
+  if (existingActive > 0) {
+    throw new ConflictError(
+      "This placement already has an active funding assignment — end it before assigning a new one (one active assignment at a time).",
+    );
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.fundingAssignment.create({
+        data: {
+          placementId,
+          fundingSourceId: source.id,
+          startDate: input.startDate,
+          hourlyRate: input.hourlyRate ? new Prisma.Decimal(input.hourlyRate) : null,
+          hoursCap: input.hoursCap ? new Prisma.Decimal(input.hoursCap) : null,
+          assignedByUserId: ctx.userId,
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorUserId: ctx.userId,
+          action: "funding.assign",
+          subjectType: "Placement",
+          subjectId: placementId,
+        },
+      });
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      throw new ConflictError(
+        "This placement already has an active funding assignment — end it before assigning a new one (one active assignment at a time).",
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * End the active assignment (AC3): marked ENDED with its end date and
+ * preserved forever in the Funding tab history — never deleted.
+ */
+export async function endFundingAssignment(
+  ctx: AuthContext,
+  placementId: string,
+  endDate: Date,
+): Promise<void> {
+  requireFundingAssignAccess(ctx);
+
+  if (Number.isNaN(endDate.getTime())) {
+    throw new ValidationError("Provide an end date.");
+  }
+  const active = await prisma.fundingAssignment.findFirst({
+    where: { placementId, status: FundingAssignmentStatus.ACTIVE },
+    select: { id: true, startDate: true },
+  });
+  if (!active) {
+    throw new LifecycleError("This placement has no active funding assignment to end.");
+  }
+  if (endDate < active.startDate) {
+    throw new ValidationError("The end date cannot be before the assignment started.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.fundingAssignment.updateMany({
+      where: { id: active.id, status: FundingAssignmentStatus.ACTIVE },
+      data: {
+        status: FundingAssignmentStatus.ENDED,
+        endDate,
+        endedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This assignment changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "funding.end",
+        subjectType: "Placement",
+        subjectId: placementId,
       },
     });
   });

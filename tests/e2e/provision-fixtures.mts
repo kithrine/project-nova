@@ -5,6 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import {
   ActiveStatus,
+  FundingSourceKind,
   ApplicationStatus,
   OnboardingTaskStatus,
   OrganizationKind,
@@ -1019,7 +1020,11 @@ try {
   // fresh pending proposal every run; schedule text is distinct from
   // Quinn's so shelter-dashboard assertions never collide.
   // Parker's placement (Story 5.1 fixture below) references one of these
-  // matches with a RESTRICT FK — placements go first.
+  // matches with a RESTRICT FK — placement children, then placements,
+  // then matches.
+  await prisma.fundingAssignment.deleteMany({
+    where: { placement: { participantId: "e2e_participant_main" } },
+  });
   await prisma.placementEvent.deleteMany({
     where: { placement: { participantId: "e2e_participant_main" } },
   });
@@ -1316,11 +1321,25 @@ try {
   });
 
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
-  // clean only our own synthetic test rows, never truncate). Safe while
-  // funding sources have no dependents; revisit when Story 5.3 adds
-  // funding assignments.
+  // clean only our own synthetic test rows, never truncate). Sources that
+  // gained funding assignments (Story 5.3) are RESTRICT-protected and
+  // excluded — assignment history is never deleted.
   const cleaned = await prisma.fundingSource.deleteMany({
-    where: { name: { startsWith: "E2E Synthetic" } },
+    where: { name: { startsWith: "E2E Synthetic" }, assignments: { none: {} } },
+  });
+  // Funding-assignment fixture (Story 5.3): a deterministic grant source
+  // (outside the cleanup prefix above) and a per-run reset of PARKER's
+  // assignments so the Grant Administrator E2E starts unassigned.
+  await prisma.fundingSource.upsert({
+    where: { id: "e2e_funding_grant" },
+    update: { status: ActiveStatus.ACTIVE },
+    create: {
+      id: "e2e_funding_grant",
+      name: "E2E Grant Fund (Synthetic)",
+      kind: FundingSourceKind.GRANT,
+      code: "E2E-GRANT",
+      status: ActiveStatus.ACTIVE,
+    },
   });
 
   console.log(

@@ -7,6 +7,8 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import type { ScheduleDayInput } from "@/server/domain/placement";
 import {
   approvePlacementPackage,
+  assignFunding,
+  endFundingAssignment,
   proposePlacementPackage,
   requestPlacementChanges,
   saveAssignment,
@@ -35,6 +37,11 @@ const DAY_KEYS = [
 function textOrNull(value: FormDataEntryValue | null): string | null {
   const trimmed = String(value ?? "").trim();
   return trimmed ? trimmed : null;
+}
+
+/** Date inputs parse as UTC midnight for cross-environment determinism. */
+function utcDate(value: FormDataEntryValue | null): Date {
+  return new Date(`${String(value ?? "").trim()}T00:00:00.000Z`);
 }
 
 function revalidateWorkspaces(placementId: string) {
@@ -116,6 +123,53 @@ export async function approvePlacementPackageAction(
     const ctx = await getOrProvisionAuthContext();
     if (!ctx) throw new AuthenticationError();
     await approvePlacementPackage(ctx, placementId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function assignFundingAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await assignFunding(ctx, placementId, {
+      fundingSourceId: String(formData.get("fundingSourceId") ?? ""),
+      startDate: utcDate(formData.get("startDate")),
+      hourlyRate: textOrNull(formData.get("hourlyRate")),
+      hoursCap: textOrNull(formData.get("hoursCap")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function endFundingAssignmentAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await endFundingAssignment(ctx, placementId, utcDate(formData.get("endDate")));
   } catch (error) {
     if (error instanceof AppError) {
       revalidateWorkspaces(placementId);

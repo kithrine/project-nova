@@ -38,6 +38,7 @@ const baseView: PlacementWorkspaceView = {
   siteId: "site_1",
   supervisorId: null,
   coordinatorUserId: null,
+  funding: { active: null, history: [], viewerCanAssign: false, sourceOptions: [] },
 };
 
 describe("AssignmentForm (Story 5.2)", () => {
