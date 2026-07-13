@@ -1,6 +1,8 @@
 import { AssignmentForm } from "@/features/placement/assignment-form";
 import { CaseNotesTab } from "@/features/placement/case-notes-tab";
+import { EvaluationsTab } from "@/features/placement/evaluations-tab";
 import { FundingTab } from "@/features/placement/funding-tab";
+import { EVALUATION_AREAS, EVALUATION_RATINGS } from "@/server/domain/evaluation";
 import type {
   PlacementWorkspaceView,
   WorkspaceTab,
@@ -109,12 +111,13 @@ export function WorkspaceTabContent({
         </EmptyTab>
       );
     case "evaluations":
-      return (
-        <EmptyTab>
-          No evaluations yet. Shelter supervisors submit evaluations once the
-          placement is active (Story 5.10).
-        </EmptyTab>
-      );
+      return view.evaluations ? (
+        <EvaluationsTab
+          placementId={view.id}
+          evaluations={view.evaluations}
+          catalog={{ areas: EVALUATION_AREAS, ratings: EVALUATION_RATINGS }}
+        />
+      ) : null;
     case "incidents":
       return (
         <EmptyTab>

@@ -20,6 +20,7 @@ import {
   requestPlacementChanges,
   resumePlacement,
   saveAssignment,
+  submitEvaluation,
 } from "@/server/services/placement-service";
 
 /**
@@ -226,6 +227,36 @@ export async function editPlacementCaseNoteAction(
   }
 
   revalidatePath(`/operations/placements/records/${placementId}`);
+  return { status: "saved" };
+}
+
+export async function submitEvaluationAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await submitEvaluation(ctx, placementId, {
+      evaluationDate: utcDate(formData.get("evaluationDate")),
+      ratings: {
+        reliability: String(formData.get("rating-reliability") ?? ""),
+        taskQuality: String(formData.get("rating-taskQuality") ?? ""),
+        teamwork: String(formData.get("rating-teamwork") ?? ""),
+      },
+      strengths: String(formData.get("strengths") ?? ""),
+      growthAreas: textOrNull(formData.get("growthAreas")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
   return { status: "saved" };
 }
 

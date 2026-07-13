@@ -143,4 +143,16 @@ describe("permissionsForRoles (deny-by-default)", () => {
       ).toBe(expected);
     }
   });
+
+  it("splits evaluations by portal: shelter staff submit, Nova Operations reads (5.10)", () => {
+    for (const role of Object.values(Role)) {
+      const granted = permissionsForRoles([role]);
+      const createExpected =
+        role === Role.SHELTER_SUPERVISOR || role === Role.SHELTER_MANAGER;
+      const viewExpected =
+        role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      expect(granted.has("evaluation.create"), `create for ${role}`).toBe(createExpected);
+      expect(granted.has("evaluation.view"), `view for ${role}`).toBe(viewExpected);
+    }
+  });
 });

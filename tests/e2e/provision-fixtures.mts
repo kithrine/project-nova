@@ -1324,6 +1324,11 @@ try {
   await prisma.fundingAssignment.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });
+  // Evaluations (Story 5.10) — the journey's supervisor submits one on
+  // Casey's placement each run.
+  await prisma.evaluation.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
   await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });

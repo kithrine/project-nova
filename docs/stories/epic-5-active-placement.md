@@ -17,7 +17,7 @@ Operate an active transitional placement.
 | 5.7  | Pause and resume                          | Done                                |
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
 | 5.9  | Case notes                                | Done                                |
-| 5.10 | Evaluations                               | Ready for Development               |
+| 5.10 | Evaluations                               | Done                                |
 | 5.11 | Incidents                                 | Ready for Development               |
 
 > Sequencing note: build 5.1 first as the shared workspace shell that later stories populate. 5.2, 5.3, and 5.4 supply the data that 5.5's blocker list evaluates, so sequence 5.2 → 5.3 → 5.4 → 5.5 → 5.6. 5.7 and 5.8 both require an Active placement (5.6) and are otherwise independent of each other; 5.8's Terminated path is additionally blocked on the open policy question in its Dependencies. 5.9 (Case Notes) has no lifecycle dependency and can be built in parallel with 5.2–5.6. 5.10 and 5.11 depend only on 5.1 for their authorization/data model, though exercising them end-to-end in tests is easiest once 5.6 exists.
@@ -714,7 +714,23 @@ Case notes on other aggregates (Application, Program Enrollment), if they exist 
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: the structure is a fixed MVP rubric in domain code (same
+> move as 5.4's onboarding catalog) — three performance areas
+> (reliability/attendance, task quality/safety, teamwork/communication)
+> each rated on a four-point labeled scale, plus what-went-well
+> (required) and areas-to-grow (optional). Ratings always carry their
+> text label. Submissions are IMMUTABLE: no update path exists, a
+> correction is a new evaluation, so "any permitted edit preserves
+> history" is satisfied in its strictest form without inventing an
+> edit-authorization policy the story never defines. evaluation.create
+> is Shelter Supervisor/Manager, org-scoped by the service and gated to
+> Active/Paused; evaluation.view is PC/NA (a Grant Administrator gets
+> the workspace without the tab). Participant visibility follows open
+> question #5's default-closed posture: no participant grant, no
+> participant query path, proven by payload assertion. Program-validated
+> rubric authoring is future work.
 
 ### User story
 
