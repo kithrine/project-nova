@@ -50,7 +50,10 @@ export const PERMISSIONS = [
   "onboardingTask.view",
   // Task completion and correction (Story 3.3): the staff paths. A
   // participant completes their OWN participant-completable tasks via
-  // ownership (like the applicant tier), never via these grants.
+  // ownership (like the applicant tier), never via these grants. Story
+  // 5.4 extends complete to shelter roles for PLACEMENT tasks only — the
+  // service scopes shelter holders to their organization's placements
+  // and to shelter-verified (non-participant) tasks.
   "onboardingTask.complete",
   "onboardingTask.reopen",
   // Portable training attempts (Story 3.4; ADR-017): coordinator-only
@@ -130,6 +133,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "organization.view",
     "placementMatch.view",
     "placement.view",
+    "onboardingTask.complete",
   ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
@@ -137,6 +141,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.recordShelterDecision",
     "placement.view",
     "placement.approve",
+    "onboardingTask.complete",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",

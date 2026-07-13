@@ -79,8 +79,13 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("eligibilityReview.decide"), `eligibility for ${role}`).toBe(expected);
       expect(granted.has("interview.schedule"), `schedule for ${role}`).toBe(expected);
       expect(granted.has("interview.record"), `record for ${role}`).toBe(expected);
+      // onboardingTask.complete extended to shelter roles for PLACEMENT
+      // tasks (Story 5.4) — the service scopes them to their own
+      // organization's placements and to shelter-verified tasks only.
+      const completeExpected =
+        expected || role === Role.SHELTER_SUPERVISOR || role === Role.SHELTER_MANAGER;
       expect(granted.has("onboardingTask.complete"), `task complete for ${role}`).toBe(
-        expected,
+        completeExpected,
       );
       expect(granted.has("onboardingTask.reopen"), `task reopen for ${role}`).toBe(expected);
       expect(granted.has("trainingEnrollment.create"), `training create for ${role}`).toBe(

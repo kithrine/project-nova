@@ -550,6 +550,7 @@ model Placement {
 
   structuredSchedule PlacementSchedule?
   fundingAssignments FundingAssignment[]
+  onboardingTasks    OnboardingTask[]
 
   events PlacementEvent[]
 
@@ -850,9 +851,15 @@ enum OnboardingTaskStatus {
 // placementId is a plain column until the Placement model exists.
 model OnboardingTask {
   id           String             @id @default(cuid())
+  // Both owning relations are RESTRICT: SetNull (Prisma's default for
+  // optional relations) would violate the XOR CHECK by nulling the only
+  // owner. Cleanup deletes tasks before their owning context.
   enrollmentId String?
-  enrollment   ProgramEnrollment? @relation(fields: [enrollmentId], references: [id])
+  enrollment   ProgramEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  // The Story 5.4 owning context: site-specific placement onboarding
+  // (ADR-017 Layer 2), XOR with enrollmentId per the CHECK above.
   placementId  String?
+  placement    Placement?         @relation(fields: [placementId], references: [id], onDelete: Restrict)
 
   templateId String?
 
@@ -874,6 +881,7 @@ model OnboardingTask {
   // Idempotent generation: one instance per template per enrollment.
   @@unique([enrollmentId, templateId])
   @@index([enrollmentId])
+  @@index([placementId])
 }
 
 // Lifecycle event for ProgramEnrollment — same append-only pattern as

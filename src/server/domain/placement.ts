@@ -66,6 +66,78 @@ export function packageMissingPieces(placement: {
   return missing;
 }
 
+/**
+ * The placement-onboarding task catalog (Story 5.4; ADR-017 Layer 2) —
+ * site-specific preparation, generated when onboarding is initiated and
+ * never auto-completed by portable Story 3.4 training. Fixed code catalog
+ * for MVP (the 3.2 template table is program-scoped portable content;
+ * this layer is the same for every site until site-specific authoring
+ * exists). participantCompletable=false rows are verified by the shelter
+ * or the coordinator.
+ */
+export const PLACEMENT_ONBOARDING_CATALOG = [
+  {
+    title: "Site safety and hazard orientation delivered",
+    description:
+      "The host walked the participant through this site's hazards, emergency exits, and procedures.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 1,
+  },
+  {
+    title: "Chemicals, cleaning products, and PPE instruction delivered",
+    description:
+      "Site-specific instruction on the products in use, safety data sheets, and required protective equipment.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 2,
+  },
+  {
+    title: "Local sanitation procedures walkthrough delivered",
+    description: "This site's cleaning and disinfection routines and equipment.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 3,
+  },
+  {
+    title: "Assigned-task restrictions reviewed with the supervisor",
+    description:
+      "What tasks are and are not part of this placement, reviewed together.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 4,
+  },
+  {
+    title: "Supervisor-observed task competency confirmed",
+    description:
+      "The supervisor watched the assigned tasks done safely before independent work.",
+    required: true,
+    participantCompletable: false,
+    sortOrder: 5,
+  },
+  {
+    title: "Acknowledge the site safety procedures",
+    description: "Confirm you've received and understood this site's safety walkthrough.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 6,
+  },
+  {
+    title: "Sign the confidentiality and workplace conduct agreement",
+    description: "The agreement covering animals, adopters, and workplace conduct.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 7,
+  },
+  {
+    title: "Confirm you received your PPE and uniform",
+    description: "Gloves, any site-required gear, and your uniform items.",
+    required: true,
+    participantCompletable: true,
+    sortOrder: 8,
+  },
+] as const;
+
 export interface ScheduleDayInput {
   day: string;
   startTime: string;

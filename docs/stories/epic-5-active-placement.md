@@ -11,7 +11,7 @@ Operate an active transitional placement.
 | 5.1  | Placement workspace                       | Done                                |
 | 5.2  | Assign site, supervisor, and schedule     | Done                                |
 | 5.3  | Assign funding                            | Done                                |
-| 5.4  | Placement onboarding                      | Ready for Development               |
+| 5.4  | Placement onboarding                      | Done                                |
 | 5.5  | Activation blockers                       | Ready for Development               |
 | 5.6  | Activate placement                        | Ready for Development               |
 | 5.7  | Pause and resume                          | Ready for Development               |
@@ -261,7 +261,25 @@ Funding Source master-record creation and management (Epic 1 Story 1.8 — Manag
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: 3.2's OnboardingTask model was already XOR-ready
+> (placementId + the CHECK constraint shipped dormant); this story wired
+> the real relation — with explicit onDelete: Restrict on BOTH owning
+> relations, since Prisma's SetNull default for optional relations would
+> null the only owner and violate the CHECK. The site-specific catalog
+> (ADR-017 Layer 2, eight required steps) is a fixed code constant for
+> MVP — the 3.2 template table is program-scoped portable content, and
+> Layer 2 stays identical across sites until site-specific authoring
+> exists. initiatePlacementOnboarding is one transaction: Approved ->
+> Onboarding + idempotent task generation + event + audit. Three
+> completion paths, one rule set: participants own their
+> participant-completable steps (ownership), shelter staff verify
+> shelter-facing tasks org-scoped (onboardingTask.complete extended to
+> SS/SM for placement tasks only), Nova staff complete anything —
+> all gated to Approved/Onboarding server-side, with incomplete tasks
+> preserved as history at terminal states. requiredRemaining rolls up on
+> the workspace for 5.5's "Onboarding complete" blocker.
 
 ### User story
 

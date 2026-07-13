@@ -1,3 +1,4 @@
+import { ParticipantSteps } from "@/features/placement/participant-steps";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnPlacement } from "@/server/services/placement-service";
 
@@ -57,6 +58,7 @@ export default async function MyPlacementPage() {
               <dd className="text-base-content/80">{placement.placementNumber}</dd>
             </div>
           </dl>
+          <ParticipantSteps steps={placement.mySteps} />
           <p className="text-sm text-base-content/70">
             Questions about any of this? Your coordinator is glad to walk
             through it with you.

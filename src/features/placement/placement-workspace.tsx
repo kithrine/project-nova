@@ -1,5 +1,6 @@
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
 import { PackageReviewPanel } from "@/features/placement/package-review-panel";
+import { PlacementOnboardingPanel } from "@/features/placement/placement-onboarding-panel";
 import { WorkspaceTabNav } from "@/features/placement/workspace-tab-nav";
 import { WorkspaceTabContent } from "@/features/placement/workspace-tabs";
 import {
@@ -72,6 +73,8 @@ export function PlacementWorkspace({
       {view.viewerCanApprovePackage ? (
         <PackageReviewPanel placementId={view.id} />
       ) : null}
+
+      <PlacementOnboardingPanel placementId={view.id} onboarding={view.onboarding} />
 
       <div className="flex flex-col gap-4">
         <WorkspaceTabNav
