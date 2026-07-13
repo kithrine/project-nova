@@ -104,6 +104,7 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("placementMatch.manageDraft"), `draft for ${role}`).toBe(
         expected,
       );
+      expect(granted.has("placementMatch.propose"), `propose for ${role}`).toBe(expected);
     }
   });
 

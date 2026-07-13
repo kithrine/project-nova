@@ -7,6 +7,7 @@ import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   createMatchDraft,
+  proposeMatch,
   updateMatchDraft,
   withdrawMatchDraft,
 } from "@/server/services/matching-service";
@@ -107,4 +108,29 @@ export async function withdrawMatchDraftAction(
 
   revalidatePath("/operations/placements");
   redirect("/operations/placements");
+}
+
+export async function proposeMatchAction(
+  matchId: string,
+  _prev: MatchFormState,
+  _formData: FormData,
+): Promise<MatchFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await proposeMatch(ctx, matchId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath(`/operations/placements/matches/${matchId}`);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/placements/matches/${matchId}`);
+  revalidatePath("/operations/placements");
+  revalidatePath("/participant");
+  revalidatePath("/shelter");
+  return { status: "saved" };
 }

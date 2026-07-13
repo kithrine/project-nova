@@ -333,6 +333,116 @@ describe.skipIf(!hasDatabase)("placement match drafts (integration)", () => {
     const again = await service.createMatchDraft(ctx, { enrollmentId, siteId });
     expect(again.id).not.toBe(match.id);
   });
+
+  it("proposes only a complete draft, resetting both decision tracks (4.4 AC1/AC2)", async () => {
+    const ctx = await contextFor(coordinatorId);
+    const match = await prisma.placementMatch.findFirstOrThrow({
+      where: { programEnrollmentId: enrollmentId, status: enums.MatchStatus.DRAFT },
+    });
+
+    // Incomplete draft: the missing core fields are NAMED.
+    await expect(service.proposeMatch(ctx, match.id)).rejects.toMatchObject({
+      code: "VALIDATION",
+      message: expect.stringContaining("Candidate supervisor"),
+    });
+
+    await service.updateMatchDraft(ctx, match.id, {
+      siteId,
+      supervisorId: shelterUserId,
+      schedule: "Tue/Thu afternoons",
+      startDate: new Date("2026-08-01T00:00:00.000Z"),
+      endDate: new Date("2026-12-01T00:00:00.000Z"),
+      fundingSourceId: null,
+      notes: "Coordinator-internal rationale.",
+    });
+    await service.proposeMatch(ctx, match.id);
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(row.status).toBe(enums.MatchStatus.PROPOSED);
+    expect(row.participantDecision).toBe(enums.ParticipantMatchDecision.PENDING);
+    expect(row.shelterDecision).toBe(enums.ShelterMatchDecision.PENDING);
+    expect(row.proposedAt).toBeInstanceOf(Date);
+    expect(row.decisionWindowEndsAt!.getTime()).toBeGreaterThan(row.proposedAt!.getTime());
+
+    await prisma.placementMatchEvent.findFirstOrThrow({
+      where: { placementMatchId: match.id, toStatus: enums.MatchStatus.PROPOSED },
+    });
+    await prisma.auditEvent.findFirstOrThrow({
+      where: { action: "placementMatch.propose", subjectId: match.id },
+    });
+  });
+
+  it("serves role-shaped views across the boundary — no notes, no snapshot (4.4 AC3/AC4/AC6)", async () => {
+    const participantCtx = await contextFor(participantUserId);
+    const own = await service.getOwnProposedMatch(participantCtx);
+    expect(own?.schedule).toBe("Tue/Thu afternoons");
+    expect(own?.organizationName).toContain("Host Shelter");
+    const ownPayload = JSON.stringify(own);
+    expect(ownPayload).not.toMatch(/rationale|coordinatorNotes|snapshot|category/i);
+
+    const shelterCtx = await contextFor(shelterUserId);
+    const approvals = await service.listShelterApprovals(shelterCtx);
+    const row = approvals.find((a) => a.participantName.includes("ready"));
+    expect(row).toBeDefined();
+    expect(row?.supervisorName).toContain("Shelter Supervisor");
+    expect(JSON.stringify(approvals)).not.toMatch(/rationale|coordinatorNotes|snapshot/i);
+
+    // A different shelter's manager sees nothing of it; a participant has
+    // no shelter scope at all.
+    const otherOrg = await prisma.organization.create({
+      data: {
+        name: testScopedName(runId, "Other Shelter"),
+        kind: enums.OrganizationKind.HOST,
+        isSynthetic: true,
+      },
+    });
+    const otherManager = await prisma.user.create({
+      data: {
+        email: `${runId}-othermgr@synthetic.example`,
+        displayName: testScopedName(runId, "Other Manager"),
+        isSynthetic: true,
+        memberships: {
+          create: { organizationId: otherOrg.id, role: enums.Role.SHELTER_MANAGER },
+        },
+      },
+    });
+    const otherCtx = await contextFor(otherManager.id);
+    expect(await service.listShelterApprovals(otherCtx)).toEqual([]);
+    await expect(service.listShelterApprovals(participantCtx)).rejects.toBeInstanceOf(
+      errors.AuthorizationError,
+    );
+  });
+
+  it("expires a stale, fully undecided proposal on access (4.4 AC5)", async () => {
+    const match = await prisma.placementMatch.findFirstOrThrow({
+      where: { programEnrollmentId: enrollmentId, status: enums.MatchStatus.PROPOSED },
+    });
+    await prisma.placementMatch.update({
+      where: { id: match.id },
+      data: { decisionWindowEndsAt: new Date("2026-01-01T00:00:00.000Z") },
+    });
+
+    const expired = await service.expireStaleProposals(new Date());
+    expect(expired).toBeGreaterThanOrEqual(1);
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(row.status).toBe(enums.MatchStatus.EXPIRED);
+    await prisma.placementMatchEvent.findFirstOrThrow({
+      where: {
+        placementMatchId: match.id,
+        toStatus: enums.MatchStatus.EXPIRED,
+        actorUserId: "system-expiration",
+      },
+    });
+
+    // Dropped from both parties' active views.
+    const participantCtx = await contextFor(participantUserId);
+    expect(await service.getOwnProposedMatch(participantCtx)).toBeNull();
+    const shelterCtx = await contextFor(shelterUserId);
+    expect(
+      (await service.listShelterApprovals(shelterCtx)).find((a) => a.id === match.id),
+    ).toBeUndefined();
+  });
 });
 
 describe.skipIf(hasDatabase)("placement match drafts (unconfigured)", () => {

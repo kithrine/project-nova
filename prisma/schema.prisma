@@ -422,6 +422,12 @@ model PlacementMatch {
   compatibilitySnapshot String?
   coordinatorNotes      String?
 
+  // Proposal boundary (Story 4.4): when the match first crossed the
+  // organization boundary, and the decision-window target after which a
+  // fully undecided proposal is eligible to expire (evaluated on access).
+  proposedAt           DateTime?
+  decisionWindowEndsAt DateTime?
+
   events PlacementMatchEvent[]
 
   createdAt DateTime @default(now())
