@@ -7,7 +7,7 @@ Create safe, approved participant-to-shelter matches.
 
 | ID | Story | Status |
 |---|---|---|
-| 4.1 | Matching queue | Ready for Development |
+| 4.1 | Matching queue | Done |
 | 4.2 | Compatibility panel | Ready for Development |
 | 4.3 | Create match draft | Ready for Development |
 | 4.4 | Propose match | Ready for Development |
@@ -23,7 +23,15 @@ Create safe, approved participant-to-shelter matches.
 ## Story 4.1 — Matching queue
 
 ### Status
-Ready for Development
+Done
+
+> Built note: per the epic sequencing note, the `PlacementMatch` schema
+> (model, MatchStatus/decision enums, and the one-non-terminal-match
+> partial unique index) shipped alongside this story so the exclusion rule
+> is real from day one; Story 4.3 owns the service/UI on top of it.
+> `OrganizationSite.capacity` was added per shelter-onboarding system
+> setup. Placement-based exclusion (AC3) is wired in the domain rule and
+> activates when the Placement model lands (4.8/Epic 5).
 
 ### User story
 As a Program Coordinator, I want a queue of participants who are ready for matching alongside shelters with available capacity, so that I can identify and prioritize safe, viable candidate pairings.

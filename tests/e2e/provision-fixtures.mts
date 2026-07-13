@@ -896,6 +896,85 @@ try {
     },
   });
 
+  // Matching-queue fixtures (Story 4.1): a shelter site with capacity and a
+  // READY_FOR_MATCHING participant (Quinn) with no match — reset every run.
+  await prisma.organizationSite.upsert({
+    where: { id: "e2e_site_shelter" },
+    update: { status: ActiveStatus.ACTIVE, capacity: 3 },
+    create: {
+      id: "e2e_site_shelter",
+      organizationId: "e2e_org_shelter",
+      name: "Main Site (Synthetic)",
+      city: "Springfield",
+      region: "WA",
+      capacity: 3,
+    },
+  });
+  await prisma.user.upsert({
+    where: { id: "e2e_user_matchready" },
+    update: {},
+    create: {
+      id: "e2e_user_matchready",
+      email: "e2e-matchready-subject@synthetic.example",
+      displayName: "Synthetic Matchready Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_matchready" },
+    update: {},
+    create: {
+      id: "e2e_person_matchready",
+      userId: "e2e_user_matchready",
+      legalFirstName: "Quinn",
+      legalLastName: "Synthetic-Match",
+      dateOfBirth: new Date("1992-02-02T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_matchready" },
+    update: {},
+    create: {
+      id: "e2e_app_matchready",
+      personId: "e2e_person_matchready",
+      applicationNumber: "APP-E2E-MATCH1",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+      availabilityNotes: "Weekday mornings",
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_matchready" },
+    update: {},
+    create: { id: "e2e_participant_matchready", personId: "e2e_person_matchready" },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_matchready" },
+  });
+  await prisma.enrollmentEvent.deleteMany({
+    where: { enrollmentId: "e2e_enrollment_matchready" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_matchready" },
+    update: { status: "READY_FOR_MATCHING" },
+    create: {
+      id: "e2e_enrollment_matchready",
+      participantId: "e2e_participant_matchready",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_matchready",
+      status: "READY_FOR_MATCHING",
+    },
+  });
+  await prisma.enrollmentEvent.create({
+    data: {
+      enrollmentId: "e2e_enrollment_matchready",
+      fromStatus: "ONBOARDING",
+      toStatus: "READY_FOR_MATCHING",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Safe while
   // funding sources have no dependents; revisit when Story 5.3 adds

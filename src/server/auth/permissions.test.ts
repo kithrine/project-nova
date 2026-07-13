@@ -96,6 +96,7 @@ describe("permissionsForRoles (deny-by-default)", () => {
         granted.has("enrollment.markReadyForMatching"),
         `mark ready for ${role}`,
       ).toBe(expected);
+      expect(granted.has("placementMatch.viewQueue"), `queue for ${role}`).toBe(expected);
     }
   });
 

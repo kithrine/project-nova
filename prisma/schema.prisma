@@ -72,8 +72,9 @@ model Organization {
   status      ActiveStatus     @default(ACTIVE)
   isSynthetic Boolean          @default(false)
 
-  sites       OrganizationSite[]
-  memberships Membership[]
+  sites            OrganizationSite[]
+  memberships      Membership[]
+  placementMatches PlacementMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,6 +90,12 @@ model OrganizationSite {
   region         String?
   postalCode     String?
   status         ActiveStatus @default(ACTIVE)
+  // Placement capacity for this site (docs/ops/shelter-onboarding.md system
+  // setup; Story 4.1). Available capacity = this minus onboarding/active/
+  // paused placements once Placements exist (Epic 5).
+  capacity       Int          @default(0)
+
+  placementMatches PlacementMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -353,6 +360,76 @@ model AuditEvent {
   @@index([actorUserId])
 }
 
+// --- Placement matching (Epic 4; schema introduced alongside Story 4.1 per
+// --- the epic's sequencing note, owned by Story 4.3) --------------------------
+
+// Full lifecycle per docs/product/placement-lifecycle.md. DRAFT, PROPOSED,
+// and CHANGE_REQUESTED are the non-terminal statuses; a participant may hold
+// at most ONE non-terminal match (partial unique index in the migration
+// SQL), mirroring the one-active-placement rule.
+enum MatchStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  CHANGE_REQUESTED
+  DECLINED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ParticipantMatchDecision {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ShelterMatchDecision {
+  PENDING
+  APPROVED
+  CHANGE_REQUESTED
+  DECLINED
+}
+
+// A proposed participant-to-shelter pairing (TERMINOLOGY.md: Placement
+// Match). Coordinator-internal while DRAFT — never visible to participants
+// or shelters until proposed (4.4). Approval (4.8) creates the separate
+// Placement object (ADR-002: separate lifecycles).
+model PlacementMatch {
+  id                  String            @id @default(cuid())
+  participantId       String
+  participant         Participant       @relation(fields: [participantId], references: [id])
+  programEnrollmentId String
+  programEnrollment   ProgramEnrollment @relation(fields: [programEnrollmentId], references: [id])
+  hostOrganizationId  String
+  hostOrganization    Organization      @relation(fields: [hostOrganizationId], references: [id])
+  organizationSiteId  String
+  organizationSite    OrganizationSite  @relation(fields: [organizationSiteId], references: [id])
+
+  status              MatchStatus              @default(DRAFT)
+  participantDecision ParticipantMatchDecision @default(PENDING)
+  shelterDecision     ShelterMatchDecision     @default(PENDING)
+
+  // Candidate arrangement details (editable while DRAFT, 4.3).
+  proposedSupervisorId    String?
+  proposedSchedule        String?
+  proposedStartDate       DateTime? @db.Date
+  proposedEndDate         DateTime? @db.Date
+  candidateFundingSourceId String?
+  candidateFundingSource   FundingSource? @relation(fields: [candidateFundingSourceId], references: [id], onDelete: Restrict)
+
+  // Point-in-time 4.2 result captured at draft creation / re-evaluation
+  // (4.3) — the pairing rationale as a historical record.
+  compatibilitySnapshot String?
+  coordinatorNotes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participantId])
+  @@index([hostOrganizationId])
+  @@index([organizationSiteId])
+}
+
 // --- Documents (Story 2.4) --------------------------------------------------
 
 enum DocumentType {
@@ -378,9 +455,9 @@ enum DocumentStatus {
 model Document {
   id              String         @id @default(cuid())
   applicationId   String?
-  application     Application?   @relation(fields: [applicationId], references: [id])
+  application     Application?   @relation(fields: [applicationId], references: [id], onDelete: Restrict)
   certificationId String?
-  certification   Certification? @relation(fields: [certificationId], references: [id])
+  certification   Certification? @relation(fields: [certificationId], references: [id], onDelete: Restrict)
 
   documentType DocumentType
   status       DocumentStatus @default(ACTIVE)
@@ -465,8 +542,9 @@ model Participant {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id])
 
-  enrollments    ProgramEnrollment[]
-  certifications Certification[]
+  enrollments     ProgramEnrollment[]
+  certifications  Certification[]
+  placementMatches PlacementMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -497,6 +575,7 @@ model ProgramEnrollment {
   events              EnrollmentEvent[]
   onboardingTasks     OnboardingTask[]
   trainingEnrollments TrainingEnrollment[]
+  placementMatches    PlacementMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -691,6 +770,8 @@ model FundingSource {
   startDate DateTime?         @db.Date
   endDate   DateTime?         @db.Date
   notes     String?
+
+  placementMatches PlacementMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
