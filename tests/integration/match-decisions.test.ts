@@ -42,6 +42,7 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
   let shelterApproving: Fixture;
   let shelterChanging: Fixture;
   let shelterDeclining: Fixture;
+  let shelterWithdrawing: Fixture;
 
   async function contextFor(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -217,6 +218,7 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
     shelterApproving = await createFixture("shapprove", { status: "PROPOSED" });
     shelterChanging = await createFixture("shchange", { status: "PROPOSED" });
     shelterDeclining = await createFixture("shdecline", { status: "PROPOSED" });
+    shelterWithdrawing = await createFixture("shwithdraw", { status: "PROPOSED" });
   }, 60_000);
 
   afterAll(async () => {
@@ -587,4 +589,176 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
       message: expect.stringContaining("while a match is proposed"),
     });
   }, 20_000);
+
+  // --- Request changes (Story 4.7) ------------------------------------------------
+  // shelterChanging is CHANGE_REQUESTED here, carrying the 4.6 note.
+
+  it("shows the participant plain revising language while change-requested (4.7 AC4)", async () => {
+    const ctx = await contextFor(shelterChanging.userId);
+    const view = await service.getOwnProposedMatch(ctx);
+    expect(view?.revising).toBe(true);
+    // The shelter's internal note never reaches the participant payload.
+    expect(JSON.stringify(view)).not.toContain("Weekend");
+  }, 20_000);
+
+  it("lets the coordinator edit a change-requested match without moving it (4.7 AC1/AC2)", async () => {
+    const coordinatorCtx = await contextFor(coordinatorId);
+
+    // AC1: the note and the prior terms are both in the workspace view.
+    const before = await service.getMatchWorkspace(coordinatorCtx, shelterChanging.matchId);
+    expect(before.shelterDecisionNote).toContain("Weekend mornings");
+    expect(before.schedule).toBe("Mon/Wed mornings");
+
+    await service.updateMatchDraft(coordinatorCtx, shelterChanging.matchId, {
+      siteId,
+      supervisorId: shelterManagerId,
+      schedule: "Sat/Sun mornings",
+      startDate: new Date("2026-08-03T00:00:00Z"),
+      endDate: new Date("2026-12-04T00:00:00Z"),
+      fundingSourceId: null,
+      notes: null,
+    });
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterChanging.matchId },
+    });
+    expect(row.status).toBe(enums.MatchStatus.CHANGE_REQUESTED);
+    expect(row.proposedSchedule).toBe("Sat/Sun mornings");
+    await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        action: "placementMatch.update",
+        subjectId: shelterChanging.matchId,
+        detail: "revision-edited",
+      },
+    });
+
+    // A shelter manager cannot edit or re-propose (AC6).
+    const managerCtx = await contextFor(shelterManagerId);
+    await expect(
+      service.updateMatchDraft(managerCtx, shelterChanging.matchId, {
+        siteId,
+        supervisorId: null,
+        schedule: null,
+        startDate: null,
+        endDate: null,
+        fundingSourceId: null,
+        notes: null,
+      }),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+    await expect(
+      service.reproposeMatch(managerCtx, shelterChanging.matchId),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+  }, 30_000);
+
+  it("re-proposes with both tracks reset and the prior cycle archived (4.7 AC2)", async () => {
+    const coordinatorCtx = await contextFor(coordinatorId);
+
+    // The 4.4 completeness gate applies: clear a core field, watch it named.
+    await service.updateMatchDraft(coordinatorCtx, shelterChanging.matchId, {
+      siteId,
+      supervisorId: null,
+      schedule: "Sat/Sun mornings",
+      startDate: new Date("2026-08-03T00:00:00Z"),
+      endDate: new Date("2026-12-04T00:00:00Z"),
+      fundingSourceId: null,
+      notes: null,
+    });
+    await expect(
+      service.reproposeMatch(coordinatorCtx, shelterChanging.matchId),
+    ).rejects.toMatchObject({
+      code: "VALIDATION",
+      message: expect.stringContaining("Candidate supervisor"),
+    });
+
+    await service.updateMatchDraft(coordinatorCtx, shelterChanging.matchId, {
+      siteId,
+      supervisorId: shelterManagerId,
+      schedule: "Sat/Sun mornings",
+      startDate: new Date("2026-08-03T00:00:00Z"),
+      endDate: new Date("2026-12-04T00:00:00Z"),
+      fundingSourceId: null,
+      notes: null,
+    });
+    await service.reproposeMatch(coordinatorCtx, shelterChanging.matchId);
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterChanging.matchId },
+    });
+    expect(row.status).toBe(enums.MatchStatus.PROPOSED);
+    expect(row.participantDecision).toBe(enums.ParticipantMatchDecision.PENDING);
+    expect(row.shelterDecision).toBe(enums.ShelterMatchDecision.PENDING);
+    // Archive-then-reset: per-cycle fields cleared on the row...
+    expect(row.shelterDecisionNote).toBeNull();
+    expect(row.shelterDecisionAt).toBeNull();
+    expect(row.decisionWindowEndsAt!.getTime()).toBeGreaterThan(Date.now());
+
+    // ...with the outgoing cycle preserved verbatim in the event trail.
+    const event = await prisma.placementMatchEvent.findFirstOrThrow({
+      where: {
+        placementMatchId: shelterChanging.matchId,
+        fromStatus: enums.MatchStatus.CHANGE_REQUESTED,
+        toStatus: enums.MatchStatus.PROPOSED,
+      },
+    });
+    expect(event.detail).toContain("shelter: Change requested");
+    expect(event.detail).toContain("Weekend mornings");
+    await prisma.auditEvent.findFirstOrThrow({
+      where: { action: "placementMatch.repropose", subjectId: shelterChanging.matchId },
+    });
+
+    // Fresh cycle on both sides: the shelter sees it pending again, and
+    // the participant is out of the revising state.
+    const managerCtx = await contextFor(shelterManagerId);
+    const approvals = await service.listShelterApprovals(managerCtx);
+    const rowView = approvals.find((m) => m.id === shelterChanging.matchId);
+    expect(rowView?.shelterDecisionLabel).toBe("Pending");
+    const participantCtx = await contextFor(shelterChanging.userId);
+    const view = await service.getOwnProposedMatch(participantCtx);
+    expect(view?.revising).toBe(false);
+    expect(view?.participantDecision).toBe("PENDING");
+  }, 30_000);
+
+  it("rejects re-propose off Change Requested (4.7 AC5)", async () => {
+    const coordinatorCtx = await contextFor(coordinatorId);
+    await expect(
+      service.reproposeMatch(coordinatorCtx, accepting.matchId),
+    ).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("change-requested"),
+    });
+    await expect(
+      service.reproposeMatch(coordinatorCtx, drafted.matchId),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+  }, 20_000);
+
+  it("withdraws a change-requested match and returns the participant to the queue (4.7 AC3)", async () => {
+    const managerCtx = await contextFor(shelterManagerId);
+    await service.recordShelterDecision(managerCtx, shelterWithdrawing.matchId, {
+      decision: "CHANGE_REQUESTED",
+      note: "Site is under renovation this fall",
+    });
+
+    const coordinatorCtx = await contextFor(coordinatorId);
+    await service.withdrawMatchDraft(coordinatorCtx, shelterWithdrawing.matchId);
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterWithdrawing.matchId },
+    });
+    expect(row.status).toBe(enums.MatchStatus.WITHDRAWN);
+
+    const event = await prisma.placementMatchEvent.findFirstOrThrow({
+      where: {
+        placementMatchId: shelterWithdrawing.matchId,
+        toStatus: enums.MatchStatus.WITHDRAWN,
+      },
+    });
+    expect(event.fromStatus).toBe(enums.MatchStatus.CHANGE_REQUESTED);
+    expect(event.detail).toContain("renovation");
+
+    const queue = await service.getMatchingQueue(coordinatorCtx);
+    const candidate = queue.candidates.find(
+      (c) => c.enrollmentId === shelterWithdrawing.enrollmentId,
+    );
+    expect(candidate?.state).toBe("AWAITING_MATCH");
+  }, 30_000);
 });

@@ -11,6 +11,7 @@ import {
   assertMatchTransition,
   decisionBlockReason,
   decisionWindowEnd,
+  describePriorCycle,
   draftCreationBlockReason,
   isExpiredProposal,
   matchStatusAfterParticipantDecision,
@@ -158,6 +159,30 @@ describe("shelter decision rules (Story 4.6)", () => {
     expect(shelterDecisionRequiresNote(ShelterMatchDecision.APPROVED)).toBe(false);
     expect(shelterDecisionRequiresNote(ShelterMatchDecision.CHANGE_REQUESTED)).toBe(true);
     expect(shelterDecisionRequiresNote(ShelterMatchDecision.DECLINED)).toBe(true);
+  });
+});
+
+describe("describePriorCycle (Story 4.7 history archiving)", () => {
+  it("captures both decision values and the shelter note", () => {
+    expect(
+      describePriorCycle({
+        participantDecisionLabel: "Accepted",
+        shelterDecisionLabel: "Change requested",
+        shelterDecisionNote: "Weekend mornings work better",
+      }),
+    ).toBe(
+      'Prior cycle — participant: Accepted; shelter: Change requested; shelter note: "Weekend mornings work better"',
+    );
+  });
+
+  it("omits the note clause when no note exists", () => {
+    expect(
+      describePriorCycle({
+        participantDecisionLabel: "Pending",
+        shelterDecisionLabel: "Pending",
+        shelterDecisionNote: null,
+      }),
+    ).toBe("Prior cycle — participant: Pending; shelter: Pending");
   });
 });
 

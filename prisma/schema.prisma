@@ -469,6 +469,13 @@ model PlacementMatchEvent {
   toStatus    MatchStatus
   actorUserId String
 
+  // Cycle-boundary snapshot (Story 4.7): when a revision or withdrawal
+  // closes a proposal cycle, the outgoing decision values AND the
+  // shelter's note are archived here before the row's per-cycle fields
+  // reset — prior decisions are never silently overwritten (RULES.md).
+  // Ops-internal only; never surfaced to shelter or participant views.
+  detail String?
+
   createdAt DateTime @default(now())
 
   @@index([placementMatchId])

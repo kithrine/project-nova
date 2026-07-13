@@ -40,7 +40,13 @@ export function ParticipantProposedCard({
 }: {
   match: ProposedMatchParticipantView;
 }) {
-  const accepted = match.participantDecision === "ACCEPTED";
+  const accepted = !match.revising && match.participantDecision === "ACCEPTED";
+  // 4.7 AC4: plain revising language, never the shelter's internal note.
+  const heading = match.revising
+    ? "We're adjusting a detail on your proposed placement"
+    : accepted
+      ? "You accepted this placement"
+      : "A placement has been proposed for you";
 
   return (
     <section
@@ -48,17 +54,13 @@ export function ParticipantProposedCard({
       className="flex max-w-prose flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-5"
     >
       <p role="status" className="sr-only">
-        {accepted
-          ? "You accepted this placement."
-          : "A placement has been proposed for you."}
+        {heading}.
       </p>
       <div className="flex items-start gap-3">
         <CardIcon />
         <div className="flex flex-col gap-1">
           <h2 id="proposed-placement-heading" className="text-lg font-semibold">
-            {accepted
-              ? "You accepted this placement"
-              : "A placement has been proposed for you"}
+            {heading}
           </h2>
           <p className="text-base leading-relaxed text-base-content/80">
             {match.organizationName} — {match.siteName}
@@ -83,14 +85,19 @@ export function ParticipantProposedCard({
             </dd>
           </div>
         ) : null}
-        {!accepted && match.respondByLabel ? (
+        {!accepted && !match.revising && match.respondByLabel ? (
           <div className="flex flex-wrap gap-x-2">
             <dt className="font-medium">Decision window:</dt>
             <dd className="text-base-content/80">through {match.respondByLabel}</dd>
           </div>
         ) : null}
       </dl>
-      {accepted ? (
+      {match.revising ? (
+        <p className="text-sm text-base-content/70">
+          Nothing is needed from you right now — your coordinator is fine-tuning
+          the arrangement, and it will come back here for your review.
+        </p>
+      ) : accepted ? (
         <p className="text-sm text-base-content/70">
           Wonderful — nothing more is needed from you right now. The shelter is
           reviewing it too, and Nova gives everything a final look before your

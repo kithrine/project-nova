@@ -253,26 +253,103 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   });
 });
 
-test("a shelter manager requests changes with an actionable note (Story 4.6, AC2)", async ({
+test("a change request is revised, re-proposed, then finally withdrawn (Stories 4.6 AC2 + 4.7)", async ({
   page,
 }) => {
+  // Four sign-in phases; each is guarded by its precondition so retries
+  // converge on the terminal state instead of failing mid-cycle.
+  test.setTimeout(300_000);
+
+  // Phase 1 — the shelter manager requests changes with the required,
+  // actionable note (4.6 AC2).
   await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
   await page.goto("/shelter");
-
+  await expect(
+    page.getByRole("heading", { name: "Placement approvals" }),
+  ).toBeVisible({ timeout: 20_000 });
   const rileyRow = page.locator("li", { hasText: "Riley Synthetic-Change" });
-  // Retry safety: a prior attempt already routed this match to the
-  // coordinator — its absence from the approvals list IS the outcome.
-  if (await rileyRow.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await rileyRow.isVisible().catch(() => false)) {
     await rileyRow.getByRole("button", { name: "Request Changes" }).click();
-    await expect(
-      rileyRow.getByText("Request changes to this placement?"),
-    ).toBeVisible();
     await rileyRow
       .getByLabel("Note for the coordinator (required)")
       .fill("Friday intake is full — weekend mornings work better for us");
     await rileyRow.getByRole("button", { name: "Yes, Request Changes" }).click();
+    await expect(rileyRow).not.toBeVisible({ timeout: 20_000 });
   }
-  await expect(rileyRow).not.toBeVisible({ timeout: 20_000 });
+
+  // Phase 2 — the coordinator sees the note beside the prior terms,
+  // revises the schedule, and re-proposes (4.7 AC1/AC2).
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements");
+  const rileyMatchLink = page.getByRole("link", {
+    name: "Open match: Riley Synthetic-Change",
+  });
+  if (await rileyMatchLink.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await rileyMatchLink.click();
+    const changePanel = page.getByText("The shelter requested changes");
+    await expect(
+      page.getByText(/Status: .*(Proposed|Change requested)/),
+    ).toBeVisible({ timeout: 20_000 });
+    if (await changePanel.isVisible().catch(() => false)) {
+      await expect(
+        page.getByText(/weekend mornings work better for us/),
+      ).toBeVisible();
+      await expect(page.getByLabel("Candidate schedule")).toHaveValue("Fri mornings");
+      await page.getByLabel("Candidate schedule").fill("Sat/Sun mornings");
+      await page.getByRole("button", { name: "Save Revised Details" }).click();
+      await expect(page.getByText(/Revision saved — the compatibility read/)).toBeVisible(
+        { timeout: 20_000 },
+      );
+      await page.getByRole("button", { name: "Re-propose Match" }).click();
+      await expect(page.getByText(/Status: .*Proposed/)).toBeVisible({
+        timeout: 20_000,
+      });
+      // Fresh cycle: both tracks reset to Pending.
+      await expect(page.getByText(/Participant decision: .*Pending/)).toBeVisible();
+      await expect(page.getByText(/Shelter decision: .*Pending/)).toBeVisible();
+    }
+  }
+
+  // Phase 3 — the revised proposal is back in the shelter's approvals;
+  // this time the manager asks for another change.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
+  await page.goto("/shelter");
+  if (await rileyRow.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await expect(rileyRow.getByText("Schedule: Sat/Sun mornings")).toBeVisible();
+    await rileyRow.getByRole("button", { name: "Request Changes" }).click();
+    await rileyRow
+      .getByLabel("Note for the coordinator (required)")
+      .fill("Renovation starts in August — we need to pause this one");
+    await rileyRow.getByRole("button", { name: "Yes, Request Changes" }).click();
+    await expect(rileyRow).not.toBeVisible({ timeout: 20_000 });
+  }
+
+  // Phase 4 — the coordinator withdraws instead of revising (4.7 AC3).
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements");
+  if (await rileyMatchLink.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await rileyMatchLink.click();
+    await expect(page.getByText("The shelter requested changes")).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByLabel(/I no longer want to pursue this match/).check();
+    await page.getByRole("button", { name: "Withdraw Match" }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Matching queue" }),
+    ).toBeVisible({ timeout: 20_000 });
+  }
+
+  // The participant reappears in the queue as awaiting match (4.7 AC3).
+  await page.goto("/operations/placements");
+  await expect(
+    page
+      .getByLabel("Participants awaiting match")
+      .locator("li", { hasText: "Riley Synthetic-Change" })
+      .getByText("Awaiting match"),
+  ).toBeVisible({ timeout: 20_000 });
 });
 
 test("a shelter supervisor can view proposals but not decide (Story 4.6, AC4)", async ({

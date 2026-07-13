@@ -6,6 +6,7 @@ import { AssistedDecisionPanel } from "@/features/matching/assisted-decision-pan
 import { CompatibilityPanel } from "@/features/matching/compatibility-panel";
 import { MatchDraftForm } from "@/features/matching/match-draft-form";
 import { ProposePanel } from "@/features/matching/propose-panel";
+import { RevisePanel } from "@/features/matching/revise-panel";
 import { proposalMissingFields } from "@/server/domain/placement-match";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
@@ -72,6 +73,35 @@ export default async function MatchWorkspacePage({
             })}
           />
         </>
+      ) : match.status === "CHANGE_REQUESTED" ? (
+        // Story 4.7: the shelter's request and the prior terms, side by
+        // side with the same editing form, then re-propose or withdraw.
+        <div className="flex flex-col gap-4">
+          <div className="flex max-w-prose flex-col gap-2 rounded-md border border-warning/40 bg-warning/5 px-4 py-3">
+            <h2 className="text-sm font-semibold">The shelter requested changes</h2>
+            <p className="text-sm text-base-content/80">
+              {match.shelterDecisionNote ??
+                "No note was recorded — check with the shelter manager."}
+            </p>
+            {match.shelterDecisionAtLabel ? (
+              <p className="text-xs text-base-content/60">
+                Requested {match.shelterDecisionAtLabel}. The prior proposed terms
+                are below — adjust what&apos;s needed, then re-propose to both
+                parties or withdraw the match.
+              </p>
+            ) : null}
+          </div>
+          <MatchDraftForm match={match} revision />
+          <RevisePanel
+            matchId={match.id}
+            missingFields={proposalMissingFields({
+              proposedSupervisorId: match.supervisorId,
+              proposedSchedule: match.schedule,
+              proposedStartDate: match.startDateValue ? new Date(match.startDateValue) : null,
+              proposedEndDate: match.endDateValue ? new Date(match.endDateValue) : null,
+            })}
+          />
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {match.status !== "PROPOSED" ? (
