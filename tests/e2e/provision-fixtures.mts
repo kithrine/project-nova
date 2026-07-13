@@ -1018,6 +1018,14 @@ try {
   // service's draft/propose path is E2E'd on Quinn's journey). Reset to a
   // fresh pending proposal every run; schedule text is distinct from
   // Quinn's so shelter-dashboard assertions never collide.
+  // Parker's placement (Story 5.1 fixture below) references one of these
+  // matches with a RESTRICT FK — placements go first.
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_main" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_main" },
+  });
   await prisma.placementMatchEvent.deleteMany({
     where: { placementMatch: { participantId: "e2e_participant_main" } },
   });
@@ -1135,6 +1143,69 @@ try {
       placementMatchId: "e2e_match_changeready",
       fromStatus: "DRAFT",
       toStatus: "PROPOSED",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
+  // Placement-workspace fixture (Story 5.1): PARKER — the real participant
+  // login — carries an ONBOARDING placement so all three role-shaped
+  // workspace views are E2E-testable. Its source is a terminal APPROVED
+  // match separate from Parker's live PROPOSED one (one-non-terminal-match
+  // index only covers non-terminal statuses). Reset every run.
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_main" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_main" },
+  });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatchId: "e2e_match_placement_src" },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { id: "e2e_match_placement_src" },
+  });
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_placement_src",
+      participantId: "e2e_participant_main",
+      programEnrollmentId: "e2e_enrollment_participant",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "APPROVED",
+      proposedSupervisorId: "e2e_user_shelter",
+      proposedSchedule: "Tue/Thu afternoons",
+      approvedAt: new Date(),
+      approvedByUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placement.create({
+    data: {
+      id: "e2e_placement_participant",
+      placementNumber: "PLC-E2E-PARKER1",
+      participantId: "e2e_participant_main",
+      programEnrollmentId: "e2e_enrollment_participant",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      sourceMatchId: "e2e_match_placement_src",
+      status: "ONBOARDING",
+      supervisorId: "e2e_user_shelter",
+      schedule: "Tue/Thu afternoons",
+      startDate: new Date("2026-08-10T00:00:00Z"),
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_participant",
+      fromStatus: null,
+      toStatus: "DRAFT",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_participant",
+      fromStatus: "APPROVED",
+      toStatus: "ONBOARDING",
       actorUserId: "e2e_user_ops",
     },
   });

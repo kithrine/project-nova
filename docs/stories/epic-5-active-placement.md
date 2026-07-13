@@ -8,7 +8,7 @@ Operate an active transitional placement.
 
 | ID   | Story                                     | Status                              |
 | ---- | ----------------------------------------- | ----------------------------------- |
-| 5.1  | Placement workspace                       | Ready for Development               |
+| 5.1  | Placement workspace                       | Done                                |
 | 5.2  | Assign site, supervisor, and schedule     | Ready for Development               |
 | 5.3  | Assign funding                            | Ready for Development               |
 | 5.4  | Placement onboarding                      | Ready for Development               |
@@ -28,7 +28,22 @@ Operate an active transitional placement.
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: one service (placement-service.getPlacementWorkspace)
+> resolves the viewer and returns the role-shaped view — Nova nine tabs,
+> Shelter eight (Case Notes structurally absent), cross-org denied with
+> no data; the participant's My Placement is a separate ownership-scoped
+> view with plain-language stage copy (raw enum names never appear).
+> Tab selection is a ?tab= URL param — content renders and is permission-
+> shaped per request on the server — behind an ARIA tablist with roving
+> tabindex/arrow keys. buildPlacementTimeline bounds terminal timelines
+> by the last non-terminal event so a placement withdrawn during Shelter
+> Review never shows Active as reached. Entry points: the Operations
+> Placement records list, the shelter Placements nav (both nav items
+> flipped available), and the approved match's workspace link. Tabs
+> beyond Overview/Schedule/Funding summaries and History render honest
+> empty states until their owning stories land.
 
 ### User story
 

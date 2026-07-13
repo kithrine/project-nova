@@ -116,8 +116,15 @@ export default async function MatchWorkspacePage({
               </p>
               <p className="text-sm text-base-content/70">
                 The placement starts at Draft: the shelter reviews the specific
-                site, supervisor, and schedule package next. The placement
-                workspace arrives with Epic 5 (Story 5.1).
+                site, supervisor, and schedule package next.{" "}
+                {match.placementId ? (
+                  <Link
+                    href={`/operations/placements/records/${match.placementId}`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    Open the placement workspace
+                  </Link>
+                ) : null}
               </p>
             </div>
           ) : match.status !== "PROPOSED" ? (

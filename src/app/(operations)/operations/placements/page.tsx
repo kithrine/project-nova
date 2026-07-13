@@ -5,6 +5,7 @@ import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import Link from "next/link";
 
 import { getMatchingQueue, listMatchWorklist } from "@/server/services/matching-service";
+import { listPlacementRecords } from "@/server/services/placement-service";
 
 export const metadata = { title: "Placements — Matching Queue" };
 
@@ -20,9 +21,10 @@ export default async function PlacementsQueuePage() {
     return <PermissionDenied />;
   }
 
-  const [queue, worklist] = await Promise.all([
+  const [queue, worklist, records] = await Promise.all([
     getMatchingQueue(ctx),
     listMatchWorklist(ctx),
+    listPlacementRecords(ctx),
   ]);
   const siteOptions = queue.hosts.flatMap((host) =>
     host.sites.map((site) => ({
@@ -72,6 +74,40 @@ export default async function PlacementsQueuePage() {
                   className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
                 >
                   Open match: {row.participantName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+        <h2 className="text-lg font-semibold">Placement records</h2>
+        {records.length === 0 ? (
+          <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+            No placements yet. Approving a match creates its placement record
+            here.
+          </p>
+        ) : (
+          <ul aria-label="Placement records" className="flex max-w-3xl flex-col gap-2">
+            {records.map((record) => (
+              <li
+                key={record.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-4 py-3"
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-sm font-medium">{record.participantName}</p>
+                  <p className="text-xs text-base-content/60">
+                    {record.placementNumber} · {record.organizationName} —{" "}
+                    {record.siteName} ·{" "}
+                    <span className="font-medium">{record.statusLabel}</span>
+                  </p>
+                </div>
+                <Link
+                  href={`/operations/placements/records/${record.id}`}
+                  className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
+                >
+                  Open placement: {record.participantName}
                 </Link>
               </li>
             ))}
