@@ -13,7 +13,7 @@ Create safe, approved participant-to-shelter matches.
 | 4.4 | Propose match | Done |
 | 4.5 | Record participant decision | Done |
 | 4.6 | Record shelter decision | Done |
-| 4.7 | Request changes | Ready for Development |
+| 4.7 | Request changes | Done |
 | 4.8 | Approve match and create placement | Ready for Development |
 
 > Sequencing note: build the `PlacementMatch` schema in 4.3 first, or alongside 4.1 — the matching queue (4.1) needs it to exclude participants who already have a non-terminal match, while the compatibility panel (4.2) can be built against enrollment/training/shelter data independently of it. 4.5 and 4.6 are independent decision tracks that may be built in either order once 4.4 exists; both feed the single human approval gate in 4.8.
@@ -400,7 +400,23 @@ Story 4.4 (the match must be Proposed); Story 1.5; Story 1.7 (shelter layout); `
 ## Story 4.7 — Request changes
 
 ### Status
-Ready for Development
+Done
+
+> Built note: history preservation is archive-then-reset —
+> PlacementMatchEvent gained an ops-internal `detail` column, and the
+> cycle-boundary transitions (re-propose, withdraw-from-change-requested)
+> write describePriorCycle(...) — both decision values AND the shelter's
+> note — into the event before the row's per-cycle fields reset. The
+> 4.3 editing service and withdraw action were extended rather than
+> duplicated: DRAFT edits require manageDraft, CHANGE_REQUESTED edits
+> require the new placementMatch.revise, same form and snapshot
+> re-evaluation. Re-propose reuses the 4.4 completeness gate and stamps a
+> fresh decision window. The participant's card shows the plain revising
+> state (never the shelter's note); the revising-card E2E is component-
+> level since the change-request fixture participant has no signable
+> identity — the E2E cycle (request -> revise -> re-propose -> second
+> request -> withdraw -> queue reappearance) runs as one phase-guarded
+> test.
 
 ### User story
 As a Program Coordinator, I want to review a shelter's requested changes and either revise and re-propose the match or withdraw it, so that a Change Requested match doesn't stall the participant's progress.

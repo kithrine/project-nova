@@ -27,6 +27,7 @@ import {
   DECISION_WINDOW_DAYS,
   decisionBlockReason,
   decisionWindowEnd,
+  describePriorCycle,
   draftCreationBlockReason,
   matchStatusAfterParticipantDecision,
   matchStatusAfterShelterDecision,
@@ -621,24 +622,40 @@ export interface UpdateMatchDraftInput {
 }
 
 /**
- * Edit a Draft (AC3): details save, the match stays DRAFT, and the
- * compatibility snapshot re-evaluates against the edited details in the
- * same write (AC4 shows the most recent snapshot).
+ * Edit a Draft (4.3 AC3) or a Change Requested match (4.7 AC2): details
+ * save, the status does not move, and the compatibility snapshot
+ * re-evaluates against the edited details in the same write. DRAFT edits
+ * require placementMatch.manageDraft; CHANGE_REQUESTED edits require
+ * placementMatch.revise — both coordinator-tier, denied before any load.
  */
 export async function updateMatchDraft(
   ctx: AuthContext,
   matchId: string,
   input: UpdateMatchDraftInput,
 ): Promise<void> {
-  requireDraftAccess(ctx);
+  if (
+    !hasPermission(ctx, "placementMatch.manageDraft") &&
+    !hasPermission(ctx, "placementMatch.revise")
+  ) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
 
   const match = await prisma.placementMatch.findUnique({
     where: { id: matchId },
     select: { id: true, status: true, programEnrollmentId: true },
   });
   if (!match) throw new NotFoundError();
-  if (match.status !== MatchStatus.DRAFT) {
-    throw new LifecycleError("Only a draft match can be edited.");
+  if (match.status === MatchStatus.DRAFT) {
+    if (!hasPermission(ctx, "placementMatch.manageDraft")) {
+      throw new AuthorizationError();
+    }
+  } else if (match.status === MatchStatus.CHANGE_REQUESTED) {
+    if (!hasPermission(ctx, "placementMatch.revise")) {
+      throw new AuthorizationError();
+    }
+  } else {
+    throw new LifecycleError("Only a draft or change-requested match can be edited.");
   }
   if (input.startDate && input.endDate && input.endDate < input.startDate) {
     throw new ValidationError("The end date cannot be before the start date.");
@@ -670,7 +687,7 @@ export async function updateMatchDraft(
 
   await prisma.$transaction(async (tx) => {
     const updated = await tx.placementMatch.updateMany({
-      where: { id: matchId, status: MatchStatus.DRAFT },
+      where: { id: matchId, status: match.status },
       data: {
         organizationSiteId: site.id,
         hostOrganizationId: site.organization.id,
@@ -694,31 +711,64 @@ export async function updateMatchDraft(
         action: "placementMatch.update",
         subjectType: "PlacementMatch",
         subjectId: matchId,
-        detail: "draft-edited",
+        detail:
+          match.status === MatchStatus.CHANGE_REQUESTED
+            ? "revision-edited"
+            : "draft-edited",
       },
     });
   });
 }
 
-/** Withdraw a Draft the coordinator no longer wants to pursue (AC5). */
+/**
+ * Withdraw a match the coordinator no longer wants to pursue: a Draft
+ * (4.3 AC5, manageDraft) or a Change Requested match (4.7 AC3, revise).
+ * Withdrawing from Change Requested archives the outgoing cycle's
+ * decision values and shelter note into the lifecycle event's detail —
+ * prior decisions are never silently overwritten. The participant
+ * reappears in the matching queue automatically (no non-terminal match).
+ */
 export async function withdrawMatchDraft(
   ctx: AuthContext,
   matchId: string,
 ): Promise<void> {
-  requireDraftAccess(ctx);
+  if (
+    !hasPermission(ctx, "placementMatch.manageDraft") &&
+    !hasPermission(ctx, "placementMatch.revise")
+  ) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
 
   const match = await prisma.placementMatch.findUnique({
     where: { id: matchId },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      participantDecision: true,
+      shelterDecision: true,
+      shelterDecisionNote: true,
+    },
   });
   if (!match) throw new NotFoundError();
-  if (match.status !== MatchStatus.DRAFT) {
-    throw new LifecycleError("Only a draft match can be withdrawn here.");
+  if (match.status === MatchStatus.DRAFT) {
+    if (!hasPermission(ctx, "placementMatch.manageDraft")) {
+      throw new AuthorizationError();
+    }
+  } else if (match.status === MatchStatus.CHANGE_REQUESTED) {
+    if (!hasPermission(ctx, "placementMatch.revise")) {
+      throw new AuthorizationError();
+    }
+  } else {
+    throw new LifecycleError(
+      "Only a draft or change-requested match can be withdrawn here.",
+    );
   }
 
+  const fromChangeRequested = match.status === MatchStatus.CHANGE_REQUESTED;
   await prisma.$transaction(async (tx) => {
     const updated = await tx.placementMatch.updateMany({
-      where: { id: matchId, status: MatchStatus.DRAFT },
+      where: { id: matchId, status: match.status },
       data: { status: MatchStatus.WITHDRAWN },
     });
     if (updated.count === 0) {
@@ -729,9 +779,17 @@ export async function withdrawMatchDraft(
     await tx.placementMatchEvent.create({
       data: {
         placementMatchId: matchId,
-        fromStatus: MatchStatus.DRAFT,
+        fromStatus: match.status,
         toStatus: MatchStatus.WITHDRAWN,
         actorUserId: ctx.userId,
+        detail: fromChangeRequested
+          ? describePriorCycle({
+              participantDecisionLabel:
+                PARTICIPANT_DECISION_LABELS[match.participantDecision],
+              shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
+              shelterDecisionNote: match.shelterDecisionNote,
+            })
+          : null,
       },
     });
     await tx.auditEvent.create({
@@ -740,6 +798,99 @@ export async function withdrawMatchDraft(
         action: "placementMatch.withdraw",
         subjectType: "PlacementMatch",
         subjectId: matchId,
+        detail: fromChangeRequested ? "withdrawn after change request" : null,
+      },
+    });
+  });
+}
+
+/**
+ * Revise-and-repropose (Story 4.7 AC2): a Change Requested match returns
+ * to Proposed with BOTH decision tracks reset to Pending — the terms
+ * changed, so prior consent cannot carry over. The outgoing cycle's
+ * decisions and shelter note are archived in the lifecycle event's detail
+ * before the row's per-cycle fields reset, and a fresh decision window is
+ * stamped. Requires the same core-field completeness as 4.4.
+ */
+export async function reproposeMatch(ctx: AuthContext, matchId: string): Promise<void> {
+  if (!hasPermission(ctx, "placementMatch.revise")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const match = await prisma.placementMatch.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      status: true,
+      proposedSupervisorId: true,
+      proposedSchedule: true,
+      proposedStartDate: true,
+      proposedEndDate: true,
+      participantDecision: true,
+      shelterDecision: true,
+      shelterDecisionNote: true,
+    },
+  });
+  if (!match) throw new NotFoundError();
+  if (match.status !== MatchStatus.CHANGE_REQUESTED) {
+    throw new LifecycleError("Only a change-requested match can be re-proposed.");
+  }
+
+  const missing = proposalMissingFields(match);
+  if (missing.length > 0) {
+    throw new ValidationError(
+      `Complete these before proposing: ${missing.join("; ")}.`,
+    );
+  }
+
+  const proposedAt = new Date();
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placementMatch.updateMany({
+      where: { id: matchId, status: MatchStatus.CHANGE_REQUESTED },
+      data: {
+        status: MatchStatus.PROPOSED,
+        participantDecision: ParticipantMatchDecision.PENDING,
+        shelterDecision: ShelterMatchDecision.PENDING,
+        // Archive-then-reset: the outgoing cycle survives in the event
+        // detail below; the row carries only the current cycle.
+        participantDecisionAt: null,
+        participantDecisionNote: null,
+        participantDecisionRecordedByUserId: null,
+        shelterDecisionAt: null,
+        shelterDecisionNote: null,
+        shelterDecisionRecordedByUserId: null,
+        proposedAt,
+        decisionWindowEndsAt: decisionWindowEnd(proposedAt),
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This match changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementMatchEvent.create({
+      data: {
+        placementMatchId: matchId,
+        fromStatus: MatchStatus.CHANGE_REQUESTED,
+        toStatus: MatchStatus.PROPOSED,
+        actorUserId: ctx.userId,
+        detail: describePriorCycle({
+          participantDecisionLabel:
+            PARTICIPANT_DECISION_LABELS[match.participantDecision],
+          shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
+          shelterDecisionNote: match.shelterDecisionNote,
+        }),
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placementMatch.repropose",
+        subjectType: "PlacementMatch",
+        subjectId: matchId,
+        // The note itself stays out of audit detail, as everywhere.
+        detail: "re-proposed after change request",
       },
     });
   });
@@ -920,6 +1071,12 @@ export interface ProposedMatchParticipantView {
    * the match itself off PROPOSED.
    */
   participantDecision: "PENDING" | "ACCEPTED";
+  /**
+   * True while the coordinator is working a shelter change request
+   * (Story 4.7 AC4): the card shows plain "being revised" language — the
+   * shelter's internal note is never exposed — and no decision controls.
+   */
+  revising: boolean;
 }
 
 /**
@@ -942,10 +1099,13 @@ export async function getOwnProposedMatch(
   const match = await prisma.placementMatch.findFirst({
     where: {
       participantId: person.participant.id,
-      status: MatchStatus.PROPOSED,
+      // A Change Requested match is still the participant's live match —
+      // it renders as "being revised" rather than vanishing (4.7 AC4).
+      status: { in: [MatchStatus.PROPOSED, MatchStatus.CHANGE_REQUESTED] },
     },
     select: {
       id: true,
+      status: true,
       participantDecision: true,
       proposedSchedule: true,
       proposedStartDate: true,
@@ -979,6 +1139,7 @@ export async function getOwnProposedMatch(
       match.participantDecision === ParticipantMatchDecision.ACCEPTED
         ? "ACCEPTED"
         : "PENDING",
+    revising: match.status === MatchStatus.CHANGE_REQUESTED,
   };
 }
 

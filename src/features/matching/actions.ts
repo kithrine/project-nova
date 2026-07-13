@@ -10,6 +10,7 @@ import {
   proposeMatch,
   recordParticipantDecision,
   recordShelterDecision,
+  reproposeMatch,
   updateMatchDraft,
   withdrawMatchDraft,
   type ParticipantDecisionChoice,
@@ -110,8 +111,41 @@ export async function withdrawMatchDraftAction(
     throw error;
   }
 
+  // A withdrawn Change Requested match also leaves the participant's
+  // dashboard (4.7 AC3); the queue shows them awaiting again.
   revalidatePath("/operations/placements");
+  revalidatePath("/participant");
+  revalidatePath("/shelter");
   redirect("/operations/placements");
+}
+
+/**
+ * Change Requested -> Proposed (Story 4.7): re-propose the revised terms.
+ * Both decision tracks reset server-side; both dashboards re-render.
+ */
+export async function reproposeMatchAction(
+  matchId: string,
+  _prev: MatchFormState,
+  _formData: FormData,
+): Promise<MatchFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await reproposeMatch(ctx, matchId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath(`/operations/placements/matches/${matchId}`);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/placements/matches/${matchId}`);
+  revalidatePath("/operations/placements");
+  revalidatePath("/participant");
+  revalidatePath("/shelter");
+  return { status: "saved" };
 }
 
 /**

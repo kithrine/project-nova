@@ -89,6 +89,10 @@ export const PERMISSIONS = [
   // "the partner representative approving placements" (TERMINOLOGY.md).
   // Supervisors view; they never decide.
   "placementMatch.recordShelterDecision",
+  // Resolving a Change Requested match (Story 4.7): edit the terms and
+  // re-propose (both decision tracks reset), or withdraw. Coordinator-only
+  // in MVP — never participant- or shelter-initiated.
+  "placementMatch.revise",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -127,6 +131,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.manageDraft",
     "placementMatch.propose",
     "placementMatch.recordParticipantDecision",
+    "placementMatch.revise",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -152,6 +157,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.manageDraft",
     "placementMatch.propose",
     "placementMatch.recordParticipantDecision",
+    "placementMatch.revise",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

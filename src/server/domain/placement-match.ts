@@ -159,6 +159,23 @@ export function shelterDecisionRequiresNote(decision: ShelterMatchDecision): boo
 }
 
 /**
+ * The cycle-boundary archive line (Story 4.7): when a revision or
+ * withdrawal closes a proposal cycle, the outgoing decision values and
+ * the shelter's note are written into the lifecycle event's detail before
+ * the row's per-cycle fields reset — never silently overwritten.
+ */
+export function describePriorCycle(cycle: {
+  participantDecisionLabel: string;
+  shelterDecisionLabel: string;
+  shelterDecisionNote: string | null;
+}): string {
+  const note = cycle.shelterDecisionNote
+    ? `; shelter note: "${cycle.shelterDecisionNote}"`
+    : "";
+  return `Prior cycle — participant: ${cycle.participantDecisionLabel}; shelter: ${cycle.shelterDecisionLabel}${note}`;
+}
+
+/**
  * Why a draft cannot be created for this pairing, or null when it can
  * (Story 4.3 AC2 — the reason is named in plain language, referencing the
  * one-placement-at-a-time rule). Placement conflicts activate when the

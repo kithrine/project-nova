@@ -18,6 +18,7 @@ const pendingMatch = {
   endDateLabel: "December 4, 2026",
   respondByLabel: "July 27, 2026",
   participantDecision: "PENDING" as const,
+  revising: false,
 };
 
 describe("ParticipantProposedCard (Stories 4.4/4.5)", () => {
@@ -99,6 +100,22 @@ describe("ParticipantProposedCard (Stories 4.4/4.5)", () => {
     );
     expect(screen.getByText(/nothing more is needed from you right now/i)).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows plain revising language with no controls and no shelter wording (4.7 AC4)", () => {
+    const { container } = render(
+      <ParticipantProposedCard match={{ ...pendingMatch, revising: true }} />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "We're adjusting a detail on your proposed placement",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is needed from you right now/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // The shelter's internal operational note never surfaces here.
+    expect(container.textContent).not.toMatch(/note|change request/i);
   });
 
   it("carries no coordinator or restricted content in either state", () => {

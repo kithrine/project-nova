@@ -20,9 +20,12 @@ import type { MatchWorkspaceView } from "@/server/services/matching-service";
 
 export function MatchDraftForm({
   match,
+  revision = false,
   initialState = { status: "idle" },
 }: {
   match: MatchWorkspaceView;
+  /** Change Requested editing (Story 4.7) — same fields, revision labels. */
+  revision?: boolean;
   initialState?: MatchFormState;
 }) {
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
@@ -160,17 +163,17 @@ export function MatchDraftForm({
         ) : null}
         {saveState.status === "saved" ? (
           <p role="status" className="rounded-md border border-success/40 bg-success/5 px-3 py-2 text-sm">
-            Draft saved — the compatibility read below reflects these details.
+            {revision ? "Revision saved" : "Draft saved"} — the compatibility read below reflects these details.
           </p>
         ) : null}
 
         <Button type="submit" disabled={savePending} className="w-fit">
-          {savePending ? "Saving…" : "Save Draft Details"}
+          {savePending ? "Saving…" : revision ? "Save Revised Details" : "Save Draft Details"}
         </Button>
       </form>
 
       <form action={withdrawFormAction} className="flex flex-col gap-2 border-t border-base-300 pt-4">
-        <h2 className="text-sm font-semibold">Withdraw this draft</h2>
+        <h2 className="text-sm font-semibold">{revision ? "Withdraw this match" : "Withdraw this draft"}</h2>
         <label className="flex items-start gap-2 text-sm">
           <input
             type="checkbox"
@@ -190,7 +193,7 @@ export function MatchDraftForm({
           disabled={!confirmWithdraw || withdrawPending}
           className="w-fit"
         >
-          {withdrawPending ? "Withdrawing…" : "Withdraw Draft"}
+          {withdrawPending ? "Withdrawing…" : revision ? "Withdraw Match" : "Withdraw Draft"}
         </Button>
       </form>
     </div>
