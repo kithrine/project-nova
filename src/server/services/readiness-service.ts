@@ -23,7 +23,13 @@ import {
  * recompute-on-demand). The same evaluation becomes 3.7's transition gate.
  */
 
-async function loadReadinessInputs(
+/**
+ * Load the live rows computeMatchingReadiness evaluates. Exported for the
+ * placement-activation aggregation (Story 5.5): three of the activation
+ * prerequisites are exactly the 3.6 readiness sources, so both features
+ * read them through this one loader.
+ */
+export async function loadReadinessInputs(
   db: Prisma.TransactionClient,
   enrollment: {
     id: string;

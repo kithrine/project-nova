@@ -1,18 +1,84 @@
+import Link from "next/link";
+
+import { getAuthContext } from "@/server/auth/context";
+import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
+import { listUrgentBlockers } from "@/server/services/placement-service";
+
 export const metadata = { title: "Operations Dashboard" };
 
 /**
- * Operations dashboard placeholder (Story 1.7). Today's Work queues,
- * urgent blockers, and upcoming deadlines arrive with Epic 2 onward
- * (docs/ux/wireframes-layouts.md).
+ * Operations dashboard (docs/ux/wireframes-layouts.md). Story 5.5 adds
+ * the Urgent blockers surface: placements at the activation gate —
+ * Onboarding with open prerequisites — each linking to its workspace,
+ * where the full Blocker List carries the resolving actions. Today's
+ * Work queues and upcoming deadlines arrive with later stories.
  */
-export default function OperationsDashboardPage() {
+export default async function OperationsDashboardPage() {
+  const ctx = await getAuthContext();
+  const canViewPlacements =
+    ctx !== null && hasPermission(ctx, "placement.view") && hasNovaScope(ctx);
+  const urgent = canViewPlacements && ctx ? await listUrgentBlockers(ctx) : [];
+
   return (
-    <section className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Operations workspace</h1>
-      <p className="max-w-prose text-base leading-relaxed text-base-content/80">
-        Today&apos;s Work, urgent blockers, and application queues will appear here as the
-        case-management workflows are built.
-      </p>
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Operations workspace</h1>
+        <p className="max-w-prose text-base leading-relaxed text-base-content/80">
+          Today&apos;s Work and application queues will appear here as the
+          case-management workflows are built.
+        </p>
+      </div>
+
+      {canViewPlacements ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5 shrink-0 text-warning"
+            >
+              <path d="M12 3 2.5 19.5h19L12 3Z" />
+              <path d="M12 10v4" />
+              <path d="M12 17.5v.5" />
+            </svg>
+            Urgent blockers
+          </h2>
+          {urgent.length === 0 ? (
+            <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+              No placements are blocked at the activation gate. Placements in
+              onboarding with unmet prerequisites appear here.
+            </p>
+          ) : (
+            <ul aria-label="Urgent blockers" className="flex max-w-3xl flex-col gap-2">
+              {urgent.map((row) => (
+                <li
+                  key={row.placementId}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/5 px-4 py-3"
+                >
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <p className="text-sm font-medium">{row.participantName}</p>
+                    <p className="text-xs text-base-content/60">
+                      {row.placementNumber} · {row.siteName} · Open:{" "}
+                      {row.openTitles.join("; ")}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/operations/placements/records/${row.placementId}`}
+                    className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
+                  >
+                    Open placement: {row.participantName}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

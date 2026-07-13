@@ -18,6 +18,17 @@ import { signIn } from "./sign-in";
 
 test("a coordinator gets the full nine-tab workspace (AC1)", async ({ page }) => {
   await signIn(page, E2E_OPS_USER_EMAIL);
+
+  // Story 5.5: the Operations dashboard's Urgent blockers surface flags
+  // placements at the activation gate — Parker's onboarding placement
+  // always has open prerequisites in the fixture set.
+  await page.goto("/operations");
+  const urgent = page.getByRole("list", { name: "Urgent blockers" });
+  await expect(urgent).toBeVisible({ timeout: 20_000 });
+  await expect(
+    urgent.locator("li", { hasText: "Parker Synthetic-Participant" }),
+  ).toBeVisible();
+
   await page.goto("/operations/placements");
 
   await page

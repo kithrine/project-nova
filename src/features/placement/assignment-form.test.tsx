@@ -46,6 +46,7 @@ const baseView: PlacementWorkspaceView = {
     viewerCanCompleteAllTasks: false,
     viewerCanCompleteShelterTasks: false,
   },
+  activation: null,
 };
 
 describe("AssignmentForm (Story 5.2)", () => {
