@@ -949,6 +949,9 @@ try {
     update: {},
     create: { id: "e2e_participant_matchready", personId: "e2e_person_matchready" },
   });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_matchready" } },
+  });
   await prisma.placementMatch.deleteMany({
     where: { participantId: "e2e_participant_matchready" },
   });

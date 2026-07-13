@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { CompatibilityPanel } from "@/features/matching/compatibility-panel";
+import { CreateDraftButton } from "@/features/matching/create-draft-button";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
+import { prisma } from "@/server/database/prisma";
+import { draftCreationBlockReason } from "@/server/domain/placement-match";
+import { NON_TERMINAL_MATCH_STATUSES } from "@/server/domain/matching-queue";
 import { NotFoundError } from "@/server/errors/app-error";
 import { evaluatePairingCompatibility } from "@/server/services/matching-service";
 
@@ -62,6 +66,43 @@ export default async function ReviewPairingPage({
       </div>
 
       <CompatibilityPanel result={evaluation.result} />
+
+      {await (async () => {
+        const enrollment = await prisma.programEnrollment.findUnique({
+          where: { id: enrollmentId },
+          select: { status: true, participantId: true },
+        });
+        if (!enrollment) return null;
+        const existing = await prisma.placementMatch.count({
+          where: {
+            participantId: enrollment.participantId,
+            status: { in: [...NON_TERMINAL_MATCH_STATUSES] },
+          },
+        });
+        const blocked = draftCreationBlockReason({
+          enrollmentStatus: enrollment.status,
+          hasNonTerminalMatch: existing > 0,
+          hasBlockingPlacement: false,
+        });
+        if (blocked) {
+          // The Blocked screen state (wireframe-spec): named in plain language.
+          return (
+            <div className="max-w-prose rounded-md border border-warning/40 bg-warning/10 px-4 py-3">
+              <p className="text-sm font-medium">A draft can&apos;t be created</p>
+              <p className="mt-1 text-sm text-base-content/80">{blocked}</p>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col gap-2 border-t border-base-300 pt-4">
+            <p className="max-w-prose text-sm text-base-content/70">
+              Ready to assemble this pairing? A draft stays coordinator-internal
+              until you propose it (4.4).
+            </p>
+            <CreateDraftButton enrollmentId={enrollmentId} siteId={siteId} />
+          </div>
+        );
+      })()}
     </section>
   );
 }

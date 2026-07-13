@@ -9,7 +9,7 @@ Create safe, approved participant-to-shelter matches.
 |---|---|---|
 | 4.1 | Matching queue | Done |
 | 4.2 | Compatibility panel | Done |
-| 4.3 | Create match draft | Ready for Development |
+| 4.3 | Create match draft | Done |
 | 4.4 | Propose match | Ready for Development |
 | 4.5 | Record participant decision | Ready for Development |
 | 4.6 | Record shelter decision | Ready for Development |
@@ -146,7 +146,14 @@ Story 4.1 (entry point); Epic 3 (training, certification, and onboarding data); 
 ## Story 4.3 — Create match draft
 
 ### Status
-Ready for Development
+Done
+
+> Built note: the PlacementMatch model and one-non-terminal-match index
+> shipped with 4.1 (sequencing note); this story added
+> PlacementMatchEvent, the draft service (create/edit/withdraw with the
+> snapshot re-evaluated on every save), the match workspace, and the
+> Blocked state on the review route. The full match transition table
+> (4.3-4.8) lives in src/server/domain/placement-match.ts.
 
 ### User story
 As a Program Coordinator, I want to create a Draft placement match with the proposed participant, host, and arrangement details, so that I can assemble a candidate placement before presenting it to anyone else.

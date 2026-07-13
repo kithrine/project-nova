@@ -72,6 +72,43 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
     page.getByText(/Not yet proposed — set on the match draft/).first(),
   ).toBeVisible();
   await expect(page.getByText(/the coordinator makes the decision/i)).toBeVisible();
+
+  // Story 4.3: assemble a draft from the reviewed pairing.
+  await page.getByRole("button", { name: "Create Match Draft" }).click();
+  await expect(
+    page.getByText(/Status: .*Draft.*Coordinator-internal/),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // Edit the arrangement — the snapshot re-evaluates on save.
+  await page.getByLabel("Candidate schedule").fill("Mon/Wed mornings");
+  await page.getByLabel("Candidate start date").fill("2026-08-03");
+  await page.getByLabel("Candidate end date").fill("2026-12-04");
+  await page.getByRole("button", { name: "Save Draft Details" }).click();
+  await expect(page.getByText(/Draft saved — the compatibility read/)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText("Proposed: Mon/Wed mornings")).toBeVisible();
+
+  // The queue now shows this participant as in progress, with the match in
+  // the worklist — and a repeat pairing review is Blocked with the reason.
+  await page.goto("/operations/placements");
+  await expect(
+    page.getByLabel("Participants awaiting match").getByText("Match in progress"),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }),
+  ).toBeVisible();
+
+  // Withdraw to finish the journey (leaves the fixture clean for reruns).
+  await page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }).click();
+  await page.getByRole("checkbox", { name: /withdrawing is final/i }).check();
+  await page.getByRole("button", { name: "Withdraw Draft" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Matching queue" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByLabel("Participants awaiting match").getByText("Awaiting match"),
+  ).toBeVisible();
 });
 
 test("a shelter manager is denied the queue (AC6)", async ({ page }) => {

@@ -2,7 +2,9 @@ import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { QueueCandidates, QueueHosts } from "@/features/matching/queue-lists";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
-import { getMatchingQueue } from "@/server/services/matching-service";
+import Link from "next/link";
+
+import { getMatchingQueue, listMatchWorklist } from "@/server/services/matching-service";
 
 export const metadata = { title: "Placements — Matching Queue" };
 
@@ -18,7 +20,10 @@ export default async function PlacementsQueuePage() {
     return <PermissionDenied />;
   }
 
-  const queue = await getMatchingQueue(ctx);
+  const [queue, worklist] = await Promise.all([
+    getMatchingQueue(ctx),
+    listMatchWorklist(ctx),
+  ]);
   const siteOptions = queue.hosts.flatMap((host) =>
     host.sites.map((site) => ({
       id: site.id,
@@ -39,6 +44,39 @@ export default async function PlacementsQueuePage() {
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Awaiting match</h2>
         <QueueCandidates candidates={queue.candidates} siteOptions={siteOptions} />
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+        <h2 className="text-lg font-semibold">Matches in progress</h2>
+        {worklist.length === 0 ? (
+          <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+            No matches in progress. Drafts you create from a pairing review appear
+            here.
+          </p>
+        ) : (
+          <ul aria-label="Matches in progress" className="flex max-w-3xl flex-col gap-2">
+            {worklist.map((row) => (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-4 py-3"
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-sm font-medium">{row.participantName}</p>
+                  <p className="text-xs text-base-content/60">
+                    {row.organizationName} — {row.siteName} ·{" "}
+                    <span className="font-medium">{row.statusLabel}</span>
+                  </p>
+                </div>
+                <Link
+                  href={`/operations/placements/matches/${row.id}`}
+                  className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
+                >
+                  Open match: {row.participantName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 border-t border-base-300 pt-6">

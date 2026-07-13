@@ -422,12 +422,31 @@ model PlacementMatch {
   compatibilitySnapshot String?
   coordinatorNotes      String?
 
+  events PlacementMatchEvent[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([participantId])
   @@index([hostOrganizationId])
   @@index([organizationSiteId])
+}
+
+// Append-only lifecycle event for one PlacementMatch transition (Story 4.3),
+// written transactionally with the change — same pattern as every other
+// workflow record. fromStatus is null for the creation event.
+model PlacementMatchEvent {
+  id               String         @id @default(cuid())
+  placementMatchId String
+  placementMatch   PlacementMatch @relation(fields: [placementMatchId], references: [id])
+
+  fromStatus  MatchStatus?
+  toStatus    MatchStatus
+  actorUserId String
+
+  createdAt DateTime @default(now())
+
+  @@index([placementMatchId])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------
