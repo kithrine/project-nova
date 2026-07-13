@@ -101,9 +101,19 @@ export default async function MatchWorkspacePage({
             ) : null}
             <p className="text-sm text-base-content/80">
               Shelter decision:{" "}
-              <span className="font-medium">{match.shelterDecisionLabel}</span> —
-              recorded from the shelter dashboard (4.6).
+              <span className="font-medium">{match.shelterDecisionLabel}</span>
+              {match.shelterDecisionAtLabel ? ` · ${match.shelterDecisionAtLabel}` : ""}
+              {match.shelterDecision === "PENDING"
+                ? " — recorded from the shelter dashboard"
+                : ""}
             </p>
+            {match.shelterDecisionNote ? (
+              // The shelter's actionable, operational note (4.6 AC2) — the
+              // input the coordinator works from in 4.7.
+              <p className="text-sm text-base-content/70">
+                Shelter note: {match.shelterDecisionNote}
+              </p>
+            ) : null}
           </div>
           {match.status === "PROPOSED" && match.participantDecision === "PENDING" ? (
             <AssistedDecisionPanel matchId={match.id} />

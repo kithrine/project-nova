@@ -4,6 +4,7 @@ import {
   EnrollmentStatus,
   MatchStatus,
   ParticipantMatchDecision,
+  ShelterMatchDecision,
 } from "@/generated/prisma/client";
 import {
   ALLOWED_MATCH_TRANSITIONS,
@@ -13,7 +14,9 @@ import {
   draftCreationBlockReason,
   isExpiredProposal,
   matchStatusAfterParticipantDecision,
+  matchStatusAfterShelterDecision,
   proposalMissingFields,
+  shelterDecisionRequiresNote,
 } from "./placement-match";
 
 describe("match transitions (Stories 4.3-4.8 lifecycle)", () => {
@@ -135,6 +138,26 @@ describe("decision recording rules (Story 4.5)", () => {
     expect(
       matchStatusAfterParticipantDecision(ParticipantMatchDecision.ACCEPTED),
     ).toBe(MatchStatus.PROPOSED);
+  });
+});
+
+describe("shelter decision rules (Story 4.6)", () => {
+  it("maps each decision to its forced match status (AC1-AC3)", () => {
+    expect(matchStatusAfterShelterDecision(ShelterMatchDecision.APPROVED)).toBe(
+      MatchStatus.PROPOSED,
+    );
+    expect(
+      matchStatusAfterShelterDecision(ShelterMatchDecision.CHANGE_REQUESTED),
+    ).toBe(MatchStatus.CHANGE_REQUESTED);
+    expect(matchStatusAfterShelterDecision(ShelterMatchDecision.DECLINED)).toBe(
+      MatchStatus.DECLINED,
+    );
+  });
+
+  it("requires a note exactly when the coordinator needs something actionable", () => {
+    expect(shelterDecisionRequiresNote(ShelterMatchDecision.APPROVED)).toBe(false);
+    expect(shelterDecisionRequiresNote(ShelterMatchDecision.CHANGE_REQUESTED)).toBe(true);
+    expect(shelterDecisionRequiresNote(ShelterMatchDecision.DECLINED)).toBe(true);
   });
 });
 

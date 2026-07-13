@@ -3,7 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   E2E_OPS_USER_EMAIL,
+  E2E_OTHER_MANAGER_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
+  E2E_SHELTER_MANAGER_USER_EMAIL,
   E2E_USER_EMAIL,
 } from "./test-user";
 
@@ -24,6 +26,11 @@ async function signIn(page: Page, email: string) {
 }
 
 test("a coordinator works the queue and opens a candidate pairing", async ({ page }) => {
+  // One linear journey that grows with each story (4.1 -> 4.6): queue ->
+  // review -> draft -> propose -> assisted decline -> re-propose -> shelter
+  // approval. Five sign-ins plus cold route compiles under parallel local
+  // load — give it real headroom past the 30s default.
+  test.setTimeout(300_000);
   await signIn(page, E2E_OPS_USER_EMAIL);
   await page.goto("/operations/placements");
 
@@ -37,9 +44,13 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   const leftover = page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" });
   if (await leftover.isVisible().catch(() => false)) {
     await leftover.click();
-    const withdrawConfirm = page.getByLabel(/I no longer want to pursue this match/);
-    if (await withdrawConfirm.isVisible().catch(() => false)) {
-      await withdrawConfirm.check();
+    // Branch on the server-rendered status line AFTER the workspace
+    // settles — a no-wait isVisible() probe here once mis-branched during
+    // hydration and hung on a control that never renders for a Draft.
+    const statusLine = page.getByText(/Status: .*(Draft|Proposed)/);
+    await expect(statusLine).toBeVisible({ timeout: 20_000 });
+    if (await page.getByText(/Status: .*Draft/).isVisible().catch(() => false)) {
+      await page.getByLabel(/I no longer want to pursue this match/).check();
       await page.getByRole("button", { name: "Withdraw Draft" }).click();
     } else {
       await page.getByLabel("The participant declines this placement").check();
@@ -62,11 +73,19 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
       .getByText("Quinn Synthetic-Match", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByLabel("Participants awaiting match").getByText("Awaiting match"),
+    page
+      .getByLabel("Participants awaiting match")
+      .locator("li", { hasText: "Quinn Synthetic-Match" })
+      .getByText("Awaiting match"),
   ).toBeVisible();
   await expect(page.getByText(/Availability: Weekday mornings/)).toBeVisible();
+  // Scoped to Quinn's row — the Riley fixture (4.6) shares this fixture
+  // program, so the same blocker label renders on their row too.
   await expect(
-    page.getByText(/Re-emerged blockers: Core Readiness Training \(Synthetic\)/),
+    page
+      .getByLabel("Participants awaiting match")
+      .locator("li", { hasText: "Quinn Synthetic-Match" })
+      .getByText(/Re-emerged blockers: Core Readiness Training \(Synthetic\)/),
   ).toBeVisible();
 
   // Shelter capacity is listed alongside.
@@ -119,7 +138,10 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   // the worklist — and a repeat pairing review is Blocked with the reason.
   await page.goto("/operations/placements");
   await expect(
-    page.getByLabel("Participants awaiting match").getByText("Match in progress"),
+    page
+      .getByLabel("Participants awaiting match")
+      .locator("li", { hasText: "Quinn Synthetic-Match" })
+      .getByText("Match in progress"),
   ).toBeVisible({ timeout: 20_000 });
   await expect(
     page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }),
@@ -205,6 +227,83 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   await page.getByRole("button", { name: "Propose Match" }).click();
   await expect(page.getByText(/Status: .*Proposed/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Participant decision: .*Pending/)).toBeVisible();
+
+  // Story 4.6 (AC1): the Shelter MANAGER approves the fresh proposal from
+  // the Placement approvals list. Approval keeps the match Proposed — it
+  // satisfies one of the two prerequisites for the 4.8 gate.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
+  await page.goto("/shelter");
+  const quinnRow = page.locator("li", { hasText: "Quinn Synthetic-Match" });
+  await expect(quinnRow).toBeVisible({ timeout: 20_000 });
+  await quinnRow.getByRole("button", { name: "Approve Placement" }).click();
+  await expect(quinnRow.getByText("Approve this placement?")).toBeVisible();
+  await quinnRow.getByRole("button", { name: "Yes, Approve" }).click();
+  await expect(quinnRow.getByText(/Your decision: Approved/)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // The coordinator's workspace reflects the recorded shelter track.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements");
+  await page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }).click();
+  await expect(page.getByText(/Shelter decision: .*Approved/)).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
+test("a shelter manager requests changes with an actionable note (Story 4.6, AC2)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
+  await page.goto("/shelter");
+
+  const rileyRow = page.locator("li", { hasText: "Riley Synthetic-Change" });
+  // Retry safety: a prior attempt already routed this match to the
+  // coordinator — its absence from the approvals list IS the outcome.
+  if (await rileyRow.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await rileyRow.getByRole("button", { name: "Request Changes" }).click();
+    await expect(
+      rileyRow.getByText("Request changes to this placement?"),
+    ).toBeVisible();
+    await rileyRow
+      .getByLabel("Note for the coordinator (required)")
+      .fill("Friday intake is full — weekend mornings work better for us");
+    await rileyRow.getByRole("button", { name: "Yes, Request Changes" }).click();
+  }
+  await expect(rileyRow).not.toBeVisible({ timeout: 20_000 });
+});
+
+test("a shelter supervisor can view proposals but not decide (Story 4.6, AC4)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter");
+
+  // Parker's fixture proposal is stable all run; the read-only state is
+  // visible and NO decision action renders anywhere for a supervisor.
+  const parkerRow = page.locator("li", { hasText: "Parker Synthetic-Participant" });
+  await expect(parkerRow).toBeVisible({ timeout: 20_000 });
+  await expect(
+    parkerRow.getByText(/Read-only — your Shelter Manager records the decision/),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve Placement" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Decline Placement" })).toHaveCount(0);
+});
+
+test("a different shelter's manager sees none of it (Story 4.6, AC5)", async ({
+  page,
+}) => {
+  await signIn(page, E2E_OTHER_MANAGER_USER_EMAIL);
+  await page.goto("/shelter");
+
+  await expect(
+    page.getByText(/No proposed placements are waiting on your review right now/),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Quinn Synthetic-Match")).toHaveCount(0);
+  await expect(page.getByText("Parker Synthetic-Participant")).toHaveCount(0);
+  await expect(page.getByText("Riley Synthetic-Change")).toHaveCount(0);
 });
 
 test("a participant accepts their proposed placement on their dashboard (Story 4.5, AC1)", async ({

@@ -9,9 +9,11 @@ import {
   createMatchDraft,
   proposeMatch,
   recordParticipantDecision,
+  recordShelterDecision,
   updateMatchDraft,
   withdrawMatchDraft,
   type ParticipantDecisionChoice,
+  type ShelterDecisionChoice,
 } from "@/server/services/matching-service";
 
 /**
@@ -141,6 +143,39 @@ export async function recordParticipantDecisionAction(
 
   revalidatePath("/participant");
   revalidatePath("/shelter");
+  revalidatePath(`/operations/placements/matches/${matchId}`);
+  revalidatePath("/operations/placements");
+  return { status: "saved" };
+}
+
+/**
+ * Record the shelter's decision (Story 4.6) from the Placement approvals
+ * card. The service enforces manager-only, org scope, the Proposed-only
+ * gate, and the required note for Change Requested and Declined.
+ */
+export async function recordShelterDecisionAction(
+  matchId: string,
+  decision: ShelterDecisionChoice,
+  _prev: MatchFormState,
+  formData: FormData,
+): Promise<MatchFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordShelterDecision(ctx, matchId, {
+      decision,
+      note: textOrNull(formData.get("note")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath("/shelter");
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/shelter");
+  revalidatePath("/participant");
   revalidatePath(`/operations/placements/matches/${matchId}`);
   revalidatePath("/operations/placements");
   return { status: "saved" };

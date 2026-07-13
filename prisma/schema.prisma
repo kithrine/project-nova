@@ -438,6 +438,15 @@ model PlacementMatch {
   participantDecisionNote             String?
   participantDecisionRecordedByUserId String?
 
+  // Shelter decision track (Story 4.6). Recorded only by a Shelter
+  // Manager of the host organization; the note is REQUIRED for Change
+  // Requested and Declined so the coordinator has something actionable.
+  // Operational content only — shelters never receive or request
+  // participant background information, so the note never carries it.
+  shelterDecisionAt               DateTime?
+  shelterDecisionNote             String?
+  shelterDecisionRecordedByUserId String?
+
   events PlacementMatchEvent[]
 
   createdAt DateTime @default(now())

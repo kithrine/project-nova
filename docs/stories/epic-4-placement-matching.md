@@ -12,7 +12,7 @@ Create safe, approved participant-to-shelter matches.
 | 4.3 | Create match draft | Done |
 | 4.4 | Propose match | Done |
 | 4.5 | Record participant decision | Done |
-| 4.6 | Record shelter decision | Ready for Development |
+| 4.6 | Record shelter decision | Done |
 | 4.7 | Request changes | Ready for Development |
 | 4.8 | Approve match and create placement | Ready for Development |
 
@@ -334,7 +334,21 @@ Story 4.4 (the match must be Proposed); Story 1.5; Story 1.7 (participant layout
 ## Story 4.6 — Record shelter decision
 
 ### Status
-Ready for Development
+Done
+
+> Built note: placementMatch.view (both shelter roles) formalizes the
+> approvals-list read alongside the org-membership scope, and
+> placementMatch.recordShelterDecision is Shelter Manager only — the
+> service additionally requires an ACTIVE manager membership at the
+> match's hostOrganizationId, so viewerCanDecide is computed per row (a
+> member may manage one organization and supervise another). Approval
+> writes a PROPOSED -> PROPOSED event, mirroring the participant track;
+> the required note for Change Requested/Declined never enters audit
+> detail and surfaces to the coordinator in the workspace Decision tracks
+> panel (4.7's input). E2E runs on two new real Clerk manager identities:
+> the journey's approve at the host shelter, a Request Changes flow on a
+> dedicated fixture match, and an other-shelter manager who sees an empty
+> approvals list.
 
 ### User story
 As a Shelter Manager, I want to approve, request changes to, or decline a placement proposed for my organization, so that we only host arrangements we can safely support.

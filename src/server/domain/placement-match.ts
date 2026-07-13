@@ -2,6 +2,7 @@ import {
   EnrollmentStatus,
   MatchStatus,
   ParticipantMatchDecision,
+  ShelterMatchDecision,
 } from "@/generated/prisma/client";
 import { LifecycleError } from "@/server/errors/app-error";
 
@@ -127,6 +128,34 @@ export function matchStatusAfterParticipantDecision(
   return decision === ParticipantMatchDecision.DECLINED
     ? MatchStatus.DECLINED
     : MatchStatus.PROPOSED;
+}
+
+/**
+ * The shelter decision's effect on the match itself (Story 4.6): a
+ * decline is a unilateral veto (AC3); a change request hands the match to
+ * the coordinator's 4.7 worklist (AC2); an approval only satisfies one of
+ * the two 4.8 prerequisites — the match stays Proposed (AC1).
+ */
+export function matchStatusAfterShelterDecision(
+  decision: ShelterMatchDecision,
+): MatchStatus {
+  switch (decision) {
+    case ShelterMatchDecision.DECLINED:
+      return MatchStatus.DECLINED;
+    case ShelterMatchDecision.CHANGE_REQUESTED:
+      return MatchStatus.CHANGE_REQUESTED;
+    default:
+      return MatchStatus.PROPOSED;
+  }
+}
+
+/**
+ * A note is required when requesting changes or declining (Story 4.6
+ * AC2/AC3) so the coordinator has something actionable — operational
+ * content only, never participant background information.
+ */
+export function shelterDecisionRequiresNote(decision: ShelterMatchDecision): boolean {
+  return decision !== ShelterMatchDecision.APPROVED;
 }
 
 /**

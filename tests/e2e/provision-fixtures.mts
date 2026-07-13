@@ -15,8 +15,10 @@ import {
   E2E_DRAFT_USER_EMAIL,
   E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
+  E2E_OTHER_MANAGER_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
   E2E_RRS_USER_EMAIL,
+  E2E_SHELTER_MANAGER_USER_EMAIL,
   E2E_USER_EMAIL,
   E2E_USER_PASSWORD,
 } from "./test-user";
@@ -52,6 +54,18 @@ const FIXTURE_USERS: FixtureUser[] = [
     internalId: "e2e_user_shelter",
     displayName: "Synthetic E2E Shelter",
     membership: { organizationId: "e2e_org_shelter", role: Role.SHELTER_SUPERVISOR },
+  },
+  {
+    email: E2E_SHELTER_MANAGER_USER_EMAIL,
+    internalId: "e2e_user_manager",
+    displayName: "Synthetic E2E Manager",
+    membership: { organizationId: "e2e_org_shelter", role: Role.SHELTER_MANAGER },
+  },
+  {
+    email: E2E_OTHER_MANAGER_USER_EMAIL,
+    internalId: "e2e_user_manager2",
+    displayName: "Synthetic E2E Other Manager",
+    membership: { organizationId: "e2e_org_shelter2", role: Role.SHELTER_MANAGER },
   },
   {
     email: E2E_OPS_USER_EMAIL,
@@ -210,6 +224,18 @@ try {
     create: {
       id: "e2e_org_shelter",
       name: "E2E Test Shelter (Synthetic)",
+      kind: OrganizationKind.HOST,
+      isSynthetic: true,
+    },
+  });
+  // A second host shelter (Story 4.6): its manager sees an EMPTY approvals
+  // list — organization scope end-to-end, not just in integration tests.
+  await prisma.organization.upsert({
+    where: { id: "e2e_org_shelter2" },
+    update: {},
+    create: {
+      id: "e2e_org_shelter2",
+      name: "E2E Other Shelter (Synthetic)",
       kind: OrganizationKind.HOST,
       isSynthetic: true,
     },
@@ -1012,6 +1038,93 @@ try {
   await prisma.placementMatchEvent.create({
     data: {
       placementMatchId: "e2e_match_participant",
+      fromStatus: "DRAFT",
+      toStatus: "PROPOSED",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
+  // Shelter-decision fixture (Story 4.6): Riley carries a fresh PROPOSED
+  // match each run for the manager's Request Changes flow — separate from
+  // Quinn (the coordinator journey) and Parker (the participant Accept)
+  // so parallel spec workers never race on one record. Riley has no Clerk
+  // identity; only staff act on this match.
+  await prisma.user.upsert({
+    where: { id: "e2e_user_changeready" },
+    update: {},
+    create: {
+      id: "e2e_user_changeready",
+      email: "e2e-changeready-subject@synthetic.example",
+      displayName: "Synthetic Changeready Subject",
+      isSynthetic: true,
+    },
+  });
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_changeready" },
+    update: {},
+    create: {
+      id: "e2e_person_changeready",
+      userId: "e2e_user_changeready",
+      legalFirstName: "Riley",
+      legalLastName: "Synthetic-Change",
+      dateOfBirth: new Date("1993-03-03T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_changeready" },
+    update: {},
+    create: {
+      id: "e2e_app_changeready",
+      personId: "e2e_person_changeready",
+      applicationNumber: "APP-E2E-CHANGE1",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+      availabilityNotes: "Friday mornings",
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_changeready" },
+    update: {},
+    create: { id: "e2e_participant_changeready", personId: "e2e_person_changeready" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_changeready" },
+    update: { status: "READY_FOR_MATCHING" },
+    create: {
+      id: "e2e_enrollment_changeready",
+      participantId: "e2e_participant_changeready",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_changeready",
+      status: "READY_FOR_MATCHING",
+    },
+  });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_changeready" } },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_changeready" },
+  });
+  const rileyProposedAt = new Date();
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_changeready",
+      participantId: "e2e_participant_changeready",
+      programEnrollmentId: "e2e_enrollment_changeready",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "PROPOSED",
+      proposedSupervisorId: "e2e_user_shelter",
+      proposedSchedule: "Fri mornings",
+      proposedStartDate: new Date("2026-08-17T00:00:00Z"),
+      proposedEndDate: new Date("2026-12-18T00:00:00Z"),
+      proposedAt: rileyProposedAt,
+      decisionWindowEndsAt: new Date(rileyProposedAt.getTime() + 14 * 86_400_000),
+    },
+  });
+  await prisma.placementMatchEvent.create({
+    data: {
+      placementMatchId: "e2e_match_changeready",
       fromStatus: "DRAFT",
       toStatus: "PROPOSED",
       actorUserId: "e2e_user_ops",

@@ -29,7 +29,9 @@ import {
   decisionWindowEnd,
   draftCreationBlockReason,
   matchStatusAfterParticipantDecision,
+  matchStatusAfterShelterDecision,
   proposalMissingFields,
+  shelterDecisionRequiresNote,
 } from "@/server/domain/placement-match";
 import {
   AuthorizationError,
@@ -511,6 +513,9 @@ export interface MatchWorkspaceView {
   participantDecisionRecordedByStaff: boolean;
   shelterDecision: ShelterMatchDecision;
   shelterDecisionLabel: string;
+  shelterDecisionAtLabel: string | null;
+  /** The shelter's operational note (4.6) — actionable input for 4.7. */
+  shelterDecisionNote: string | null;
 }
 
 /** The coordinator draft workspace (drafts are coordinator-only, AC6). */
@@ -600,6 +605,8 @@ export async function getMatchWorkspace(
       match.participantDecisionRecordedByUserId !== match.participant.person.userId,
     shelterDecision: match.shelterDecision,
     shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
+    shelterDecisionAtLabel: formatWindowDate(match.shelterDecisionAt),
+    shelterDecisionNote: match.shelterDecisionNote,
   };
 }
 
@@ -985,27 +992,45 @@ export interface ShelterApprovalView {
   endDateLabel: string | null;
   respondByLabel: string | null;
   statusLabel: string;
+  shelterDecision: ShelterMatchDecision;
+  shelterDecisionLabel: string;
+  /**
+   * True only for a Shelter Manager of THIS match's host organization
+   * (Story 4.6 AC4): supervisors and other-org managers read, never
+   * decide. Computed per row — a member may manage one organization and
+   * supervise another.
+   */
+  viewerCanDecide: boolean;
 }
 
 const SHELTER_ROLES: readonly Role[] = [Role.SHELTER_MANAGER, Role.SHELTER_SUPERVISOR];
 
 /**
- * The shelter's Placement approvals list (AC4): resource scope =
- * organization via hostOrganizationId, PROPOSED status or later — Draft is
- * never visible regardless of scope (AC6 covers other organizations).
- * Role-shaped: no coordinator notes, no compatibility snapshot.
+ * The shelter's Placement approvals list (AC4): placementMatch.view,
+ * resource scope = organization via hostOrganizationId, PROPOSED status or
+ * later — Draft is never visible regardless of scope (AC6 covers other
+ * organizations). Role-shaped: no coordinator notes, no compatibility
+ * snapshot, no participant decision note.
  */
 export async function listShelterApprovals(
   ctx: AuthContext,
 ): Promise<ShelterApprovalView[]> {
   await expireStaleProposals();
 
+  if (!hasPermission(ctx, "placementMatch.view")) {
+    throw new AuthorizationError();
+  }
   const organizationIds = ctx.memberships
     .filter((membership) => SHELTER_ROLES.includes(membership.role))
     .map((membership) => membership.organizationId);
   if (organizationIds.length === 0) {
     throw new AuthorizationError();
   }
+  const managerOrgIds = new Set(
+    ctx.memberships
+      .filter((membership) => membership.role === Role.SHELTER_MANAGER)
+      .map((membership) => membership.organizationId),
+  );
 
   const matches = await prisma.placementMatch.findMany({
     where: {
@@ -1044,6 +1069,9 @@ export async function listShelterApprovals(
     endDateLabel: formatWindowDate(match.proposedEndDate),
     respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
     statusLabel: MATCH_STATUS_LABELS[match.status],
+    shelterDecision: match.shelterDecision,
+    shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
+    viewerCanDecide: managerOrgIds.has(match.hostOrganizationId),
   }));
 }
 
@@ -1188,4 +1216,100 @@ export async function getOwnDeclinedPlacementNotice(
   return match
     ? { organizationName: match.organizationSite.organization.name }
     : null;
+}
+
+// --- Shelter decision (Story 4.6) ------------------------------------------------
+
+export type ShelterDecisionChoice = "APPROVED" | "CHANGE_REQUESTED" | "DECLINED";
+
+/**
+ * Record the shelter's decision on a proposed match for THEIR organization
+ * (AC1–AC3): Shelter Manager only (placementMatch.recordShelterDecision),
+ * org-scoped through hostOrganizationId — a different shelter's manager is
+ * denied (AC5), and supervisors hold view without decide (AC4). A decline
+ * is a unilateral veto; a change request hands the match to the
+ * coordinator (4.7); an approval keeps it Proposed for the 4.8 gate. The
+ * note is REQUIRED for Change Requested and Declined so the coordinator
+ * has something actionable — and it never enters audit detail.
+ */
+export async function recordShelterDecision(
+  ctx: AuthContext,
+  matchId: string,
+  input: { decision: ShelterDecisionChoice; note?: string | null },
+): Promise<void> {
+  // Expire-on-access first: a proposal past its window with no decisions
+  // expires rather than being decided late.
+  await expireStaleProposals();
+
+  const match = await prisma.placementMatch.findUnique({
+    where: { id: matchId },
+    select: { id: true, status: true, shelterDecision: true, hostOrganizationId: true },
+  });
+  if (!match) throw new NotFoundError();
+
+  const isHostManager = ctx.memberships.some(
+    (membership) =>
+      membership.role === Role.SHELTER_MANAGER &&
+      membership.organizationId === match.hostOrganizationId,
+  );
+  if (!hasPermission(ctx, "placementMatch.recordShelterDecision") || !isHostManager) {
+    throw new AuthorizationError();
+  }
+
+  const blocked = decisionBlockReason({
+    status: match.status,
+    decision: match.shelterDecision,
+  });
+  if (blocked) throw new LifecycleError(blocked);
+
+  const decision = ShelterMatchDecision[input.decision];
+  const note = input.note?.trim() ? input.note.trim() : null;
+  if (shelterDecisionRequiresNote(decision) && !note) {
+    throw new ValidationError(
+      "Add a note for the coordinator — what needs to change, or why this doesn't work.",
+    );
+  }
+  const nextStatus = matchStatusAfterShelterDecision(decision);
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placementMatch.updateMany({
+      where: {
+        id: matchId,
+        status: MatchStatus.PROPOSED,
+        shelterDecision: ShelterMatchDecision.PENDING,
+      },
+      data: {
+        status: nextStatus,
+        shelterDecision: decision,
+        shelterDecisionAt: new Date(),
+        shelterDecisionNote: note,
+        shelterDecisionRecordedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This match changed while you were working. Refresh and try again.",
+      );
+    }
+    // An approval keeps the match PROPOSED — from == to records the
+    // decision moment in the trail, mirroring the participant track.
+    await tx.placementMatchEvent.create({
+      data: {
+        placementMatchId: matchId,
+        fromStatus: MatchStatus.PROPOSED,
+        toStatus: nextStatus,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placementMatch.shelterDecision",
+        subjectType: "PlacementMatch",
+        subjectId: matchId,
+        // Non-sensitive summary only — the note itself never enters detail.
+        detail: decision.toLowerCase().replaceAll("_", " "),
+      },
+    });
+  });
 }
