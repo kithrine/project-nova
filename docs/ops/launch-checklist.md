@@ -15,7 +15,7 @@
 
 ## Technical
 
-- Production Clerk configured
+- Production Clerk configured (until this and its siblings are done, the Vercel Production environment is intentionally empty and the production URL fails with `500 MIDDLEWARE_INVOCATION_FAILED` — see `docs/architecture/environments.md`; launch verification includes confirming that 500 is gone)
 - Production Neon configured
 - Production Blob store configured (separate from the nonproduction store; ADR-014)
 - Migrations applied
