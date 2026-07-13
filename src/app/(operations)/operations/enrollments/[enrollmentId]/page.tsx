@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { TaskList } from "@/features/enrollment/task-list";
 import { CertificationPanel } from "@/features/certifications/certification-panel";
+import { BlockerList } from "@/features/enrollment/blocker-list";
 import { TrainingList } from "@/features/training/training-list";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import { NotFoundError } from "@/server/errors/app-error";
 import { getEnrollment, listOnboardingTasks } from "@/server/services/enrollment-service";
 import { listCertificationsForParticipant } from "@/server/services/certification-service";
+import { getEnrollmentReadiness } from "@/server/services/readiness-service";
 import { listTrainingForEnrollment } from "@/server/services/training-service";
 
 export const metadata = { title: "Enrollment" };
@@ -59,6 +61,16 @@ export default async function EnrollmentPage({
       </div>
 
       <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+        <h2 className="text-lg font-semibold">Matching readiness</h2>
+        <p className="max-w-prose text-sm text-base-content/70">
+          Everything still standing between this participant and matching —
+          recomputed live from tasks, training, and certifications (3.7 enforces
+          this same gate).
+        </p>
+        <BlockerList blockers={(await getEnrollmentReadiness(ctx, enrollment.id)).blockers} />
+      </div>
+
+      <div id="onboarding-tasks" className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6">
         <h2 className="text-lg font-semibold">Onboarding tasks</h2>
         <p className="max-w-prose text-sm text-base-content/70">
           Generated automatically from the program&apos;s required-task catalog the moment the
@@ -94,7 +106,7 @@ export default async function EnrollmentPage({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
+      <div id="training" className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6">
         <h2 className="text-lg font-semibold">Training</h2>
         <p className="max-w-prose text-sm text-base-content/70">
           Portable preparation required before matching. Completing these programs does not
