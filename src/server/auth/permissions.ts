@@ -30,7 +30,14 @@ export const PERMISSIONS = [
   // authorized read is written to an AuditEvent.
   "backgroundReview.view",
   // Internal case notes on an application (Story 2.7): Nova Operations only.
+  // Story 5.9 reuses the same permission for placement notes — one
+  // authoring capability, XOR-owned contexts.
   "caseNote.create",
+  // Reading placement case notes (Story 5.9): gates the Case Notes tab's
+  // presence in the Nova workspace view. Application-note reads remain
+  // application.view-gated as shipped in 2.7. Never shelter, participant,
+  // or Grant Administrator roles — the tab is structurally absent.
+  "caseNote.view",
   // Terminal decisions (Story 2.11): accept additionally requires the
   // business prerequisite of a recorded Clear background outcome (2.10);
   // reject/disqualify follow ADR-016. Never shelters, never applicants.
@@ -185,6 +192,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.activate",
     "placement.pause",
     "placement.resume",
+    "caseNote.view",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -224,6 +232,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.activate",
     "placement.pause",
     "placement.resume",
+    "caseNote.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

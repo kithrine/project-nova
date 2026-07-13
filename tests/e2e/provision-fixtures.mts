@@ -1028,6 +1028,14 @@ try {
   await prisma.fundingAssignment.deleteMany({
     where: { placement: { participantId: "e2e_participant_main" } },
   });
+  // Case notes (Story 5.9) hang off placements with RESTRICT — revisions,
+  // then notes, before the placement rows.
+  await prisma.caseNoteRevision.deleteMany({
+    where: { caseNote: { placement: { participantId: "e2e_participant_main" } } },
+  });
+  await prisma.caseNote.deleteMany({
+    where: { placement: { participantId: "e2e_participant_main" } },
+  });
   await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_main" } },
   });
