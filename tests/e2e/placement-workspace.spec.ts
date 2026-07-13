@@ -208,6 +208,44 @@ test("a Grant Administrator assigns, ends, and replaces funding (Story 5.3)", as
   await expect(list.getByText("Ended").first()).toBeVisible();
 });
 
+test("a coordinator converts a placement to permanent employment (Story 5.8)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements/records/e2e_placement_convert");
+  await expect(
+    page.getByRole("heading", { name: /Rowan Synthetic-Convert/ }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // Phase-guarded for retries: converting is one-way, so a rerun lands
+  // straight on the converted state.
+  const recordHire = page.getByRole("button", { name: "Record Permanent Hire…" });
+  await expect(
+    page.getByText(/Stage: .*(Active|Converted to permanent employment)/),
+  ).toBeVisible({ timeout: 20_000 });
+  if (await recordHire.isVisible().catch(() => false)) {
+    await recordHire.click();
+    await expect(
+      page.getByText(/creates the Employment Outcome record/i),
+    ).toBeVisible();
+    // Employer prefills with the host organization.
+    await expect(page.getByLabel("Hired by")).toHaveValue(
+      "E2E Test Shelter (Synthetic)",
+    );
+    await page.getByLabel("Job title (optional)").fill("Kennel technician");
+    await page.getByRole("button", { name: "Yes, Record Permanent Hire" }).click();
+  }
+  await expect(
+    page.getByText(/Stage: .*Converted to permanent employment/),
+  ).toBeVisible({ timeout: 20_000 });
+  // The Employment Outcome surfaces on the Overview tab (AC2).
+  await expect(
+    page.getByText(/Hired by E2E Test Shelter \(Synthetic\) on .* — Kennel technician/),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record Permanent Hire…" })).toHaveCount(0);
+});
+
 test("the workspace stays usable at 360px with no horizontal page scroll (AC6)", async ({
   page,
 }) => {

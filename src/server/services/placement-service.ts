@@ -29,7 +29,10 @@ import {
   PLACEMENT_STATUS_LABELS,
   resumeEventDetail,
   scheduleValidationError,
+  TERMINAL_OUTCOMES,
   TERMINAL_PLACEMENT_STATUSES,
+  terminalEventDetail,
+  terminationReasonLabel,
   type ScheduleDayInput,
   type TimelineStage,
 } from "@/server/domain/placement";
@@ -252,6 +255,20 @@ export interface PlacementWorkspaceView {
    * and every delivery is audited.
    */
   incidents?: IncidentsTabView;
+  /**
+   * Terminal-outcome controls (Story 5.8; ADR-018): Nova viewers on an
+   * Active or Paused placement. Terminate is separately permission-gated.
+   */
+  viewerCanRecordOutcome: boolean;
+  viewerCanTerminate: boolean;
+  /** The Employment Outcome once converted (Story 5.8 AC2). */
+  outcome: EmploymentOutcomeView | null;
+}
+
+export interface EmploymentOutcomeView {
+  hiredOnLabel: string;
+  employerName: string;
+  jobTitle: string | null;
 }
 
 export interface IncidentFollowUpView {
@@ -452,6 +469,7 @@ export async function getPlacementWorkspace(
         orderBy: { createdAt: "desc" },
       },
       onboardingTasks: { orderBy: { sortOrder: "asc" } },
+      employmentOutcome: true,
       events: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -655,7 +673,158 @@ export async function getPlacementWorkspace(
     incidents: hasPermission(ctx, "incident.view")
       ? await buildIncidentsTab(ctx, viewer, placement)
       : undefined,
+    viewerCanRecordOutcome:
+      viewer === "NOVA" &&
+      hasPermission(ctx, "placement.complete") &&
+      (placement.status === PlacementStatus.ACTIVE ||
+        placement.status === PlacementStatus.PAUSED),
+    viewerCanTerminate:
+      viewer === "NOVA" &&
+      hasPermission(ctx, "placement.terminate") &&
+      (placement.status === PlacementStatus.ACTIVE ||
+        placement.status === PlacementStatus.PAUSED),
+    outcome: placement.employmentOutcome
+      ? {
+          hiredOnLabel: formatDate(placement.employmentOutcome.hiredOn) ?? "",
+          employerName: placement.employmentOutcome.employerName,
+          jobTitle: placement.employmentOutcome.jobTitle,
+        }
+      : null,
   };
+}
+
+// --- Terminal outcomes (Story 5.8; ADR-018) -----------------------------------------
+
+export type TerminalOutcomeKey =
+  | "COMPLETED"
+  | "CONVERTED_TO_PERMANENT"
+  | "WITHDRAWN"
+  | "TERMINATED";
+
+export interface TerminalOutcomeInput {
+  outcome: TerminalOutcomeKey;
+  effectiveDate: Date;
+  /** Withdrawn: the participant's stated reason (required). Terminated:
+   * required context. Completed: optional. Converted: optional title note. */
+  note: string | null;
+  /** Terminated only — an ADR-018 reason category key. */
+  reasonCategory?: string;
+  /** Converted only — who hired the participant. */
+  employerName?: string;
+  jobTitle?: string | null;
+}
+
+/**
+ * Record one of the four terminal outcomes (Story 5.8). Nova Operations
+ * only, single actor (ADR-018): placement.complete for Completed,
+ * Converted to Permanent Employment, and Withdrawn; placement.terminate
+ * for Terminated with a required reason category. One transaction:
+ * compare-and-set on the loaded status (a racing transition conflicts,
+ * never double-writes), the lifecycle event with the ops-internal reason
+ * detail, the Employment Outcome row for conversions (AC2), and the
+ * audit event — whose detail carries the outcome or reason CATEGORY,
+ * never free-text notes. Terminal states are never reopened: the
+ * transition table admits nothing out of them.
+ */
+export async function recordTerminalOutcome(
+  ctx: AuthContext,
+  placementId: string,
+  input: TerminalOutcomeInput,
+): Promise<void> {
+  const target = PlacementStatus[input.outcome];
+  const outcomeRule = TERMINAL_OUTCOMES.find((entry) => entry.status === target);
+  if (!outcomeRule) throw new ValidationError("Choose a valid outcome.");
+  if (!hasPermission(ctx, outcomeRule.permission)) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, participantId: true },
+  });
+  if (!placement) throw new NotFoundError();
+  assertPlacementTransition(placement.status, target);
+
+  if (Number.isNaN(input.effectiveDate.getTime())) {
+    throw new ValidationError("Provide the effective date.");
+  }
+  const note = input.note?.trim() ? input.note.trim() : null;
+  if (note && note.length > 2000) {
+    throw new ValidationError("Keep the summary under 2,000 characters.");
+  }
+
+  let reasonLabel: string | undefined;
+  if (target === PlacementStatus.TERMINATED) {
+    reasonLabel = terminationReasonLabel(input.reasonCategory ?? "") ?? undefined;
+    if (!reasonLabel) {
+      throw new ValidationError("Choose the termination reason category.");
+    }
+    if (!note) {
+      throw new ValidationError(
+        "Record what happened before terminating — the note is required.",
+      );
+    }
+  }
+  if (target === PlacementStatus.WITHDRAWN && !note) {
+    throw new ValidationError("Record the participant's stated reason.");
+  }
+  const employerName = input.employerName?.trim();
+  if (target === PlacementStatus.CONVERTED_TO_PERMANENT && !employerName) {
+    throw new ValidationError("Name the employer who hired the participant.");
+  }
+
+  const detail = terminalEventDetail({
+    status: target,
+    effectiveDateLabel: formatDate(input.effectiveDate) ?? "",
+    reasonLabel,
+    note,
+    employerName,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: placement.status },
+      data: { status: target, endDate: input.effectiveDate },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Review the latest state.",
+      );
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: placement.status,
+        toStatus: target,
+        actorUserId: ctx.userId,
+        detail,
+      },
+    });
+    if (target === PlacementStatus.CONVERTED_TO_PERMANENT) {
+      await tx.employmentOutcome.create({
+        data: {
+          placementId,
+          participantId: placement.participantId,
+          hiredOn: input.effectiveDate,
+          employerName: employerName!,
+          jobTitle: input.jobTitle?.trim() ? input.jobTitle.trim() : null,
+          recordedByUserId: ctx.userId,
+        },
+      });
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: outcomeRule.permission,
+        subjectType: "Placement",
+        subjectId: placementId,
+        detail: reasonLabel
+          ? `Terminated (${reasonLabel})`
+          : PLACEMENT_STATUS_LABELS[target],
+      },
+    });
+  });
 }
 
 /**

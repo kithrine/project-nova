@@ -377,4 +377,35 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     page.getByText(/Reviewed with the site — latch replaced and rechecked\./).first(),
   ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Closed").first()).toBeVisible();
+
+  // Phase 12 (Story 5.8) — the coordinator marks the placement Completed
+  // behind its own confirmation; the workspace becomes read-only history.
+  // Branch on the server-rendered stage line after it settles (the
+  // standing hydration rule); a retry that already completed converges.
+  await page.goto(WORKSPACE);
+  await expect(page.getByText(/Stage: .*(Active|Paused|Completed)/)).toBeVisible({
+    timeout: 20_000,
+  });
+  const markCompleted = page.getByRole("button", { name: "Mark Completed…" });
+  if (await markCompleted.isVisible().catch(() => false)) {
+    await markCompleted.click();
+    await expect(
+      page.getByText(/final — completed placements are never reopened/i),
+    ).toBeVisible();
+    await page
+      .getByLabel("Summary (optional)")
+      .fill("Synthetic E2E completion — full placement period served.");
+    await page.getByRole("button", { name: "Yes, Mark Completed" }).click();
+  }
+  await expect(page.getByText(/Stage: .*Completed/)).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/This placement is completed — a final state/),
+  ).toBeVisible();
+  // No ending controls remain on a terminal placement (AC4).
+  await expect(page.getByRole("button", { name: "Mark Completed…" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Terminate Placement…" })).toHaveCount(0);
+  await page.goto(`${WORKSPACE}?tab=history`);
+  await expect(page.getByText(/Active → .*Completed|Paused → .*Completed/).first()).toBeVisible({
+    timeout: 20_000,
+  });
 });

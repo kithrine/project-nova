@@ -579,6 +579,7 @@ model Placement {
   caseNotes          CaseNote[]
   evaluations        Evaluation[]
   incidents          Incident[]
+  employmentOutcome  EmploymentOutcome?
 
   events PlacementEvent[]
 
@@ -808,6 +809,7 @@ model Participant {
   certifications  Certification[]
   placementMatches PlacementMatch[]
   placements       Placement[]
+  employmentOutcomes EmploymentOutcome[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1015,6 +1017,32 @@ model TrainingEnrollmentEvent {
   createdAt DateTime @default(now())
 
   @@index([trainingEnrollmentId])
+}
+
+// --- Employment outcomes (Story 5.8) -------------------------------------------
+
+// The chain's final entity (domain-model.md): Application -> Enrollment
+// -> Match -> Placement -> Employment Outcome. Created ONLY inside the
+// Converted to Permanent Employment transaction (Story 5.8 AC2) — one
+// per placement, never deleted. Minimal MVP fields; outcome follow-up
+// tracking is out of scope.
+model EmploymentOutcome {
+  id            String      @id @default(cuid())
+  placementId   String      @unique
+  placement     Placement   @relation(fields: [placementId], references: [id])
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+
+  hiredOn      DateTime @db.Date
+  employerName String
+  jobTitle     String?
+
+  recordedByUserId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participantId])
 }
 
 // --- Evaluations (Story 5.10) -------------------------------------------------

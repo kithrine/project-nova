@@ -10,6 +10,10 @@ import {
   PAUSE_REASON_CATEGORIES,
   pauseEventDetail,
   pauseReasonLabel,
+  TERMINAL_OUTCOMES,
+  terminalEventDetail,
+  TERMINATION_REASON_CATEGORIES,
+  terminationReasonLabel,
   PLACEMENT_STATUS_LABELS,
   resumeEventDetail,
   scheduleValidationError,
@@ -205,6 +209,81 @@ describe("pause reasons and cycle records (Story 5.7)", () => {
     ).toBe("Paused (Personal circumstances) effective July 20, 2026");
     expect(resumeEventDetail({ effectiveDateLabel: "August 3, 2026" })).toBe(
       "Resumed effective August 3, 2026",
+    );
+  });
+});
+
+describe("terminal outcomes (Story 5.8; ADR-018)", () => {
+  it("defines the four endings under two permissions, each admitted from Active and Paused only", () => {
+    expect(TERMINAL_OUTCOMES.map((outcome) => outcome.status)).toEqual([
+      PlacementStatus.COMPLETED,
+      PlacementStatus.CONVERTED_TO_PERMANENT,
+      PlacementStatus.WITHDRAWN,
+      PlacementStatus.TERMINATED,
+    ]);
+    expect(
+      TERMINAL_OUTCOMES.find((o) => o.status === PlacementStatus.TERMINATED)!.permission,
+    ).toBe("placement.terminate");
+    for (const outcome of TERMINAL_OUTCOMES) {
+      expect(() =>
+        assertPlacementTransition(PlacementStatus.ACTIVE, outcome.status),
+      ).not.toThrow();
+      expect(() =>
+        assertPlacementTransition(PlacementStatus.PAUSED, outcome.status),
+      ).not.toThrow();
+      expect(() =>
+        assertPlacementTransition(PlacementStatus.ONBOARDING, outcome.status),
+      ).toThrow(/cannot move/);
+      // Terminal states transition nowhere, ever — no reopening (AC4).
+      expect(ALLOWED_PLACEMENT_TRANSITIONS[outcome.status]).toEqual([]);
+    }
+  });
+
+  it("labels every ADR-018 termination reason category", () => {
+    expect(TERMINATION_REASON_CATEGORIES.map((c) => c.label)).toEqual([
+      "Safety concern",
+      "Conduct or policy violation",
+      "Sustained non-attendance",
+      "Other",
+    ]);
+    expect(terminationReasonLabel("SAFETY_CONCERN")).toBe("Safety concern");
+    expect(terminationReasonLabel("NOT_A_REASON")).toBeNull();
+  });
+
+  it("composes the ops-internal ending records per outcome (AC6)", () => {
+    expect(
+      terminalEventDetail({
+        status: PlacementStatus.COMPLETED,
+        effectiveDateLabel: "September 30, 2026",
+        note: null,
+      }),
+    ).toBe("Completed effective September 30, 2026");
+    expect(
+      terminalEventDetail({
+        status: PlacementStatus.CONVERTED_TO_PERMANENT,
+        effectiveDateLabel: "September 30, 2026",
+        employerName: "Harbor Haven Shelter",
+        note: "Full-time kennel technician",
+      }),
+    ).toBe(
+      "Converted to permanent employment — hired by Harbor Haven Shelter effective September 30, 2026 — Full-time kennel technician",
+    );
+    expect(
+      terminalEventDetail({
+        status: PlacementStatus.WITHDRAWN,
+        effectiveDateLabel: "September 1, 2026",
+        note: "Moving out of the area",
+      }),
+    ).toBe("Withdrawn effective September 1, 2026 — Moving out of the area");
+    expect(
+      terminalEventDetail({
+        status: PlacementStatus.TERMINATED,
+        effectiveDateLabel: "September 1, 2026",
+        reasonLabel: "Safety concern",
+        note: "Repeated unsafe animal handling after coaching",
+      }),
+    ).toBe(
+      "Terminated (Safety concern) effective September 1, 2026 — Repeated unsafe animal handling after coaching",
     );
   });
 });

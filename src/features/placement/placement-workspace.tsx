@@ -2,7 +2,11 @@ import { ActivatePanel } from "@/features/placement/activate-panel";
 import { ActivationBlockers } from "@/features/placement/activation-blockers";
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
 import { PausePanel, ResumePanel } from "@/features/placement/pause-resume-panel";
-import { PAUSE_REASON_CATEGORIES } from "@/server/domain/placement";
+import { TerminalOutcomePanel } from "@/features/placement/terminal-outcome-panel";
+import {
+  PAUSE_REASON_CATEGORIES,
+  TERMINATION_REASON_CATEGORIES,
+} from "@/server/domain/placement";
 import { PackageReviewPanel } from "@/features/placement/package-review-panel";
 import { PlacementOnboardingPanel } from "@/features/placement/placement-onboarding-panel";
 import { WorkspaceTabNav } from "@/features/placement/workspace-tab-nav";
@@ -65,6 +69,17 @@ export function PlacementWorkspace({
         <PausePanel placementId={view.id} reasonOptions={PAUSE_REASON_CATEGORIES} />
       ) : null}
       {view.viewerCanResume ? <ResumePanel placementId={view.id} /> : null}
+
+      {/* Terminal outcomes (5.8; ADR-018): four distinct actions, Nova
+          only, each behind its own confirmation naming the finality. */}
+      {view.viewerCanRecordOutcome ? (
+        <TerminalOutcomePanel
+          placementId={view.id}
+          canTerminate={view.viewerCanTerminate}
+          employerDefault={view.organizationName}
+          reasonOptions={TERMINATION_REASON_CATEGORIES}
+        />
+      ) : null}
 
       {view.isTerminal ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">

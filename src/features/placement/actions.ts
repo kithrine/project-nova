@@ -19,6 +19,7 @@ import {
   initiatePlacementOnboarding,
   pausePlacement,
   proposePlacementPackage,
+  recordTerminalOutcome,
   requestPlacementChanges,
   resumePlacement,
   saveAssignment,
@@ -354,6 +355,35 @@ export async function closeIncidentAction(
   revalidatePath("/operations/placements", "layout");
   revalidatePath("/shelter/placements", "layout");
   revalidatePath("/operations");
+  return { status: "saved" };
+}
+
+export async function recordTerminalOutcomeAction(
+  placementId: string,
+  outcome: "COMPLETED" | "CONVERTED_TO_PERMANENT" | "WITHDRAWN" | "TERMINATED",
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordTerminalOutcome(ctx, placementId, {
+      outcome,
+      effectiveDate: utcDate(formData.get("effectiveDate")),
+      note: textOrNull(formData.get("note")),
+      reasonCategory: String(formData.get("reasonCategory") ?? ""),
+      employerName: String(formData.get("employerName") ?? ""),
+      jobTitle: textOrNull(formData.get("jobTitle")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
   return { status: "saved" };
 }
 
