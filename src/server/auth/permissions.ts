@@ -66,6 +66,10 @@ export const PERMISSIONS = [
   // The Epic 4 matching queue (Story 4.1): spans ALL shelters, so it is
   // Nova-scoped and never granted to shelter or participant roles.
   "placementMatch.viewQueue",
+  // The categorical compatibility read (Story 4.2): coordinator decision
+  // support only — never a shelter- or participant-facing artifact
+  // (docs/product/compatibility-engine.md).
+  "placementMatch.viewCompatibility",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -96,6 +100,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "certification.record",
     "enrollment.markReadyForMatching",
     "placementMatch.viewQueue",
+    "placementMatch.viewCompatibility",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -117,6 +122,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "certification.record",
     "enrollment.markReadyForMatching",
     "placementMatch.viewQueue",
+    "placementMatch.viewCompatibility",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

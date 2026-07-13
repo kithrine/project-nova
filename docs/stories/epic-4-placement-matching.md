@@ -8,7 +8,7 @@ Create safe, approved participant-to-shelter matches.
 | ID | Story | Status |
 |---|---|---|
 | 4.1 | Matching queue | Done |
-| 4.2 | Compatibility panel | Ready for Development |
+| 4.2 | Compatibility panel | Done |
 | 4.3 | Create match draft | Ready for Development |
 | 4.4 | Propose match | Ready for Development |
 | 4.5 | Record participant decision | Ready for Development |
@@ -84,7 +84,16 @@ Epic 3, Stories 3.6 (matching blockers) and 3.7 (ready for matching); Story 1.5 
 ## Story 4.2 — Compatibility panel
 
 ### Status
-Ready for Development
+Done
+
+> Built note: the evaluator is pure (src/server/domain/compatibility.ts):
+> factor list -> worst-of category (blocking > unknown > concern > clear),
+> so "Unknown / needs review" is the honest pairing-stage answer while
+> schedule/dates live only on a draft (4.3 wires them, plus the snapshot).
+> The approved-placement-restriction store does not exist yet; the input is
+> wired false and the fixed-sentence factor (never a narrative) activates
+> when that workflow lands. No numeric score exists anywhere in the domain,
+> payload, or panel (ADR-011) — asserted at every test layer.
 
 ### User story
 As a Program Coordinator, I want an explainable, categorical compatibility read on a candidate participant-shelter pairing, so that I can make an informed, safe matching decision without relying on an opaque score.

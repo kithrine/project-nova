@@ -57,6 +57,21 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
       name: /Quinn Synthetic-Match × E2E Test Shelter \(Synthetic\) — Main Site \(Synthetic\)/,
     }),
   ).toBeVisible({ timeout: 20_000 });
+
+  // Story 4.2: the categorical, explainable read — Quinn's fixture program
+  // requires a training with no attempt, so the pairing blocks and the
+  // panel names exactly why. Text + icon, no score anywhere.
+  await expect(
+    page.getByRole("heading", { name: "Blocking incompatibility" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText("Training incomplete: 0 of 1 required programs complete."),
+  ).toBeVisible();
+  await expect(page.getByText(/On file: "Weekday mornings"/)).toBeVisible();
+  await expect(
+    page.getByText(/Not yet proposed — set on the match draft/).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/the coordinator makes the decision/i)).toBeVisible();
 });
 
 test("a shelter manager is denied the queue (AC6)", async ({ page }) => {
