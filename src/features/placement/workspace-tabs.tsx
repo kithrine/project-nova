@@ -1,4 +1,5 @@
 import { AssignmentForm } from "@/features/placement/assignment-form";
+import { CaseNotesTab } from "@/features/placement/case-notes-tab";
 import { FundingTab } from "@/features/placement/funding-tab";
 import type {
   PlacementWorkspaceView,
@@ -122,12 +123,11 @@ export function WorkspaceTabContent({
         </EmptyTab>
       );
     case "caseNotes":
-      return (
-        <EmptyTab>
-          No case notes yet. Internal coordination notes arrive with Story 5.9
-          and are never visible to shelters or participants.
-        </EmptyTab>
-      );
+      // The tab only exists in Nova view models carrying the notes; the
+      // guard is a type-narrowing safety net, never a hiding mechanism.
+      return view.caseNotes ? (
+        <CaseNotesTab placementId={view.id} caseNotes={view.caseNotes} />
+      ) : null;
     case "documents":
       return (
         <EmptyTab>

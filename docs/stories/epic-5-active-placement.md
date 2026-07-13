@@ -16,7 +16,7 @@ Operate an active transitional placement.
 | 5.6  | Activate placement                        | Done                                |
 | 5.7  | Pause and resume                          | Done                                |
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
-| 5.9  | Case notes                                | Ready for Development               |
+| 5.9  | Case notes                                | Done                                |
 | 5.10 | Evaluations                               | Ready for Development               |
 | 5.11 | Incidents                                 | Ready for Development               |
 
@@ -636,7 +636,25 @@ Employment Outcome detail/follow-up tracking beyond creation and linkage. Re-app
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: the 2.7 CaseNote model expanded exactly as its own schema
+> comment prescribed — applicationId went nullable, placementId arrived,
+> and a hand-written CHECK enforces exactly-one-owner (both relations
+> explicitly RESTRICT so the XOR can never be nulled from either side).
+> Edits archive the prior body to an append-only CaseNoteRevision in the
+> same transaction, with a compare-and-set on updatedAt so a concurrent
+> edit conflicts cleanly instead of dropping a version from history.
+> Reading placement notes is gated by the new caseNote.view (PC/NA
+> only); authoring reuses 2.7's caseNote.create. Structural absence is
+> absolute: the caseNotes view field is undefined (not null) for every
+> non-authorized viewer, so neither content nor the field name
+> serializes into shelter/participant payloads, the note query never
+> runs for them, and a Grant Administrator gets the Nova workspace
+> without the tab. Notes remain writable and readable at terminal
+> stages (coordination history outlives the placement). Application
+> notes (2.7) are untouched — same table, same one authoring
+> permission, different owner column.
 
 ### User story
 

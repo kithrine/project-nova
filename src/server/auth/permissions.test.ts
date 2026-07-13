@@ -129,7 +129,18 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("application.view")).toBe(false);
       expect(granted.has("document.view")).toBe(false);
       expect(granted.has("caseNote.create")).toBe(false);
+      expect(granted.has("caseNote.view")).toBe(false);
       expect(granted.has("backgroundReview.view")).toBe(false);
+    }
+  });
+
+  it("keeps case-note reading to PC and NA — never shelters, participants, GA, or RRS (5.9)", () => {
+    for (const role of Object.values(Role)) {
+      const expected = role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      expect(
+        permissionsForRoles([role]).has("caseNote.view"),
+        `caseNote.view for ${role}`,
+      ).toBe(expected);
     }
   });
 });

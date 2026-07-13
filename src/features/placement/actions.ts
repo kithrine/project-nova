@@ -7,10 +7,12 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import type { ScheduleDayInput } from "@/server/domain/placement";
 import {
   activatePlacement,
+  addPlacementCaseNote,
   approvePlacementPackage,
   assignFunding,
   completeOwnPlacementTask,
   completePlacementTask,
+  editPlacementCaseNote,
   endFundingAssignment,
   initiatePlacementOnboarding,
   pausePlacement,
@@ -182,6 +184,48 @@ export async function activatePlacementAction(
   }
 
   revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function addPlacementCaseNoteAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await addPlacementCaseNote(ctx, placementId, String(formData.get("body") ?? ""));
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  // Notes are Nova-internal — only the operations workspace re-renders.
+  revalidatePath(`/operations/placements/records/${placementId}`);
+  return { status: "saved" };
+}
+
+export async function editPlacementCaseNoteAction(
+  placementId: string,
+  noteId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await editPlacementCaseNote(ctx, noteId, String(formData.get("body") ?? ""));
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/placements/records/${placementId}`);
   return { status: "saved" };
 }
 

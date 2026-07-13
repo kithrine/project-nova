@@ -17,6 +17,7 @@ import { signIn } from "./sign-in";
  */
 
 test("a coordinator gets the full nine-tab workspace (AC1)", async ({ page }) => {
+  test.setTimeout(120_000);
   await signIn(page, E2E_OPS_USER_EMAIL);
 
   // Story 5.5: the Operations dashboard's Urgent blockers surface flags
@@ -66,6 +67,33 @@ test("a coordinator gets the full nine-tab workspace (AC1)", async ({ page }) =>
   await expect(page.getByText(/Approved → .*Onboarding/)).toBeVisible({
     timeout: 20_000,
   });
+
+  // Story 5.9 — the coordinator adds an internal note and edits it; the
+  // prior version is preserved and disclosed, never overwritten.
+  await page.getByRole("tab", { name: "Case Notes" }).click();
+  await expect(
+    page.getByText(/visible to Nova Operations only/),
+  ).toBeVisible({ timeout: 20_000 });
+  await page
+    .getByLabel("New internal note")
+    .fill("Internal E2E coordination note — bus routes.");
+  await page.getByRole("button", { name: "Add Note" }).click();
+  await expect(
+    page.getByText("Internal E2E coordination note — bus routes.").first(),
+  ).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "Edit Note" }).first().click();
+  await page
+    .getByLabel("Edit note")
+    .fill("Internal E2E coordination note — bus routes confirmed.");
+  await page.getByRole("button", { name: "Save Edit" }).click();
+  await expect(
+    page.getByText(/Edited \(\d+ earlier versions?\)/).first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await page.getByText("Show earlier versions").first().click();
+  await expect(
+    page.getByText("Internal E2E coordination note — bus routes.").first(),
+  ).toBeVisible();
 });
 
 test("a shelter user sees the workspace without Case Notes (AC2)", async ({ page }) => {
@@ -82,6 +110,15 @@ test("a shelter user sees the workspace without Case Notes (AC2)", async ({ page
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Case Notes" })).toHaveCount(0);
   await expect(page.getByText("Case Notes")).toHaveCount(0);
+  // Story 5.9: the coordinator's note content is nowhere in the shelter
+  // view — and a direct visit to the OPERATIONS url is denied by the
+  // operations layout outright, so notes stay unreachable (AC2).
+  await expect(page.getByText(/bus routes/)).toHaveCount(0);
+  await page.goto("/operations/placements/records/e2e_placement_participant");
+  await expect(
+    page.getByRole("heading", { name: "You don't have access to this page" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/bus routes/)).toHaveCount(0);
 });
 
 test("a cross-organization shelter manager is denied (AC5)", async ({ page }) => {
@@ -106,6 +143,8 @@ test("the participant sees My Placement in plain language (AC3)", async ({ page 
   await expect(page.getByText("PLC-E2E-PARKER1")).toBeVisible();
   // Plain language only — no internal tab shell, no case notes, no codes.
   await expect(page.getByText(/Case Notes|ONBOARDING|blocker/)).toHaveCount(0);
+  // Story 5.9: the coordinator's internal note never reaches My Placement.
+  await expect(page.getByText(/bus routes/)).toHaveCount(0);
 
   // Story 5.4 (AC3): the participant completes their own step before day
   // one. Completion is one-way, so a retry asserts the done state.

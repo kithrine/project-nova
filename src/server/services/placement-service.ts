@@ -209,6 +209,34 @@ export interface PlacementWorkspaceView {
   /** Pause/Resume controls (Story 5.7): Nova lifecycle-transition roles. */
   viewerCanPause: boolean;
   viewerCanResume: boolean;
+  /**
+   * Internal case notes (Story 5.9): Nova viewers holding caseNote.view
+   * ONLY. Optional-and-undefined (never null) for every other viewer —
+   * JSON serialization drops undefined keys, so neither note content nor
+   * the field itself exists in shelter and participant payloads, and the
+   * query never even runs for them.
+   */
+  caseNotes?: CaseNoteTabView;
+}
+
+export interface CaseNoteRevisionView {
+  priorBody: string;
+  editorName: string;
+  atLabel: string;
+}
+
+export interface PlacementCaseNoteView {
+  id: string;
+  authorName: string;
+  body: string;
+  atLabel: string;
+  /** Prior versions, newest first — edits never overwrite silently (AC5). */
+  revisions: CaseNoteRevisionView[];
+}
+
+export interface CaseNoteTabView {
+  notes: PlacementCaseNoteView[];
+  viewerCanCreate: boolean;
 }
 
 export interface ActivationBlockerView {
@@ -413,7 +441,15 @@ export async function getPlacementWorkspace(
         ? `Candidate: ${placement.fundingSource.name}`
         : null;
     })(),
-    tabs: viewer === "NOVA" ? [...NOVA_TABS] : [...SHELTER_TABS],
+    // Case Notes is present only for Nova viewers HOLDING caseNote.view
+    // (Story 5.9): a Grant Administrator gets the workspace without the
+    // tab — structural absence, not hiding, at every tier.
+    tabs:
+      viewer === "NOVA"
+        ? NOVA_TABS.filter(
+            (tab) => tab !== "caseNotes" || hasPermission(ctx, "caseNote.view"),
+          )
+        : [...SHELTER_TABS],
     timeline: buildPlacementTimeline(
       placement.status,
       lastNonTerminal ?? undefined,
@@ -511,7 +547,143 @@ export async function getPlacementWorkspace(
       viewer === "NOVA" &&
       hasPermission(ctx, "placement.resume") &&
       placement.status === PlacementStatus.PAUSED,
+    caseNotes:
+      viewer === "NOVA" && hasPermission(ctx, "caseNote.view")
+        ? await buildCaseNotesTab(ctx, placement.id)
+        : undefined,
   };
+}
+
+/**
+ * The Case Notes tab (Story 5.9) — queried ONLY for authorized Nova
+ * viewers; the query never runs for shelter or participant requests, so
+ * note content cannot enter their payloads. Notes and their revision
+ * history are Nova-internal coordination records at every lifecycle
+ * stage, including terminal (AC6).
+ */
+async function buildCaseNotesTab(
+  ctx: AuthContext,
+  placementId: string,
+): Promise<CaseNoteTabView> {
+  const notes = await prisma.caseNote.findMany({
+    where: { placementId },
+    include: { revisions: { orderBy: { createdAt: "desc" } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const userIds = new Set<string>();
+  for (const note of notes) {
+    userIds.add(note.authorUserId);
+    for (const revision of note.revisions) userIds.add(revision.editedByUserId);
+  }
+  const users = await prisma.user.findMany({
+    where: { id: { in: [...userIds] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(users.map((user) => [user.id, user.displayName]));
+
+  return {
+    notes: notes.map((note) => ({
+      id: note.id,
+      authorName: nameById.get(note.authorUserId) ?? "Unknown user",
+      body: note.body,
+      atLabel: formatDateTime(note.createdAt),
+      revisions: note.revisions.map((revision) => ({
+        priorBody: revision.priorBody,
+        editorName: nameById.get(revision.editedByUserId) ?? "Unknown user",
+        atLabel: formatDateTime(revision.createdAt),
+      })),
+    })),
+    viewerCanCreate: hasPermission(ctx, "caseNote.create"),
+  };
+}
+
+/**
+ * Add an internal note to a placement (Story 5.9 AC1). Nova Operations
+ * only; allowed at ANY lifecycle stage including terminal — coordination
+ * history continues to matter after a placement ends. Validation copy
+ * matches the 2.7 application-note path; note content never reaches
+ * audit records or any non-Nova view model.
+ */
+export async function addPlacementCaseNote(
+  ctx: AuthContext,
+  placementId: string,
+  body: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "caseNote.create")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true },
+  });
+  if (!placement) throw new NotFoundError();
+
+  const trimmed = body.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Write the note before saving it.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep notes under 4,000 characters.");
+  }
+
+  await prisma.caseNote.create({
+    data: { placementId, authorUserId: ctx.userId, body: trimmed },
+  });
+}
+
+/**
+ * Edit a placement note with history (Story 5.9 AC5): the prior content
+ * is archived as an append-only revision in the same transaction — never
+ * overwritten silently. The compare-and-set on updatedAt turns a
+ * concurrent edit into a clean conflict instead of a lost version.
+ */
+export async function editPlacementCaseNote(
+  ctx: AuthContext,
+  noteId: string,
+  body: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "caseNote.create")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const note = await prisma.caseNote.findUnique({
+    where: { id: noteId },
+    select: { id: true, placementId: true, body: true, updatedAt: true },
+  });
+  if (!note || !note.placementId) throw new NotFoundError();
+
+  const trimmed = body.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Write the note before saving it.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep notes under 4,000 characters.");
+  }
+  if (trimmed === note.body) {
+    throw new ValidationError("Make a change before saving.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.caseNote.updateMany({
+      where: { id: noteId, updatedAt: note.updatedAt },
+      data: { body: trimmed },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This note changed while you were editing. Review the latest version.",
+      );
+    }
+    await tx.caseNoteRevision.create({
+      data: {
+        caseNoteId: noteId,
+        priorBody: note.body,
+        editedByUserId: ctx.userId,
+      },
+    });
+  });
 }
 
 /** The rows the activation snapshot is computed from. */

@@ -319,25 +319,50 @@ model BackgroundReview {
   updatedAt DateTime @updatedAt
 }
 
-// Internal operational note on an Application (Story 2.7). Nova Operations
-// only: never surfaced to the participant journey (2.6) or any shelter
-// experience. Case notes use XOR ownership (database-design.md) — exactly
-// one owning context. Application is the ONLY owning context that exists
-// today, so applicationId is simply required; when enrollment/placement
-// notes arrive (Epics 3/5), expand to nullable columns plus a CHECK
-// constraint per the expand/migrate/contract strategy.
+// Internal operational note (Story 2.7 on Applications; Story 5.9 adds
+// Placements). Nova Operations only: never surfaced to the participant
+// journey or any shelter experience. XOR ownership (database-design.md) —
+// EXACTLY one owning context, enforced by a CHECK constraint hand-written
+// in the migration SQL (Prisma cannot express it):
+//   CHECK ((("applicationId" IS NOT NULL)::int + ("placementId" IS NOT NULL)::int) = 1)
+// Both owning relations are RESTRICT: SetNull (Prisma's default for
+// optional relations) would violate the XOR CHECK by nulling the only
+// owner. Cleanup deletes notes (and their revisions) before their owner.
 model CaseNote {
-  id            String      @id @default(cuid())
-  applicationId String
-  application   Application @relation(fields: [applicationId], references: [id])
+  id            String       @id @default(cuid())
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  placementId   String?
+  placement     Placement?   @relation(fields: [placementId], references: [id], onDelete: Restrict)
 
   authorUserId String
   body         String
+
+  // Edit history (Story 5.9 AC5): every edit archives the prior content
+  // as an append-only revision — nothing is overwritten silently.
+  revisions CaseNoteRevision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([applicationId])
+  @@index([placementId])
+}
+
+// One archived prior version of a CaseNote, written transactionally with
+// the edit that superseded it (Story 5.9 AC5). Append-only; carries the
+// SAME Nova-only sensitivity as the note itself.
+model CaseNoteRevision {
+  id         String   @id @default(cuid())
+  caseNoteId String
+  caseNote   CaseNote @relation(fields: [caseNoteId], references: [id])
+
+  priorBody      String
+  editedByUserId String
+
+  createdAt DateTime @default(now())
+
+  @@index([caseNoteId])
 }
 
 // Audit event (Story 2.7): who accessed or did something sensitive, when.
@@ -551,6 +576,7 @@ model Placement {
   structuredSchedule PlacementSchedule?
   fundingAssignments FundingAssignment[]
   onboardingTasks    OnboardingTask[]
+  caseNotes          CaseNote[]
 
   events PlacementEvent[]
 
