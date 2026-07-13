@@ -1,6 +1,7 @@
 import {
   ActiveStatus,
   FundingAssignmentStatus,
+  OnboardingTaskStatus,
   OrganizationKind,
   PlacementStatus,
   Prisma,
@@ -13,6 +14,7 @@ import { prisma } from "@/server/database/prisma";
 import {
   ACTIVE_PLACEMENT_STATUSES,
   assertPlacementTransition,
+  PLACEMENT_ONBOARDING_CATALOG,
   buildPlacementTimeline,
   packageMissingPieces,
   PLACEMENT_STATUS_LABELS,
@@ -170,6 +172,30 @@ export interface PlacementWorkspaceView {
   coordinatorUserId: string | null;
   /** Funding tab data (Story 5.3): the active assignment plus history. */
   funding: FundingTabView;
+  /** Placement onboarding (Story 5.4): tasks plus viewer capabilities. */
+  onboarding: PlacementOnboardingView;
+}
+
+export interface PlacementTaskView {
+  id: string;
+  title: string;
+  description: string;
+  required: boolean;
+  participantCompletable: boolean;
+  status: OnboardingTaskStatus;
+  completedAtLabel: string | null;
+  completedByName: string | null;
+}
+
+export interface PlacementOnboardingView {
+  tasks: PlacementTaskView[];
+  requiredRemaining: number;
+  /** Nova viewer + placement.assign + status APPROVED. */
+  canInitiate: boolean;
+  /** Nova staff may complete any task while APPROVED/ONBOARDING. */
+  viewerCanCompleteAllTasks: boolean;
+  /** Shelter staff complete shelter-verified tasks for their org only. */
+  viewerCanCompleteShelterTasks: boolean;
 }
 
 export interface FundingAssignmentView {
@@ -250,6 +276,7 @@ export async function getPlacementWorkspace(
         include: { fundingSource: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
       },
+      onboardingTasks: { orderBy: { sortOrder: "asc" } },
       events: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -277,6 +304,7 @@ export async function getPlacementWorkspace(
     placement.supervisorId,
     placement.coordinatorUserId,
     ...placement.events.map((event) => event.actorUserId),
+    ...placement.onboardingTasks.map((task) => task.completedByUserId),
   ].filter((id): id is string => !!id);
   const users = await prisma.user.findMany({
     where: { id: { in: [...new Set(userIds)] } },
@@ -379,6 +407,37 @@ export async function getPlacementWorkspace(
     supervisorId: placement.supervisorId,
     coordinatorUserId: placement.coordinatorUserId,
     funding: await buildFundingTab(ctx, viewer, placement.fundingAssignments),
+    onboarding: {
+      tasks: placement.onboardingTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        required: task.required,
+        participantCompletable: task.participantCompletable,
+        status: task.status,
+        completedAtLabel: task.completedAt ? formatDate(task.completedAt) : null,
+        completedByName: task.completedByUserId
+          ? (nameById.get(task.completedByUserId) ?? "Nova staff")
+          : null,
+      })),
+      requiredRemaining: placement.onboardingTasks.filter(
+        (task) => task.required && task.status !== OnboardingTaskStatus.COMPLETE,
+      ).length,
+      canInitiate:
+        viewer === "NOVA" &&
+        hasPermission(ctx, "placement.assign") &&
+        placement.status === PlacementStatus.APPROVED,
+      viewerCanCompleteAllTasks:
+        viewer === "NOVA" &&
+        hasPermission(ctx, "onboardingTask.complete") &&
+        (placement.status === PlacementStatus.APPROVED ||
+          placement.status === PlacementStatus.ONBOARDING),
+      viewerCanCompleteShelterTasks:
+        viewer === "SHELTER" &&
+        hasPermission(ctx, "onboardingTask.complete") &&
+        (placement.status === PlacementStatus.APPROVED ||
+          placement.status === PlacementStatus.ONBOARDING),
+    },
   };
 }
 
@@ -584,6 +643,13 @@ const PARTICIPANT_STAGE_COPY: Record<PlacementStatus, { label: string; body: str
   },
 };
 
+export interface ParticipantStepView {
+  id: string;
+  title: string;
+  description: string;
+  status: OnboardingTaskStatus;
+}
+
 export interface ParticipantPlacementView {
   placementNumber: string;
   organizationName: string;
@@ -594,6 +660,8 @@ export interface ParticipantPlacementView {
   scheduleSummary: string | null;
   startDateLabel: string | null;
   supervisorName: string | null;
+  /** The participant's own placement-onboarding steps (Story 5.4). */
+  mySteps: ParticipantStepView[];
 }
 
 /**
@@ -623,6 +691,10 @@ export async function getOwnPlacement(
           organization: { select: { name: true } },
         },
       },
+      onboardingTasks: {
+        where: { participantCompletable: true },
+        orderBy: { sortOrder: "asc" },
+      },
     },
   });
   if (!placement) return null;
@@ -648,6 +720,16 @@ export async function getOwnPlacement(
     scheduleSummary: placement.schedule,
     startDateLabel: formatDate(placement.startDate),
     supervisorName: supervisor?.displayName ?? null,
+    mySteps:
+      placement.status === PlacementStatus.APPROVED ||
+      placement.status === PlacementStatus.ONBOARDING
+        ? placement.onboardingTasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            status: task.status,
+          }))
+        : [],
   };
 }
 
@@ -994,6 +1076,211 @@ export async function requestPlacementChanges(
         subjectType: "Placement",
         subjectId: placementId,
         detail: "changes requested",
+      },
+    });
+  });
+}
+
+// --- Placement onboarding (Story 5.4; ADR-017 Layer 2) ----------------------------
+
+/**
+ * Initiate placement onboarding (AC1): generates the site-specific task
+ * set linked to THIS placement (never the enrollment — XOR ownership) and
+ * enters Onboarding, in one transaction. Idempotent on tasks: a retry
+ * never duplicates the catalog.
+ */
+export async function initiatePlacementOnboarding(
+  ctx: AuthContext,
+  placementId: string,
+): Promise<void> {
+  requireAssignAccess(ctx);
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true },
+  });
+  if (!placement) throw new NotFoundError();
+  assertPlacementTransition(placement.status, PlacementStatus.ONBOARDING);
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placement.updateMany({
+      where: { id: placementId, status: PlacementStatus.APPROVED },
+      data: { status: PlacementStatus.ONBOARDING },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This placement changed while you were working. Refresh and try again.",
+      );
+    }
+    const existing = await tx.onboardingTask.count({ where: { placementId } });
+    if (existing === 0) {
+      await tx.onboardingTask.createMany({
+        data: PLACEMENT_ONBOARDING_CATALOG.map((item) => ({
+          placementId,
+          title: item.title,
+          description: item.description,
+          required: item.required,
+          participantCompletable: item.participantCompletable,
+          sortOrder: item.sortOrder,
+        })),
+      });
+    }
+    await tx.placementEvent.create({
+      data: {
+        placementId,
+        fromStatus: PlacementStatus.APPROVED,
+        toStatus: PlacementStatus.ONBOARDING,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placement.initiateOnboarding",
+        subjectType: "Placement",
+        subjectId: placementId,
+        detail:
+          existing === 0
+            ? `${PLACEMENT_ONBOARDING_CATALOG.length} tasks generated`
+            : "onboarding entered (tasks already present)",
+      },
+    });
+  });
+}
+
+const TASK_ACTIONABLE_STATUSES: readonly PlacementStatus[] = [
+  PlacementStatus.APPROVED,
+  PlacementStatus.ONBOARDING,
+];
+
+/**
+ * Staff verification of a placement task (AC4): Nova staff may complete
+ * any task; shelter staff (Supervisor or Manager, org-scoped) complete
+ * shelter-verified tasks only — never the participant's own
+ * acknowledgements. Actionable only while Approved/Onboarding,
+ * server-enforced.
+ */
+export async function completePlacementTask(
+  ctx: AuthContext,
+  taskId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "onboardingTask.complete")) {
+    throw new AuthorizationError();
+  }
+
+  const task = await prisma.onboardingTask.findUnique({
+    where: { id: taskId },
+    include: {
+      placement: { select: { id: true, status: true, hostOrganizationId: true } },
+    },
+  });
+  if (!task || !task.placementId || !task.placement) throw new NotFoundError();
+
+  const isNova = hasNovaScope(ctx);
+  const isShelterStaff = ctx.memberships.some(
+    (membership) =>
+      SHELTER_ROLES.includes(membership.role) &&
+      membership.organizationId === task.placement!.hostOrganizationId,
+  );
+  if (!isNova && !isShelterStaff) {
+    throw new AuthorizationError();
+  }
+  if (!isNova && task.participantCompletable) {
+    // Shelter staff verify shelter-facing steps; the participant's own
+    // acknowledgements belong to the participant (or the coordinator).
+    throw new AuthorizationError();
+  }
+  if (!TASK_ACTIONABLE_STATUSES.includes(task.placement.status)) {
+    throw new LifecycleError(
+      "Placement onboarding tasks are actionable only while the placement is approved or onboarding.",
+    );
+  }
+  if (task.status === OnboardingTaskStatus.COMPLETE) {
+    throw new LifecycleError("This task is already complete.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.onboardingTask.updateMany({
+      where: { id: taskId, status: OnboardingTaskStatus.NOT_STARTED },
+      data: {
+        status: OnboardingTaskStatus.COMPLETE,
+        completedAt: new Date(),
+        completedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This task changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "onboardingTask.complete",
+        subjectType: "OnboardingTask",
+        subjectId: taskId,
+        detail: "placement-task",
+      },
+    });
+  });
+}
+
+/**
+ * The participant completes their own placement task (AC3): ownership
+ * through Placement -> Participant -> Person, participant-completable
+ * tasks only, same lifecycle window.
+ */
+export async function completeOwnPlacementTask(
+  ctx: AuthContext,
+  taskId: string,
+): Promise<void> {
+  const task = await prisma.onboardingTask.findUnique({
+    where: { id: taskId },
+    include: {
+      placement: {
+        select: {
+          id: true,
+          status: true,
+          participant: { select: { person: { select: { userId: true } } } },
+        },
+      },
+    },
+  });
+  if (!task || !task.placementId || !task.placement) throw new NotFoundError();
+  if (task.placement.participant.person.userId !== ctx.userId) {
+    throw new AuthorizationError();
+  }
+  if (!task.participantCompletable) {
+    throw new AuthorizationError();
+  }
+  if (!TASK_ACTIONABLE_STATUSES.includes(task.placement.status)) {
+    throw new LifecycleError(
+      "These steps open while your placement is being prepared — check back soon.",
+    );
+  }
+  if (task.status === OnboardingTaskStatus.COMPLETE) {
+    throw new LifecycleError("This step is already done.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.onboardingTask.updateMany({
+      where: { id: taskId, status: OnboardingTaskStatus.NOT_STARTED },
+      data: {
+        status: OnboardingTaskStatus.COMPLETE,
+        completedAt: new Date(),
+        completedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError("This step just changed. Refresh and try again.");
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "onboardingTask.complete",
+        subjectType: "OnboardingTask",
+        subjectId: taskId,
+        detail: "placement-task (participant)",
       },
     });
   });

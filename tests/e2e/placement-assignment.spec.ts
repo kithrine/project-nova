@@ -104,4 +104,41 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     timeout: 20_000,
   });
   await expect(page.getByText(/Shelter review → .*Approved/)).toBeVisible();
+
+  // Phase 5 (Story 5.4) — the coordinator initiates placement onboarding:
+  // the site-specific task set generates and the placement enters
+  // Onboarding; verifying a shelter task drops the remaining count.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto(WORKSPACE);
+  const startOnboarding = page.getByRole("button", { name: "Start Onboarding" });
+  if (await startOnboarding.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    await page
+      .getByLabel(/The package is approved and the site is ready/)
+      .check();
+    await startOnboarding.click();
+  }
+  await expect(page.getByText(/Stage: .*Onboarding/)).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("heading", { name: "Placement onboarding" }),
+  ).toBeVisible();
+
+  // Branch on the SERVER-RENDERED progress line after it settles — a
+  // no-wait isVisible() probe here once sampled mid-hydration and skipped
+  // the click (the matching-prologue lesson, again).
+  const progress = page.getByText(/required steps? remain|All required steps are complete/);
+  await expect(progress.first()).toBeVisible({ timeout: 20_000 });
+  if (await page.getByText(/8 required steps remain/).isVisible().catch(() => false)) {
+    await page
+      .getByRole("button", {
+        name: "Mark Done: Site safety and hazard orientation delivered",
+      })
+      .click();
+    await expect(page.getByText(/7 required steps remain/)).toBeVisible({
+      timeout: 20_000,
+    });
+  }
+  await expect(
+    page.getByText(/Complete .*Synthetic E2E/).first(),
+  ).toBeVisible({ timeout: 20_000 });
 });

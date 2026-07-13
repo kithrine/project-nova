@@ -978,6 +978,9 @@ try {
   });
   // Placements before their source matches (sourceMatchId is RESTRICT) —
   // the 4.8 journey approves Quinn's match into a placement each run.
+  await prisma.onboardingTask.deleteMany({
+    where: { placement: { participantId: "e2e_participant_matchready" } },
+  });
   await prisma.placementEvent.deleteMany({
     where: { placement: { participantId: "e2e_participant_matchready" } },
   });
@@ -1023,6 +1026,9 @@ try {
   // matches with a RESTRICT FK — placement children, then placements,
   // then matches.
   await prisma.fundingAssignment.deleteMany({
+    where: { placement: { participantId: "e2e_participant_main" } },
+  });
+  await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_main" } },
   });
   await prisma.placementEvent.deleteMany({
@@ -1214,6 +1220,20 @@ try {
       actorUserId: "e2e_user_ops",
     },
   });
+  // Parker's own placement-onboarding step (Story 5.4): reset each run so
+  // the participant completes it end-to-end from My Placement.
+  await prisma.onboardingTask.create({
+    data: {
+      id: "e2e_ptask_parker_safety",
+      placementId: "e2e_placement_participant",
+      title: "Acknowledge the site safety procedures",
+      description:
+        "Confirm you've received and understood this site's safety walkthrough.",
+      required: true,
+      participantCompletable: true,
+      sortOrder: 1,
+    },
+  });
 
   // Placement-assignment fixture (Story 5.2): CASEY carries a fresh DRAFT
   // placement each run for the assign -> propose -> shelter-review ->
@@ -1266,6 +1286,9 @@ try {
       applicationId: "e2e_app_assignready",
       status: "READY_FOR_MATCHING",
     },
+  });
+  await prisma.onboardingTask.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
   });
   await prisma.placementScheduleDay.deleteMany({
     where: {

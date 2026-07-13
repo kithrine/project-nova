@@ -39,6 +39,13 @@ const baseView: PlacementWorkspaceView = {
   supervisorId: null,
   coordinatorUserId: null,
   funding: { active: null, history: [], viewerCanAssign: false, sourceOptions: [] },
+  onboarding: {
+    tasks: [],
+    requiredRemaining: 0,
+    canInitiate: false,
+    viewerCanCompleteAllTasks: false,
+    viewerCanCompleteShelterTasks: false,
+  },
 };
 
 describe("AssignmentForm (Story 5.2)", () => {

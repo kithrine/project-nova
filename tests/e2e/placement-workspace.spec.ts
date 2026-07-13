@@ -95,6 +95,22 @@ test("the participant sees My Placement in plain language (AC3)", async ({ page 
   await expect(page.getByText("PLC-E2E-PARKER1")).toBeVisible();
   // Plain language only — no internal tab shell, no case notes, no codes.
   await expect(page.getByText(/Case Notes|ONBOARDING|blocker/)).toHaveCount(0);
+
+  // Story 5.4 (AC3): the participant completes their own step before day
+  // one. Completion is one-way, so a retry asserts the done state.
+  await expect(
+    page.getByRole("heading", { name: "Your steps before day one" }),
+  ).toBeVisible();
+  const markDone = page.getByRole("button", {
+    name: "Mark Done: Acknowledge the site safety procedures",
+  });
+  if (await markDone.isVisible().catch(() => false)) {
+    await markDone.click();
+  }
+  await expect(page.getByText("Done — thank you!")).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/All your steps are done — wonderful/),
+  ).toBeVisible();
 });
 
 test("a Grant Administrator assigns, ends, and replaces funding (Story 5.3)", async ({

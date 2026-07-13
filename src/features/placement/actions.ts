@@ -8,7 +8,10 @@ import type { ScheduleDayInput } from "@/server/domain/placement";
 import {
   approvePlacementPackage,
   assignFunding,
+  completeOwnPlacementTask,
+  completePlacementTask,
   endFundingAssignment,
+  initiatePlacementOnboarding,
   proposePlacementPackage,
   requestPlacementChanges,
   saveAssignment,
@@ -132,6 +135,73 @@ export async function approvePlacementPackageAction(
   }
 
   revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function initiatePlacementOnboardingAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  _formData: FormData,
+): Promise<PlacementFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await initiatePlacementOnboarding(ctx, placementId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function completePlacementTaskAction(
+  placementId: string,
+  taskId: string,
+  _prev: PlacementFormState,
+  _formData: FormData,
+): Promise<PlacementFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await completePlacementTask(ctx, taskId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function completeOwnPlacementTaskAction(
+  taskId: string,
+  _prev: PlacementFormState,
+  _formData: FormData,
+): Promise<PlacementFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await completeOwnPlacementTask(ctx, taskId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath("/participant/placement");
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/participant/placement");
   return { status: "saved" };
 }
 
