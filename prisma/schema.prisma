@@ -578,6 +578,7 @@ model Placement {
   onboardingTasks    OnboardingTask[]
   caseNotes          CaseNote[]
   evaluations        Evaluation[]
+  incidents          Incident[]
 
   events PlacementEvent[]
 
@@ -1054,6 +1055,94 @@ model Evaluation {
   updatedAt   DateTime @updatedAt
 
   @@index([placementId])
+}
+
+// --- Incidents (Story 5.11) ----------------------------------------------------
+
+// Fixed lists per docs/ops/incident-response.md — authoritative.
+enum IncidentCategory {
+  SAFETY
+  INJURY
+  ANIMAL_WELFARE
+  ATTENDANCE
+  CONDUCT
+  PROPERTY
+  HARASSMENT
+  OTHER
+}
+
+enum IncidentSeverity {
+  MINOR
+  MODERATE
+  SERIOUS
+  EMERGENCY
+}
+
+// The incident's own machine, independent of placement lifecycle:
+// Open -> Under Review -> Closed. Never hard-deleted (RULES.md names
+// incidents explicitly); closure makes it read-only history.
+enum IncidentStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED
+}
+
+// One reported workplace incident against a placement
+// (docs/ops/incident-response.md; TERMINOLOGY.md). Shelter staff and Nova
+// report; Nova Operations owns review, classification confirmation, and
+// closure. description is the operational summary every permitted viewer
+// reads; restrictedDetail is the HIGHLY RESTRICTED narrative
+// (security-privacy.md names "Serious incident investigations") — gated
+// behind incident.viewRestricted, excluded from every other view model
+// and from any general query path, reads audited.
+model Incident {
+  id             String @id @default(cuid())
+  // Human reference (database-design.md), INC-YYYY-XXXXXX.
+  incidentNumber String @unique
+
+  placementId String
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  category   IncidentCategory
+  severity   IncidentSeverity
+  occurredOn DateTime         @db.Date
+
+  reporterUserId   String
+  description      String
+  restrictedDetail String?
+
+  status IncidentStatus @default(OPEN)
+
+  // Nova review and closure trail (AC4) — closure is recorded with
+  // reviewer, timestamp, and outcome, then the record is history.
+  reviewStartedAt DateTime?
+  reviewerUserId  String?
+  closedAt        DateTime?
+  closedByUserId  String?
+  closureOutcome  String?
+
+  followUps IncidentFollowUp[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placementId])
+  @@index([status, severity])
+}
+
+// Append-only follow-up on an incident (AC3): shelter staff and Nova add
+// context over time; category, severity, and closure remain Nova-only.
+model IncidentFollowUp {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id])
+
+  authorUserId String
+  body         String
+
+  createdAt DateTime @default(now())
+
+  @@index([incidentId])
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------

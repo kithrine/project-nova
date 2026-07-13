@@ -144,6 +144,26 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("scopes incidents: shelters and Nova report, Nova alone reviews, RRS alone reads restricted narratives (5.11)", () => {
+    for (const role of Object.values(Role)) {
+      const granted = permissionsForRoles([role]);
+      const staff =
+        role === Role.SHELTER_SUPERVISOR ||
+        role === Role.SHELTER_MANAGER ||
+        role === Role.PROGRAM_COORDINATOR ||
+        role === Role.NOVA_ADMINISTRATOR;
+      const viewExpected = staff || role === Role.RESTRICTED_REVIEW_SPECIALIST;
+      const reviewExpected =
+        role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
+      expect(granted.has("incident.view"), `view for ${role}`).toBe(viewExpected);
+      expect(granted.has("incident.create"), `create for ${role}`).toBe(staff);
+      expect(granted.has("incident.review"), `review for ${role}`).toBe(reviewExpected);
+      expect(granted.has("incident.viewRestricted"), `restricted for ${role}`).toBe(
+        role === Role.RESTRICTED_REVIEW_SPECIALIST,
+      );
+    }
+  });
+
   it("splits evaluations by portal: shelter staff submit, Nova Operations reads (5.10)", () => {
     for (const role of Object.values(Role)) {
       const granted = permissionsForRoles([role]);

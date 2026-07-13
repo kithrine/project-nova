@@ -1329,6 +1329,15 @@ try {
   await prisma.evaluation.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });
+  // Incidents (Story 5.11) — follow-ups, then incidents, before placements.
+  await prisma.incidentFollowUp.deleteMany({
+    where: {
+      incident: { placement: { participantId: "e2e_participant_assignready" } },
+    },
+  });
+  await prisma.incident.deleteMany({
+    where: { placement: { participantId: "e2e_participant_assignready" } },
+  });
   await prisma.onboardingTask.deleteMany({
     where: { placement: { participantId: "e2e_participant_assignready" } },
   });

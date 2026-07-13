@@ -2,7 +2,9 @@ import { AssignmentForm } from "@/features/placement/assignment-form";
 import { CaseNotesTab } from "@/features/placement/case-notes-tab";
 import { EvaluationsTab } from "@/features/placement/evaluations-tab";
 import { FundingTab } from "@/features/placement/funding-tab";
+import { IncidentsTab } from "@/features/placement/incidents-tab";
 import { EVALUATION_AREAS, EVALUATION_RATINGS } from "@/server/domain/evaluation";
+import { INCIDENT_CATEGORIES, INCIDENT_SEVERITIES } from "@/server/domain/incident";
 import type {
   PlacementWorkspaceView,
   WorkspaceTab,
@@ -119,12 +121,16 @@ export function WorkspaceTabContent({
         />
       ) : null;
     case "incidents":
-      return (
-        <EmptyTab>
-          No incidents reported. Incident reporting opens with Story 5.11 —
-          submitting a report never replaces calling emergency services.
-        </EmptyTab>
-      );
+      return view.incidents ? (
+        <IncidentsTab
+          placementId={view.id}
+          incidents={view.incidents}
+          catalog={{
+            categories: INCIDENT_CATEGORIES,
+            severities: INCIDENT_SEVERITIES,
+          }}
+        />
+      ) : null;
     case "caseNotes":
       // The tab only exists in Nova view models carrying the notes; the
       // guard is a type-narrowing safety net, never a hiding mechanism.
