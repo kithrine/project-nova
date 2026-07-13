@@ -66,8 +66,8 @@ describe("navigation models (information-architecture.md)", () => {
       ]),
     );
     expect(availableByExperience).toEqual({
-      participant: ["Dashboard", "My Application", "Certifications"],
-      shelter: ["Dashboard"],
+      participant: ["Dashboard", "My Application", "My Placement", "Certifications"],
+      shelter: ["Dashboard", "Placements"],
       operations: ["Dashboard", "Applications", "Placements", "Administration"],
     });
   });

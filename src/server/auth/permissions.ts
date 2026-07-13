@@ -98,6 +98,12 @@ export const PERMISSIONS = [
   // the system surfaces eligibility but never approves on its own.
   "placementMatch.approve",
   "placement.create",
+  // The placement workspace (Story 5.1): Nova-wide for Operations roles;
+  // organization scope via hostOrganizationId for shelter roles. The
+  // participant reads their OWN placement via ownership, never a grant.
+  // Tab and field visibility are shaped server-side per role — a hidden
+  // tab is never the only protection.
+  "placement.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -108,11 +114,16 @@ export type Permission = (typeof PERMISSIONS)[number];
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [Role.PARTICIPANT]: ["organization.view"],
-  [Role.SHELTER_SUPERVISOR]: ["organization.view", "placementMatch.view"],
+  [Role.SHELTER_SUPERVISOR]: [
+    "organization.view",
+    "placementMatch.view",
+    "placement.view",
+  ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
     "placementMatch.view",
     "placementMatch.recordShelterDecision",
+    "placement.view",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -139,8 +150,13 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.revise",
     "placementMatch.approve",
     "placement.create",
+    "placement.view",
   ],
-  [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
+  [Role.GRANT_ADMINISTRATOR]: [
+    "organization.view",
+    "funding.manage",
+    "placement.view",
+  ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
     "funding.manage",
@@ -167,6 +183,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.revise",
     "placementMatch.approve",
     "placement.create",
+    "placement.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

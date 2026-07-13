@@ -90,7 +90,10 @@ export function AppShell({
           {navList}
         </nav>
 
-        <main id="main-content" className="flex flex-1 flex-col px-4 py-6 sm:px-6">
+        {/* min-w-0 lets main shrink below its content's intrinsic width so
+            wide, internally-scrollable children (e.g. the placement tab
+            strip) never force horizontal page scroll on small screens. */}
+        <main id="main-content" className="flex min-w-0 flex-1 flex-col px-4 py-6 sm:px-6">
           {children}
         </main>
       </div>

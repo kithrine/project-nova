@@ -541,6 +541,8 @@ export interface MatchWorkspaceView {
   approvalBlockers: string[];
   /** The resulting placement's reference once APPROVED (AC5). */
   placementNumber: string | null;
+  /** Workspace route target for the resulting placement (Story 5.1). */
+  placementId: string | null;
   approvedAtLabel: string | null;
 }
 
@@ -564,7 +566,7 @@ export async function getMatchWorkspace(
       organizationSite: {
         include: { organization: { select: { id: true, name: true } } },
       },
-      resultingPlacement: { select: { placementNumber: true } },
+      resultingPlacement: { select: { id: true, placementNumber: true } },
     },
   });
   if (!match) throw new NotFoundError();
@@ -649,6 +651,7 @@ export async function getMatchWorkspace(
         ? approvalBlockers(match, blockingPlacements > 0)
         : [],
     placementNumber: match.resultingPlacement?.placementNumber ?? null,
+    placementId: match.resultingPlacement?.id ?? null,
     approvedAtLabel: formatWindowDate(match.approvedAt),
   };
 }
