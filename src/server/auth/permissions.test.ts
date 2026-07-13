@@ -113,13 +113,13 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
-  it("keeps placement lifecycle transitions to PC and NA — never shelters, GA, or participants (5.6)", () => {
+  it("keeps placement lifecycle transitions to PC and NA — never shelters, GA, or participants (5.6/5.7)", () => {
     for (const role of Object.values(Role)) {
       const expected = role === Role.PROGRAM_COORDINATOR || role === Role.NOVA_ADMINISTRATOR;
-      expect(
-        permissionsForRoles([role]).has("placement.activate"),
-        `activate for ${role}`,
-      ).toBe(expected);
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("placement.activate"), `activate for ${role}`).toBe(expected);
+      expect(granted.has("placement.pause"), `pause for ${role}`).toBe(expected);
+      expect(granted.has("placement.resume"), `resume for ${role}`).toBe(expected);
     }
   });
 

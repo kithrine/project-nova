@@ -1,6 +1,8 @@
 import { ActivatePanel } from "@/features/placement/activate-panel";
 import { ActivationBlockers } from "@/features/placement/activation-blockers";
 import { LifecycleTimeline } from "@/features/placement/lifecycle-timeline";
+import { PausePanel, ResumePanel } from "@/features/placement/pause-resume-panel";
+import { PAUSE_REASON_CATEGORIES } from "@/server/domain/placement";
 import { PackageReviewPanel } from "@/features/placement/package-review-panel";
 import { PlacementOnboardingPanel } from "@/features/placement/placement-onboarding-panel";
 import { WorkspaceTabNav } from "@/features/placement/workspace-tab-nav";
@@ -56,6 +58,13 @@ export function PlacementWorkspace({
           blockers={view.activation.open.map((item) => item.title)}
         />
       ) : null}
+
+      {/* The Active <-> Paused loop (5.7): one control renders at a time,
+          matching the placement's current stage. */}
+      {view.viewerCanPause ? (
+        <PausePanel placementId={view.id} reasonOptions={PAUSE_REASON_CATEGORIES} />
+      ) : null}
+      {view.viewerCanResume ? <ResumePanel placementId={view.id} /> : null}
 
       {view.isTerminal ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
