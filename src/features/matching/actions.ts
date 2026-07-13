@@ -8,8 +8,10 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   createMatchDraft,
   proposeMatch,
+  recordParticipantDecision,
   updateMatchDraft,
   withdrawMatchDraft,
+  type ParticipantDecisionChoice,
 } from "@/server/services/matching-service";
 
 /**
@@ -108,6 +110,40 @@ export async function withdrawMatchDraftAction(
 
   revalidatePath("/operations/placements");
   redirect("/operations/placements");
+}
+
+/**
+ * Record the participant's decision (Story 4.5) — used by the participant's
+ * own card and by the coordinator's assisted-recording panel; the service
+ * resolves which path applies. The optional note rides in form data.
+ */
+export async function recordParticipantDecisionAction(
+  matchId: string,
+  decision: ParticipantDecisionChoice,
+  _prev: MatchFormState,
+  formData: FormData,
+): Promise<MatchFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await recordParticipantDecision(ctx, matchId, {
+      decision,
+      note: textOrNull(formData.get("note")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath("/participant");
+      revalidatePath(`/operations/placements/matches/${matchId}`);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/participant");
+  revalidatePath("/shelter");
+  revalidatePath(`/operations/placements/matches/${matchId}`);
+  revalidatePath("/operations/placements");
+  return { status: "saved" };
 }
 
 export async function proposeMatchAction(

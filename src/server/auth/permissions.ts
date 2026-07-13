@@ -76,6 +76,11 @@ export const PERMISSIONS = [
   // Draft -> Proposed (Story 4.4): the moment match details first cross
   // the organization boundary to the participant and the shelter.
   "placementMatch.propose",
+  // Coordinator-ASSISTED recording of the participant's decision (Story
+  // 4.5) when it was communicated by phone or in person. The participant
+  // decides their OWN match via ownership (Person -> Participant), never
+  // via a role grant — this permission is only the staff recording path.
+  "placementMatch.recordParticipantDecision",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -109,6 +114,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.viewCompatibility",
     "placementMatch.manageDraft",
     "placementMatch.propose",
+    "placementMatch.recordParticipantDecision",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -133,6 +139,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.viewCompatibility",
     "placementMatch.manageDraft",
     "placementMatch.propose",
+    "placementMatch.recordParticipantDecision",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

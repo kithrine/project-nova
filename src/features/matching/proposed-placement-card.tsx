@@ -1,4 +1,6 @@
+import { ParticipantDecisionControls } from "@/features/matching/participant-decision-controls";
 import type {
+  DeclinedPlacementNotice,
   ProposedMatchParticipantView,
   ShelterApprovalView,
 } from "@/server/services/matching-service";
@@ -6,10 +8,12 @@ import type {
 /**
  * Proposed Placement Card (Story 4.4; docs/ux/component-guidelines.md) in
  * its two role shapes. Participant: warm, plain language, their own match
- * only. Shelter: the Placement approvals row with the operational details.
- * Neither shape ever includes coordinator notes, compatibility reads, or
- * restricted content — those fields are structurally absent from the view
- * models, not filtered here.
+ * only — with the Accept/Decline decision controls while their track is
+ * pending (Story 4.5) and the accepted waiting state after. Shelter: the
+ * Placement approvals row with the operational details. Neither shape ever
+ * includes coordinator notes, compatibility reads, or restricted content —
+ * those fields are structurally absent from the view models, not filtered
+ * here.
  */
 
 function CardIcon() {
@@ -35,19 +39,25 @@ export function ParticipantProposedCard({
 }: {
   match: ProposedMatchParticipantView;
 }) {
+  const accepted = match.participantDecision === "ACCEPTED";
+
   return (
     <section
       aria-labelledby="proposed-placement-heading"
       className="flex max-w-prose flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-5"
     >
       <p role="status" className="sr-only">
-        A placement has been proposed for you.
+        {accepted
+          ? "You accepted this placement."
+          : "A placement has been proposed for you."}
       </p>
       <div className="flex items-start gap-3">
         <CardIcon />
         <div className="flex flex-col gap-1">
           <h2 id="proposed-placement-heading" className="text-lg font-semibold">
-            A placement has been proposed for you
+            {accepted
+              ? "You accepted this placement"
+              : "A placement has been proposed for you"}
           </h2>
           <p className="text-base leading-relaxed text-base-content/80">
             {match.organizationName} — {match.siteName}
@@ -72,16 +82,60 @@ export function ParticipantProposedCard({
             </dd>
           </div>
         ) : null}
-        {match.respondByLabel ? (
+        {!accepted && match.respondByLabel ? (
           <div className="flex flex-wrap gap-x-2">
             <dt className="font-medium">Decision window:</dt>
             <dd className="text-base-content/80">through {match.respondByLabel}</dd>
           </div>
         ) : null}
       </dl>
-      <p className="text-sm text-base-content/70">
-        Take your time to think it over — recording your decision arrives here
-        soon, and your coordinator is glad to talk it through with you anytime.
+      {accepted ? (
+        <p className="text-sm text-base-content/70">
+          Wonderful — nothing more is needed from you right now. The shelter is
+          reviewing it too, and Nova gives everything a final look before your
+          start date is confirmed.
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-base-content/70">
+            Take your time to think it over — this is your decision to make, and
+            your coordinator is glad to talk it through with you anytime.
+          </p>
+          <ParticipantDecisionControls
+            matchId={match.id}
+            organizationName={match.organizationName}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The gentle post-decline notice (Story 4.5 UX): respectful, plain, and
+ * time-boxed by the service — never "Rejected" or "Failed" language.
+ */
+export function ParticipantDeclinedNotice({
+  notice,
+}: {
+  notice: DeclinedPlacementNotice;
+}) {
+  return (
+    <section
+      aria-labelledby="declined-placement-heading"
+      className="flex max-w-prose flex-col gap-2 rounded-lg border border-base-300 bg-base-200/50 p-5"
+    >
+      <p role="status" className="sr-only">
+        You declined this placement.
+      </p>
+      <h2 id="declined-placement-heading" className="text-lg font-semibold">
+        You declined this placement
+      </h2>
+      <p className="text-sm leading-relaxed text-base-content/80">
+        You declined the placement at {notice.organizationName} — that&apos;s
+        okay, and it was yours to decide. You&apos;re still in the program, and
+        you may be matched with another opportunity. Your coordinator is glad
+        to talk anytime.
       </p>
     </section>
   );

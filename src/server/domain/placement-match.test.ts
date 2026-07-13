@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { EnrollmentStatus, MatchStatus } from "@/generated/prisma/client";
+import {
+  EnrollmentStatus,
+  MatchStatus,
+  ParticipantMatchDecision,
+} from "@/generated/prisma/client";
 import {
   ALLOWED_MATCH_TRANSITIONS,
   assertMatchTransition,
+  decisionBlockReason,
   decisionWindowEnd,
   draftCreationBlockReason,
   isExpiredProposal,
+  matchStatusAfterParticipantDecision,
   proposalMissingFields,
 } from "./placement-match";
 
@@ -92,6 +98,43 @@ describe("proposal gate and window (Story 4.4)", () => {
       ),
     ).toBe(false);
     expect(isExpiredProposal({ ...base, status: MatchStatus.DRAFT }, now)).toBe(false);
+  });
+});
+
+describe("decision recording rules (Story 4.5)", () => {
+  it("allows a decision only on a live proposal with the track still pending", () => {
+    expect(
+      decisionBlockReason({ status: MatchStatus.PROPOSED, decision: "PENDING" }),
+    ).toBeNull();
+    for (const status of [
+      MatchStatus.DRAFT,
+      MatchStatus.DECLINED,
+      MatchStatus.WITHDRAWN,
+      MatchStatus.EXPIRED,
+      MatchStatus.APPROVED,
+    ]) {
+      expect(decisionBlockReason({ status, decision: "PENDING" })).toMatch(
+        /while a match is proposed/i,
+      );
+    }
+  });
+
+  it("is one-way for the current proposal cycle — no self-service reversal", () => {
+    expect(
+      decisionBlockReason({ status: MatchStatus.PROPOSED, decision: "ACCEPTED" }),
+    ).toMatch(/already been recorded/i);
+    expect(
+      decisionBlockReason({ status: MatchStatus.PROPOSED, decision: "DECLINED" }),
+    ).toMatch(/already been recorded/i);
+  });
+
+  it("treats a participant decline as a unilateral veto (AC2)", () => {
+    expect(
+      matchStatusAfterParticipantDecision(ParticipantMatchDecision.DECLINED),
+    ).toBe(MatchStatus.DECLINED);
+    expect(
+      matchStatusAfterParticipantDecision(ParticipantMatchDecision.ACCEPTED),
+    ).toBe(MatchStatus.PROPOSED);
   });
 });
 

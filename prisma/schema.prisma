@@ -428,6 +428,16 @@ model PlacementMatch {
   proposedAt           DateTime?
   decisionWindowEndsAt DateTime?
 
+  // Participant decision track (Story 4.5). The decision OWNER is always
+  // the match's participant; recordedBy captures the recording actor —
+  // the participant themselves, or a coordinator recording a decision
+  // communicated by phone or in person (AC3). One-way per proposal cycle.
+  // The note is Operations-visible only: never in shelter or participant
+  // view models, never in audit detail.
+  participantDecisionAt               DateTime?
+  participantDecisionNote             String?
+  participantDecisionRecordedByUserId String?
+
   events PlacementMatchEvent[]
 
   createdAt DateTime @default(now())

@@ -9,7 +9,7 @@ import {
   TrainingEnrollmentStatus,
 } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
-import { hasPermission, requireNovaScope } from "@/server/auth/authorize";
+import { hasNovaScope, hasPermission, requireNovaScope } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
 import { certificationSatisfies } from "@/server/domain/certification";
 import {
@@ -24,8 +24,11 @@ import {
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
 import {
   assertMatchTransition,
+  DECISION_WINDOW_DAYS,
+  decisionBlockReason,
   decisionWindowEnd,
   draftCreationBlockReason,
+  matchStatusAfterParticipantDecision,
   proposalMissingFields,
 } from "@/server/domain/placement-match";
 import {
@@ -337,6 +340,19 @@ export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
   [MatchStatus.EXPIRED]: "Expired",
 };
 
+export const PARTICIPANT_DECISION_LABELS: Record<ParticipantMatchDecision, string> = {
+  [ParticipantMatchDecision.PENDING]: "Pending",
+  [ParticipantMatchDecision.ACCEPTED]: "Accepted",
+  [ParticipantMatchDecision.DECLINED]: "Declined",
+};
+
+export const SHELTER_DECISION_LABELS: Record<ShelterMatchDecision, string> = {
+  [ShelterMatchDecision.PENDING]: "Pending",
+  [ShelterMatchDecision.APPROVED]: "Approved",
+  [ShelterMatchDecision.CHANGE_REQUESTED]: "Change requested",
+  [ShelterMatchDecision.DECLINED]: "Declined",
+};
+
 export interface StoredCompatibilitySnapshot extends CompatibilityResult {
   evaluatedAt: string;
 }
@@ -484,6 +500,17 @@ export interface MatchWorkspaceView {
   siteOptions: MatchOption[];
   supervisorOptions: MatchOption[];
   fundingOptions: MatchOption[];
+  // Decision tracks (Stories 4.5/4.6). The participant note is
+  // Operations-visible here (4.5 AC6) — it never enters shelter or
+  // participant view models.
+  participantDecision: ParticipantMatchDecision;
+  participantDecisionLabel: string;
+  participantDecisionAtLabel: string | null;
+  participantDecisionNote: string | null;
+  /** True when a coordinator recorded the decision on the participant's behalf. */
+  participantDecisionRecordedByStaff: boolean;
+  shelterDecision: ShelterMatchDecision;
+  shelterDecisionLabel: string;
 }
 
 /** The coordinator draft workspace (drafts are coordinator-only, AC6). */
@@ -497,7 +524,11 @@ export async function getMatchWorkspace(
     where: { id: matchId },
     include: {
       participant: {
-        include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+        include: {
+          person: {
+            select: { legalFirstName: true, legalLastName: true, userId: true },
+          },
+        },
       },
       organizationSite: {
         include: { organization: { select: { id: true, name: true } } },
@@ -560,6 +591,15 @@ export async function getMatchWorkspace(
       label: membership.user.displayName,
     })),
     fundingOptions: funding.map((source) => ({ id: source.id, label: source.name })),
+    participantDecision: match.participantDecision,
+    participantDecisionLabel: PARTICIPANT_DECISION_LABELS[match.participantDecision],
+    participantDecisionAtLabel: formatWindowDate(match.participantDecisionAt),
+    participantDecisionNote: match.participantDecisionNote,
+    participantDecisionRecordedByStaff:
+      match.participantDecisionRecordedByUserId !== null &&
+      match.participantDecisionRecordedByUserId !== match.participant.person.userId,
+    shelterDecision: match.shelterDecision,
+    shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
   };
 }
 
@@ -867,6 +907,12 @@ export interface ProposedMatchParticipantView {
   startDateLabel: string | null;
   endDateLabel: string | null;
   respondByLabel: string | null;
+  /**
+   * PENDING renders the Accept/Decline controls; ACCEPTED the waiting
+   * state (Story 4.5). DECLINED never reaches this view — a decline moves
+   * the match itself off PROPOSED.
+   */
+  participantDecision: "PENDING" | "ACCEPTED";
 }
 
 /**
@@ -893,6 +939,7 @@ export async function getOwnProposedMatch(
     },
     select: {
       id: true,
+      participantDecision: true,
       proposedSchedule: true,
       proposedStartDate: true,
       proposedEndDate: true,
@@ -921,6 +968,10 @@ export async function getOwnProposedMatch(
     startDateLabel: formatWindowDate(match.proposedStartDate),
     endDateLabel: formatWindowDate(match.proposedEndDate),
     respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
+    participantDecision:
+      match.participantDecision === ParticipantMatchDecision.ACCEPTED
+        ? "ACCEPTED"
+        : "PENDING",
   };
 }
 
@@ -994,4 +1045,147 @@ export async function listShelterApprovals(
     respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
     statusLabel: MATCH_STATUS_LABELS[match.status],
   }));
+}
+
+// --- Participant decision (Story 4.5) --------------------------------------------
+
+export type ParticipantDecisionChoice = "ACCEPTED" | "DECLINED";
+
+/**
+ * Record the participant's decision on a proposed match. Two authorized
+ * paths to the SAME rules: the participant on their own match (ownership
+ * through Person -> Participant, AC1/AC2/AC5), or a coordinator recording
+ * a decision communicated by phone or in person (AC3) — the participant
+ * remains the decision owner; recordedBy captures the recording actor.
+ *
+ * A decline is a unilateral veto: the match itself becomes Declined
+ * regardless of the shelter track. An accept keeps the match Proposed —
+ * it only satisfies one of the two prerequisites checked in 4.8. Both are
+ * one-way for the current proposal cycle (AC4 gates via
+ * decisionBlockReason), and the optional note is Operations-visible only
+ * (AC6): never in shelter or participant view models, never in audit
+ * detail.
+ */
+export async function recordParticipantDecision(
+  ctx: AuthContext,
+  matchId: string,
+  input: { decision: ParticipantDecisionChoice; note?: string | null },
+): Promise<void> {
+  // Expire-on-access first: a proposal past its window with no decisions
+  // expires rather than being decided late.
+  await expireStaleProposals();
+
+  const match = await prisma.placementMatch.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      status: true,
+      participantDecision: true,
+      participant: { select: { person: { select: { userId: true } } } },
+    },
+  });
+  if (!match) throw new NotFoundError();
+
+  const isOwner = match.participant.person.userId === ctx.userId;
+  const isAssistingStaff =
+    hasPermission(ctx, "placementMatch.recordParticipantDecision") &&
+    hasNovaScope(ctx);
+  if (!isOwner && !isAssistingStaff) {
+    throw new AuthorizationError();
+  }
+
+  const blocked = decisionBlockReason({
+    status: match.status,
+    decision: match.participantDecision,
+  });
+  if (blocked) throw new LifecycleError(blocked);
+
+  const decision =
+    input.decision === "DECLINED"
+      ? ParticipantMatchDecision.DECLINED
+      : ParticipantMatchDecision.ACCEPTED;
+  const nextStatus = matchStatusAfterParticipantDecision(decision);
+  const note = input.note?.trim() ? input.note.trim() : null;
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placementMatch.updateMany({
+      where: {
+        id: matchId,
+        status: MatchStatus.PROPOSED,
+        participantDecision: ParticipantMatchDecision.PENDING,
+      },
+      data: {
+        status: nextStatus,
+        participantDecision: decision,
+        participantDecisionAt: new Date(),
+        participantDecisionNote: note,
+        participantDecisionRecordedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This match changed while you were working. Refresh and try again.",
+      );
+    }
+    // An accept keeps the match PROPOSED — from == to is honest there, and
+    // the trail still records when and by whom the decision landed (4.7
+    // relies on decision history never being silently overwritten).
+    await tx.placementMatchEvent.create({
+      data: {
+        placementMatchId: matchId,
+        fromStatus: MatchStatus.PROPOSED,
+        toStatus: nextStatus,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placementMatch.participantDecision",
+        subjectType: "PlacementMatch",
+        subjectId: matchId,
+        // Non-sensitive summary only — the note itself never enters detail.
+        detail: isOwner
+          ? decision.toLowerCase()
+          : `${decision.toLowerCase()} (recorded by staff on the participant's behalf)`,
+      },
+    });
+  });
+}
+
+export interface DeclinedPlacementNotice {
+  organizationName: string;
+}
+
+/**
+ * A gentle, time-boxed dashboard notice after the participant's own
+ * decline (Story 4.5 UX): visible for one decision-window's worth of days,
+ * then the dashboard returns to the readiness journey — a decline is a
+ * choice, not a flag that follows them around.
+ */
+export async function getOwnDeclinedPlacementNotice(
+  ctx: AuthContext,
+): Promise<DeclinedPlacementNotice | null> {
+  const person = await prisma.person.findUnique({
+    where: { userId: ctx.userId },
+    select: { participant: { select: { id: true } } },
+  });
+  if (!person?.participant) return null;
+
+  const cutoff = new Date(Date.now() - DECISION_WINDOW_DAYS * 86_400_000);
+  const match = await prisma.placementMatch.findFirst({
+    where: {
+      participantId: person.participant.id,
+      status: MatchStatus.DECLINED,
+      participantDecision: ParticipantMatchDecision.DECLINED,
+      participantDecisionAt: { gte: cutoff },
+    },
+    orderBy: { participantDecisionAt: "desc" },
+    select: {
+      organizationSite: { select: { organization: { select: { name: true } } } },
+    },
+  });
+  return match
+    ? { organizationName: match.organizationSite.organization.name }
+    : null;
 }

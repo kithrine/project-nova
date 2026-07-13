@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { AssistedDecisionPanel } from "@/features/matching/assisted-decision-panel";
 import { CompatibilityPanel } from "@/features/matching/compatibility-panel";
 import { MatchDraftForm } from "@/features/matching/match-draft-form";
 import { ProposePanel } from "@/features/matching/propose-panel";
@@ -72,12 +73,42 @@ export default async function MatchWorkspacePage({
           />
         </>
       ) : (
-        <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
-          This match is {match.statusLabel.toLowerCase()} — draft editing is closed.
-          {match.status === "PROPOSED"
-            ? " Both parties are reviewing it; their decisions arrive with 4.5/4.6."
-            : ""}
-        </p>
+        <div className="flex flex-col gap-4">
+          {match.status !== "PROPOSED" ? (
+            <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+              This match is {match.statusLabel.toLowerCase()} — draft editing is
+              closed.
+            </p>
+          ) : null}
+          <div className="flex max-w-prose flex-col gap-2 rounded-md border border-base-300 bg-base-200/50 px-4 py-3">
+            <h2 className="text-sm font-semibold">Decision tracks</h2>
+            <p className="text-sm text-base-content/80">
+              Participant decision:{" "}
+              <span className="font-medium">{match.participantDecisionLabel}</span>
+              {match.participantDecisionAtLabel
+                ? ` · ${match.participantDecisionAtLabel}`
+                : ""}
+              {match.participantDecisionRecordedByStaff
+                ? " · recorded by staff on the participant's behalf"
+                : ""}
+            </p>
+            {match.participantDecisionNote ? (
+              // Operations-visible only (4.5 AC6) — this note never enters
+              // shelter or participant view models.
+              <p className="text-sm text-base-content/70">
+                Participant note: {match.participantDecisionNote}
+              </p>
+            ) : null}
+            <p className="text-sm text-base-content/80">
+              Shelter decision:{" "}
+              <span className="font-medium">{match.shelterDecisionLabel}</span> —
+              recorded from the shelter dashboard (4.6).
+            </p>
+          </div>
+          {match.status === "PROPOSED" && match.participantDecision === "PENDING" ? (
+            <AssistedDecisionPanel matchId={match.id} />
+          ) : null}
+        </div>
       )}
 
       <div className="flex flex-col gap-3 border-t border-base-300 pt-6">
