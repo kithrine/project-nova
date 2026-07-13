@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ApprovePanel } from "@/features/matching/approve-panel";
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { AssistedDecisionPanel } from "@/features/matching/assisted-decision-panel";
 import { CompatibilityPanel } from "@/features/matching/compatibility-panel";
@@ -104,7 +105,22 @@ export default async function MatchWorkspacePage({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {match.status !== "PROPOSED" ? (
+          {match.status === "APPROVED" ? (
+            // Story 4.8 AC5: Approved, with the resulting Placement's
+            // reference; the full decision and revision history stays on
+            // the record below.
+            <div className="flex max-w-prose flex-col gap-1 rounded-md border border-success/40 bg-success/5 px-4 py-3">
+              <p role="status" className="text-sm font-medium">
+                Match approved{match.approvedAtLabel ? ` ${match.approvedAtLabel}` : ""} —
+                placement {match.placementNumber ?? "record"} created.
+              </p>
+              <p className="text-sm text-base-content/70">
+                The placement starts at Draft: the shelter reviews the specific
+                site, supervisor, and schedule package next. The placement
+                workspace arrives with Epic 5 (Story 5.1).
+              </p>
+            </div>
+          ) : match.status !== "PROPOSED" ? (
             <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
               This match is {match.statusLabel.toLowerCase()} — draft editing is
               closed.
@@ -147,6 +163,9 @@ export default async function MatchWorkspacePage({
           </div>
           {match.status === "PROPOSED" && match.participantDecision === "PENDING" ? (
             <AssistedDecisionPanel matchId={match.id} />
+          ) : null}
+          {match.status === "PROPOSED" ? (
+            <ApprovePanel matchId={match.id} blockers={match.approvalBlockers} />
           ) : null}
         </div>
       )}

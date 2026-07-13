@@ -92,7 +92,11 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   await expect(page.getByText("Main Site (Synthetic) — capacity 3")).toBeVisible();
 
   // Selecting the pair opens the review route for exactly that pairing.
+  // Row-scoped: once Riley's 4.7 cycle ends in withdrawal, a second
+  // awaiting row (with its own pairing form) can share this queue.
   await page
+    .getByLabel("Participants awaiting match")
+    .locator("li", { hasText: "Quinn Synthetic-Match" })
     .getByLabel("Candidate shelter site")
     .selectOption({ label: "E2E Test Shelter (Synthetic) — Main Site (Synthetic) (capacity 3)" });
   await page.getByRole("button", { name: "Review Pairing: Quinn Synthetic-Match" }).click();
@@ -210,7 +214,11 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
       .getByLabel("Participants awaiting match")
       .getByText("Quinn Synthetic-Match", { exact: true }),
   ).toBeVisible({ timeout: 20_000 });
+  // Row-scoped: once Riley's 4.7 cycle ends in withdrawal, a second
+  // awaiting row (with its own pairing form) can share this queue.
   await page
+    .getByLabel("Participants awaiting match")
+    .locator("li", { hasText: "Quinn Synthetic-Match" })
     .getByLabel("Candidate shelter site")
     .selectOption({ label: "E2E Test Shelter (Synthetic) — Main Site (Synthetic) (capacity 3)" });
   await page.getByRole("button", { name: "Review Pairing: Quinn Synthetic-Match" }).click();
@@ -251,6 +259,49 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   await expect(page.getByText(/Shelter decision: .*Approved/)).toBeVisible({
     timeout: 20_000,
   });
+
+  // Story 4.8: the human gate names what's outstanding — the participant
+  // hasn't accepted yet — and stays disabled.
+  await expect(
+    page.getByText("Waiting on the participant's acceptance."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve Match" })).toBeDisabled();
+
+  // Quinn accepted by phone; the coordinator records it (4.5 AC3).
+  await page.getByLabel("The participant accepts this placement").check();
+  await page.getByLabel(/I confirmed this decision with the participant/).check();
+  await page.getByRole("button", { name: "Record Participant Decision" }).click();
+  await expect(page.getByText(/Participant decision: .*Accepted/)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Both tracks favorable: the explicit, confirmed approval creates the
+  // placement in the same transaction (AC1) and shows its reference (AC5).
+  await expect(
+    page.getByText(/The participant accepted and the shelter approved/),
+  ).toBeVisible();
+  await page
+    .getByLabel(/this creates the placement and can't be undone/)
+    .check();
+  await page.getByRole("button", { name: "Approve Match" }).click();
+  await expect(page.getByText(/Status: .*Approved/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/placement PLC-\d{4}-[A-Z2-9]{6} created/)).toBeVisible();
+  await expect(page.getByText(/reviews the specific site, supervisor/)).toBeVisible();
+
+  // The pipeline is occupied: Quinn is out of the queue entirely — no
+  // awaiting row, no in-progress worklist link (4.1 AC3, live since 4.8).
+  await page.goto("/operations/placements");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Matching queue" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page
+      .getByLabel("Participants awaiting match")
+      .locator("li", { hasText: "Quinn Synthetic-Match" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }),
+  ).toHaveCount(0);
 });
 
 test("a change request is revised, re-proposed, then finally withdrawn (Stories 4.6 AC2 + 4.7)", async ({

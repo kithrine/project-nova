@@ -14,7 +14,7 @@ Create safe, approved participant-to-shelter matches.
 | 4.5 | Record participant decision | Done |
 | 4.6 | Record shelter decision | Done |
 | 4.7 | Request changes | Done |
-| 4.8 | Approve match and create placement | Ready for Development |
+| 4.8 | Approve match and create placement | Done |
 
 > Sequencing note: build the `PlacementMatch` schema in 4.3 first, or alongside 4.1 — the matching queue (4.1) needs it to exclude participants who already have a non-terminal match, while the compatibility panel (4.2) can be built against enrollment/training/shelter data independently of it. 4.5 and 4.6 are independent decision tracks that may be built in either order once 4.4 exists; both feed the single human approval gate in 4.8.
 
@@ -30,8 +30,8 @@ Done
 > partial unique index) shipped alongside this story so the exclusion rule
 > is real from day one; Story 4.3 owns the service/UI on top of it.
 > `OrganizationSite.capacity` was added per shelter-onboarding system
-> setup. Placement-based exclusion (AC3) is wired in the domain rule and
-> activates when the Placement model lands (4.8/Epic 5).
+> setup. Placement-based exclusion (AC3) went live with 4.8: any
+> non-terminal placement removes the participant from the queue.
 
 ### User story
 As a Program Coordinator, I want a queue of participants who are ready for matching alongside shelters with available capacity, so that I can identify and prioritize safe, viable candidate pairings.
@@ -468,7 +468,23 @@ Story 4.6 (a Change Requested match must exist); reuses the edit-and-propose log
 ## Story 4.8 — Approve match and create placement
 
 ### Status
-Ready for Development
+Done
+
+> Built note: the Placement model, PlacementStatus (full lifecycle enum),
+> PlacementEvent, and the one-onboarding/active/paused-placement partial
+> unique index (hand-written migration SQL) shipped here; Epic 5 owns the
+> transitions from Draft onward. approveMatch is one transaction —
+> in-transaction conflict re-check, CAS on PROPOSED+ACCEPTED+APPROVED,
+> placement create (PLC- number with collision retry, sourceMatchId
+> unique), events on both records, audit — behind placementMatch.approve
+> + placement.create and an explicit confirmation (ADR-011). approvalBlockers
+> names every outstanding prerequisite in the workspace Blocker List. The
+> 4.1/4.3 placement exclusions went LIVE here: any non-terminal placement
+> (Draft through Paused) removes the participant from the queue and
+> blocks new drafts; the terminal statuses free the pipeline. After
+> approval the participant's proposed-placement card retires — their
+> placement surfaces arrive with Epic 5 (5.1), which also owns the
+> match-detail link into the placement workspace.
 
 ### User story
 As a Program Coordinator, I want to give final approval to a match once both the participant and the shelter have agreed, so that a Placement is created and can proceed through shelter review of its site, supervisor, and schedule into onboarding.

@@ -975,6 +975,14 @@ try {
     update: {},
     create: { id: "e2e_participant_matchready", personId: "e2e_person_matchready" },
   });
+  // Placements before their source matches (sourceMatchId is RESTRICT) —
+  // the 4.8 journey approves Quinn's match into a placement each run.
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_matchready" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_matchready" },
+  });
   await prisma.placementMatchEvent.deleteMany({
     where: { placementMatch: { participantId: "e2e_participant_matchready" } },
   });

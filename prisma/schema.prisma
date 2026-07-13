@@ -75,6 +75,7 @@ model Organization {
   sites            OrganizationSite[]
   memberships      Membership[]
   placementMatches PlacementMatch[]
+  placements       Placement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -96,6 +97,7 @@ model OrganizationSite {
   capacity       Int          @default(0)
 
   placementMatches PlacementMatch[]
+  placements       Placement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -447,7 +449,13 @@ model PlacementMatch {
   shelterDecisionNote             String?
   shelterDecisionRecordedByUserId String?
 
-  events PlacementMatchEvent[]
+  // Final approval (Story 4.8): the explicit human coordinator action
+  // (ADR-011) that converts the match into a Placement.
+  approvedAt       DateTime?
+  approvedByUserId String?
+
+  events             PlacementMatchEvent[]
+  resultingPlacement Placement?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -479,6 +487,82 @@ model PlacementMatchEvent {
   createdAt DateTime @default(now())
 
   @@index([placementMatchId])
+}
+
+// --- Placements (Story 4.8 creates them; Epic 5 owns the lifecycle) ----------
+
+enum PlacementStatus {
+  DRAFT
+  PROPOSED
+  SHELTER_REVIEW
+  APPROVED
+  ONBOARDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CONVERTED_TO_PERMANENT
+  WITHDRAWN
+  TERMINATED
+}
+
+// One transitional-employment placement, created ONLY by the 4.8 match
+// approval transaction (sourceMatchId is required and unique) and handed
+// to Epic 5 at DRAFT for site/supervisor/schedule review (ADR-013,
+// ADR-002 separate lifecycles). "One onboarding/active/paused placement
+// per participant" is enforced by a partial unique index hand-written in
+// the migration SQL (database-design.md) — the hard backstop behind the
+// application-level re-check at approval time.
+model Placement {
+  id              String @id @default(cuid())
+  // Human reference (database-design.md), PLC-YYYY-XXXXXX.
+  placementNumber String @unique
+
+  participantId       String
+  participant         Participant       @relation(fields: [participantId], references: [id])
+  programEnrollmentId String
+  programEnrollment   ProgramEnrollment @relation(fields: [programEnrollmentId], references: [id])
+  hostOrganizationId  String
+  hostOrganization    Organization      @relation(fields: [hostOrganizationId], references: [id])
+  organizationSiteId  String
+  organizationSite    OrganizationSite  @relation(fields: [organizationSiteId], references: [id])
+  sourceMatchId       String            @unique
+  sourceMatch         PlacementMatch    @relation(fields: [sourceMatchId], references: [id])
+
+  status PlacementStatus @default(DRAFT)
+
+  // Carried over from the approved match; Epic 5 (5.2) refines them
+  // through the placement's own shelter-review gate.
+  supervisorId    String?
+  schedule        String?
+  startDate       DateTime?      @db.Date
+  endDate         DateTime?      @db.Date
+  fundingSourceId String?
+  fundingSource   FundingSource? @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
+
+  events PlacementEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([participantId])
+  @@index([hostOrganizationId])
+  @@index([organizationSiteId])
+}
+
+// Append-only lifecycle event for one Placement transition, written
+// transactionally with the change. fromStatus is null at creation.
+model PlacementEvent {
+  id          String    @id @default(cuid())
+  placementId String
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  fromStatus  PlacementStatus?
+  toStatus    PlacementStatus
+  actorUserId String
+
+  createdAt DateTime @default(now())
+
+  @@index([placementId])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------
@@ -596,6 +680,7 @@ model Participant {
   enrollments     ProgramEnrollment[]
   certifications  Certification[]
   placementMatches PlacementMatch[]
+  placements       Placement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -627,6 +712,7 @@ model ProgramEnrollment {
   onboardingTasks     OnboardingTask[]
   trainingEnrollments TrainingEnrollment[]
   placementMatches    PlacementMatch[]
+  placements          Placement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -823,6 +909,7 @@ model FundingSource {
   notes     String?
 
   placementMatches PlacementMatch[]
+  placements       Placement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

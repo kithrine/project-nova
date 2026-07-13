@@ -223,6 +223,14 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
 
   afterAll(async () => {
     const emails = { startsWith: `${runId}-` };
+    await prisma.placementEvent.deleteMany({
+      where: {
+        placement: { participant: { person: { user: { email: emails } } } },
+      },
+    });
+    await prisma.placement.deleteMany({
+      where: { participant: { person: { user: { email: emails } } } },
+    });
     await prisma.placementMatchEvent.deleteMany({
       where: {
         placementMatch: { participant: { person: { user: { email: emails } } } },
@@ -729,6 +737,189 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
     await expect(
       service.reproposeMatch(coordinatorCtx, drafted.matchId),
     ).rejects.toMatchObject({ code: "LIFECYCLE" });
+  }, 20_000);
+
+  // --- Approve match and create placement (Story 4.8) ----------------------------
+
+  it("blocks approval while either track is outstanding, naming it (4.8 AC2)", async () => {
+    const coordinatorCtx = await contextFor(coordinatorId);
+    // `accepting`: participant ACCEPTED, shelter still PENDING.
+    await expect(
+      service.approveMatch(coordinatorCtx, accepting.matchId),
+    ).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("Waiting on the shelter's approval."),
+    });
+    const workspace = await service.getMatchWorkspace(coordinatorCtx, accepting.matchId);
+    expect(workspace.approvalBlockers).toEqual(["Waiting on the shelter's approval."]);
+  }, 20_000);
+
+  it("approves atomically: match Approved + Placement at Draft, linked and evented (4.8 AC1/AC5)", async () => {
+    // Complete the second track on `assisted` (participant ACCEPTED in 4.5).
+    const managerCtx = await contextFor(shelterManagerId);
+    await service.recordShelterDecision(managerCtx, assisted.matchId, {
+      decision: "APPROVED",
+    });
+
+    const coordinatorCtx = await contextFor(coordinatorId);
+    const result = await service.approveMatch(coordinatorCtx, assisted.matchId);
+    expect(result.placementNumber).toMatch(/^PLC-\d{4}-[2-9A-HJKMNP-Z]{6}$/);
+
+    const match = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: assisted.matchId },
+    });
+    expect(match.status).toBe(enums.MatchStatus.APPROVED);
+    expect(match.approvedByUserId).toBe(coordinatorId);
+    expect(match.approvedAt).toBeInstanceOf(Date);
+
+    const placement = await prisma.placement.findUniqueOrThrow({
+      where: { id: result.placementId },
+    });
+    expect(placement).toMatchObject({
+      status: enums.PlacementStatus.DRAFT,
+      participantId: assisted.participantId,
+      programEnrollmentId: assisted.enrollmentId,
+      hostOrganizationId: hostOrgId,
+      organizationSiteId: siteId,
+      sourceMatchId: assisted.matchId,
+      supervisorId: shelterManagerId,
+      schedule: "Mon/Wed mornings",
+    });
+
+    await prisma.placementEvent.findFirstOrThrow({
+      where: {
+        placementId: result.placementId,
+        fromStatus: null,
+        toStatus: enums.PlacementStatus.DRAFT,
+        actorUserId: coordinatorId,
+      },
+    });
+    await prisma.placementMatchEvent.findFirstOrThrow({
+      where: {
+        placementMatchId: assisted.matchId,
+        fromStatus: enums.MatchStatus.PROPOSED,
+        toStatus: enums.MatchStatus.APPROVED,
+      },
+    });
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: { action: "placementMatch.approve", subjectId: assisted.matchId },
+    });
+    expect(audit.detail).toContain(result.placementNumber);
+
+    // AC5: the workspace shows Approved with the placement reference, and
+    // the decision/revision history remains intact underneath.
+    const workspace = await service.getMatchWorkspace(coordinatorCtx, assisted.matchId);
+    expect(workspace.placementNumber).toBe(result.placementNumber);
+    const events = await prisma.placementMatchEvent.count({
+      where: { placementMatchId: assisted.matchId },
+    });
+    expect(events).toBeGreaterThanOrEqual(2);
+
+    // A second approval attempt cannot double-create (AC4).
+    await expect(
+      service.approveMatch(coordinatorCtx, assisted.matchId),
+    ).rejects.toMatchObject({ code: "LIFECYCLE" });
+    expect(
+      await prisma.placement.count({ where: { sourceMatchId: assisted.matchId } }),
+    ).toBe(1);
+  }, 30_000);
+
+  it("activates the placement exclusion: queue drops the participant and new drafts are blocked", async () => {
+    const coordinatorCtx = await contextFor(coordinatorId);
+
+    const queue = await service.getMatchingQueue(coordinatorCtx);
+    expect(
+      queue.candidates.find((c) => c.enrollmentId === assisted.enrollmentId),
+    ).toBeUndefined();
+
+    await expect(
+      service.createMatchDraft(coordinatorCtx, {
+        enrollmentId: assisted.enrollmentId,
+        siteId,
+      }),
+    ).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("placement in progress"),
+    });
+  }, 30_000);
+
+  it("re-checks placement conflicts inside the transaction and leaves no partial state (4.8 AC3/AC4)", async () => {
+    // Both tracks favorable on `accepting`...
+    const managerCtx = await contextFor(shelterManagerId);
+    await service.recordShelterDecision(managerCtx, accepting.matchId, {
+      decision: "APPROVED",
+    });
+
+    // ...but a conflicting placement arrived through another route: a
+    // terminal match row (allowed alongside a proposed one) that already
+    // produced an ONBOARDING placement.
+    const terminalMatch = await prisma.placementMatch.create({
+      data: {
+        participantId: accepting.participantId,
+        programEnrollmentId: accepting.enrollmentId,
+        hostOrganizationId: hostOrgId,
+        organizationSiteId: siteId,
+        status: enums.MatchStatus.DECLINED,
+      },
+    });
+    await prisma.placement.create({
+      data: {
+        placementNumber: `PLC-TEST-${runId.slice(-6).toUpperCase()}`,
+        participantId: accepting.participantId,
+        programEnrollmentId: accepting.enrollmentId,
+        hostOrganizationId: hostOrgId,
+        organizationSiteId: siteId,
+        sourceMatchId: terminalMatch.id,
+        status: enums.PlacementStatus.ONBOARDING,
+      },
+    });
+
+    const coordinatorCtx = await contextFor(coordinatorId);
+    await expect(
+      service.approveMatch(coordinatorCtx, accepting.matchId),
+    ).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("already have one in progress"),
+    });
+
+    // No partial state: the match did not move and no placement was
+    // created from it (AC4).
+    const match = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: accepting.matchId },
+    });
+    expect(match.status).toBe(enums.MatchStatus.PROPOSED);
+    expect(match.approvedAt).toBeNull();
+    expect(
+      await prisma.placement.count({ where: { sourceMatchId: accepting.matchId } }),
+    ).toBe(0);
+
+    // The database backstop: a second active-tier placement for the same
+    // participant violates the partial unique index directly.
+    await expect(
+      prisma.placement.create({
+        data: {
+          placementNumber: `PLC-TEST-${runId.slice(-6).toUpperCase()}B`,
+          participantId: accepting.participantId,
+          programEnrollmentId: accepting.enrollmentId,
+          hostOrganizationId: hostOrgId,
+          organizationSiteId: siteId,
+          sourceMatchId: accepting.matchId,
+          status: enums.PlacementStatus.ACTIVE,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  }, 30_000);
+
+  it("denies approval to everyone but Nova staff (4.8 AC6)", async () => {
+    const managerCtx = await contextFor(shelterManagerId);
+    await expect(
+      service.approveMatch(managerCtx, accepting.matchId),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+
+    const participantCtx = await contextFor(accepting.userId);
+    await expect(
+      service.approveMatch(participantCtx, accepting.matchId),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
   }, 20_000);
 
   it("withdraws a change-requested match and returns the participant to the queue (4.7 AC3)", async () => {
