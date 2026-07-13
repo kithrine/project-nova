@@ -7,8 +7,10 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import type { ScheduleDayInput } from "@/server/domain/placement";
 import {
   activatePlacement,
+  addIncidentFollowUp,
   addPlacementCaseNote,
   approvePlacementPackage,
+  closeIncident,
   assignFunding,
   completeOwnPlacementTask,
   completePlacementTask,
@@ -20,7 +22,9 @@ import {
   requestPlacementChanges,
   resumePlacement,
   saveAssignment,
+  startIncidentReview,
   submitEvaluation,
+  submitIncident,
 } from "@/server/services/placement-service";
 
 /**
@@ -257,6 +261,99 @@ export async function submitEvaluationAction(
   }
 
   revalidateWorkspaces(placementId);
+  return { status: "saved" };
+}
+
+export async function submitIncidentAction(
+  placementId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await submitIncident(ctx, placementId, {
+      category: String(formData.get("category") ?? ""),
+      severity: String(formData.get("severity") ?? ""),
+      occurredOn: utcDate(formData.get("occurredOn")),
+      description: String(formData.get("description") ?? ""),
+      restrictedDetail: textOrNull(formData.get("restrictedDetail")),
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidateWorkspaces(placementId);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidateWorkspaces(placementId);
+  revalidatePath("/operations");
+  return { status: "saved" };
+}
+
+export async function addIncidentFollowUpAction(
+  incidentId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await addIncidentFollowUp(ctx, incidentId, String(formData.get("body") ?? ""));
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/operations/placements", "layout");
+  revalidatePath("/shelter/placements", "layout");
+  return { status: "saved" };
+}
+
+export async function startIncidentReviewAction(
+  incidentId: string,
+  _prev: PlacementFormState,
+  _formData: FormData,
+): Promise<PlacementFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await startIncidentReview(ctx, incidentId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/operations/placements", "layout");
+  revalidatePath("/operations");
+  return { status: "saved" };
+}
+
+export async function closeIncidentAction(
+  incidentId: string,
+  _prev: PlacementFormState,
+  formData: FormData,
+): Promise<PlacementFormState> {
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await closeIncident(ctx, incidentId, String(formData.get("outcome") ?? ""));
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/operations/placements", "layout");
+  revalidatePath("/shelter/placements", "layout");
+  revalidatePath("/operations");
   return { status: "saved" };
 }
 

@@ -7,8 +7,11 @@ import {
   Prisma,
   Role,
   ScheduleDay,
+  IncidentStatus,
   type EnrollmentStatus,
   type EvaluationRating,
+  type IncidentCategory,
+  type IncidentSeverity,
   type ParticipantMatchDecision,
   type ShelterMatchDecision,
 } from "@/generated/prisma/client";
@@ -43,6 +46,16 @@ import {
   evaluationValidationError,
   type EvaluationInput,
 } from "@/server/domain/evaluation";
+import {
+  assertIncidentTransition,
+  INCIDENT_CATEGORY_LABELS,
+  INCIDENT_REPORTABLE_STATUSES,
+  INCIDENT_SEVERITY_LABELS,
+  INCIDENT_STATUS_LABELS,
+  incidentValidationError,
+  URGENT_INCIDENT_SEVERITIES,
+  type IncidentInput,
+} from "@/server/domain/incident";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
 import { loadReadinessInputs } from "@/server/services/readiness-service";
 import {
@@ -232,6 +245,47 @@ export interface PlacementWorkspaceView {
    * question and defaults closed (open-questions.md #5).
    */
   evaluations?: EvaluationsTabView;
+  /**
+   * Incidents (Story 5.11): viewers holding incident.view — shelter
+   * staff (org-scoped by the workspace gate) and Nova Operations.
+   * Restricted narratives ride ONLY views holding incident.viewRestricted
+   * and every delivery is audited.
+   */
+  incidents?: IncidentsTabView;
+}
+
+export interface IncidentFollowUpView {
+  id: string;
+  authorName: string;
+  body: string;
+  atLabel: string;
+}
+
+export interface IncidentView {
+  id: string;
+  incidentNumber: string;
+  categoryLabel: string;
+  severityKey: IncidentSeverity;
+  severityLabel: string;
+  statusKey: IncidentStatus;
+  statusLabel: string;
+  occurredOnLabel: string;
+  reportedByName: string;
+  reportedAtLabel: string;
+  description: string;
+  /** Highly restricted narrative — present ONLY for incident.viewRestricted. */
+  restrictedDetail?: string;
+  followUps: IncidentFollowUpView[];
+  closureOutcome: string | null;
+  closedByName: string | null;
+  closedAtLabel: string | null;
+  viewerCanFollowUp: boolean;
+  viewerCanReview: boolean;
+}
+
+export interface IncidentsTabView {
+  entries: IncidentView[];
+  viewerCanReport: boolean;
 }
 
 export interface EvaluationRatingView {
@@ -488,7 +542,8 @@ export async function getPlacementWorkspace(
         ? NOVA_TABS.filter(
             (tab) =>
               (tab !== "caseNotes" || hasPermission(ctx, "caseNote.view")) &&
-              (tab !== "evaluations" || hasPermission(ctx, "evaluation.view")),
+              (tab !== "evaluations" || hasPermission(ctx, "evaluation.view")) &&
+              (tab !== "incidents" || hasPermission(ctx, "incident.view")),
           )
         : [...SHELTER_TABS],
     timeline: buildPlacementTimeline(
@@ -597,6 +652,9 @@ export async function getPlacementWorkspace(
       (viewer === "NOVA" && hasPermission(ctx, "evaluation.view"))
         ? await buildEvaluationsTab(ctx, viewer, placement)
         : undefined,
+    incidents: hasPermission(ctx, "incident.view")
+      ? await buildIncidentsTab(ctx, viewer, placement)
+      : undefined,
   };
 }
 
@@ -703,6 +761,374 @@ export async function submitEvaluation(
       growthAreas: input.growthAreas?.trim() ? input.growthAreas.trim() : null,
     },
   });
+}
+
+// --- Incidents (Story 5.11; docs/ops/incident-response.md) --------------------------
+
+/**
+ * The Incidents tab (Story 5.11). Every incident.view holder reads the
+ * operational record; the HIGHLY RESTRICTED narrative rides only views
+ * holding incident.viewRestricted, and each delivered narrative writes
+ * an AuditEvent in the same request (security-privacy.md: audit
+ * sensitive access; the audit record itself carries no sensitive
+ * content). There is no other query path to restrictedDetail —
+ * exclusion from general views is structural, not cosmetic (AC5).
+ */
+async function buildIncidentsTab(
+  ctx: AuthContext,
+  viewer: WorkspaceViewer,
+  placement: { id: string; status: PlacementStatus },
+): Promise<IncidentsTabView> {
+  const incidents = await prisma.incident.findMany({
+    where: { placementId: placement.id },
+    include: { followUps: { orderBy: { createdAt: "asc" } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const userIds = new Set<string>();
+  for (const incident of incidents) {
+    userIds.add(incident.reporterUserId);
+    if (incident.closedByUserId) userIds.add(incident.closedByUserId);
+    for (const followUp of incident.followUps) userIds.add(followUp.authorUserId);
+  }
+  const users = await prisma.user.findMany({
+    where: { id: { in: [...userIds] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(users.map((user) => [user.id, user.displayName]));
+
+  const canReadRestricted = hasPermission(ctx, "incident.viewRestricted");
+  const delivered = incidents.filter(
+    (incident) => canReadRestricted && incident.restrictedDetail !== null,
+  );
+  if (delivered.length > 0) {
+    await prisma.auditEvent.createMany({
+      data: delivered.map((incident) => ({
+        actorUserId: ctx.userId,
+        action: "incident.viewRestricted",
+        subjectType: "Incident",
+        subjectId: incident.id,
+      })),
+    });
+  }
+
+  return {
+    entries: incidents.map((incident) => ({
+      id: incident.id,
+      incidentNumber: incident.incidentNumber,
+      categoryLabel: INCIDENT_CATEGORY_LABELS[incident.category],
+      severityKey: incident.severity,
+      severityLabel: INCIDENT_SEVERITY_LABELS[incident.severity],
+      statusKey: incident.status,
+      statusLabel: INCIDENT_STATUS_LABELS[incident.status],
+      occurredOnLabel: formatDate(incident.occurredOn) ?? "",
+      reportedByName: nameById.get(incident.reporterUserId) ?? "Unknown user",
+      reportedAtLabel: formatDateTime(incident.createdAt),
+      description: incident.description,
+      ...(canReadRestricted && incident.restrictedDetail !== null
+        ? { restrictedDetail: incident.restrictedDetail }
+        : {}),
+      followUps: incident.followUps.map((followUp) => ({
+        id: followUp.id,
+        authorName: nameById.get(followUp.authorUserId) ?? "Unknown user",
+        body: followUp.body,
+        atLabel: formatDateTime(followUp.createdAt),
+      })),
+      closureOutcome: incident.closureOutcome,
+      closedByName: incident.closedByUserId
+        ? (nameById.get(incident.closedByUserId) ?? "Nova staff")
+        : null,
+      closedAtLabel: incident.closedAt ? formatDateTime(incident.closedAt) : null,
+      viewerCanFollowUp:
+        hasPermission(ctx, "incident.create") &&
+        incident.status !== IncidentStatus.CLOSED,
+      viewerCanReview:
+        viewer === "NOVA" &&
+        hasPermission(ctx, "incident.review") &&
+        incident.status !== IncidentStatus.CLOSED,
+    })),
+    viewerCanReport:
+      hasPermission(ctx, "incident.create") &&
+      INCIDENT_REPORTABLE_STATUSES.includes(placement.status),
+  };
+}
+
+/** INC-YYYY-XXXXXX per database-design.md, retried on the rare collision. */
+function generateIncidentNumber(): string {
+  const year = new Date().getUTCFullYear();
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `INC-${year}-${suffix}`;
+}
+
+/**
+ * Report an incident (AC1). Shelter staff report against their own
+ * organization's placements; Nova Operations against any in scope. The
+ * placement must be at/past Onboarding — site activity exists to report
+ * on — including terminal stages (issues surface shortly after an end).
+ * Submission is documentation and notification, never emergency response
+ * (RULES.md); Serious/Emergency surface on the Operations dashboard's
+ * urgent queue by query (AC2), messaging being V2.
+ */
+export async function submitIncident(
+  ctx: AuthContext,
+  placementId: string,
+  input: IncidentInput,
+): Promise<void> {
+  if (!hasPermission(ctx, "incident.create")) {
+    throw new AuthorizationError();
+  }
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, hostOrganizationId: true },
+  });
+  if (!placement) throw new NotFoundError();
+
+  const isHostShelterStaff = ctx.memberships.some(
+    (membership) =>
+      SHELTER_ROLES.includes(membership.role) &&
+      membership.organizationId === placement.hostOrganizationId,
+  );
+  if (!isHostShelterStaff && !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  if (!INCIDENT_REPORTABLE_STATUSES.includes(placement.status)) {
+    throw new LifecycleError(
+      "Incidents are reported once the placement has reached onboarding — there is no site activity to report before then.",
+    );
+  }
+  const problem = incidentValidationError(input);
+  if (problem) throw new ValidationError(problem);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await prisma.incident.create({
+        data: {
+          incidentNumber: generateIncidentNumber(),
+          placementId,
+          category: input.category as IncidentCategory,
+          severity: input.severity as IncidentSeverity,
+          occurredOn: input.occurredOn,
+          reporterUserId: ctx.userId,
+          description: input.description.trim(),
+          restrictedDetail: input.restrictedDetail?.trim()
+            ? input.restrictedDetail.trim()
+            : null,
+        },
+      });
+      return;
+    } catch (error) {
+      const isNumberCollision =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002";
+      if (!isNumberCollision || attempt === 2) throw error;
+    }
+  }
+}
+
+/**
+ * Append-only follow-up (AC3): shelter staff and Nova add context while
+ * the incident is open or under review. Category, severity, and closure
+ * are never shelter-editable — no such write surface exists for them.
+ */
+export async function addIncidentFollowUp(
+  ctx: AuthContext,
+  incidentId: string,
+  body: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "incident.create")) {
+    throw new AuthorizationError();
+  }
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: {
+      id: true,
+      status: true,
+      placement: { select: { hostOrganizationId: true } },
+    },
+  });
+  if (!incident) throw new NotFoundError();
+
+  const isHostShelterStaff = ctx.memberships.some(
+    (membership) =>
+      SHELTER_ROLES.includes(membership.role) &&
+      membership.organizationId === incident.placement.hostOrganizationId,
+  );
+  if (!isHostShelterStaff && !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  if (incident.status === IncidentStatus.CLOSED) {
+    throw new LifecycleError("A closed incident is read-only history.");
+  }
+  const trimmed = body.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError("Write the follow-up before saving it.");
+  }
+  if (trimmed.length > 4000) {
+    throw new ValidationError("Keep follow-ups under 4,000 characters.");
+  }
+
+  await prisma.incidentFollowUp.create({
+    data: { incidentId, authorUserId: ctx.userId, body: trimmed },
+  });
+}
+
+/** Nova takes the incident under review (AC4) — audited. */
+export async function startIncidentReview(
+  ctx: AuthContext,
+  incidentId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "incident.review")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true, status: true },
+  });
+  if (!incident) throw new NotFoundError();
+  assertIncidentTransition(incident.status, IncidentStatus.UNDER_REVIEW);
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.incident.updateMany({
+      where: { id: incidentId, status: IncidentStatus.OPEN },
+      data: {
+        status: IncidentStatus.UNDER_REVIEW,
+        reviewStartedAt: new Date(),
+        reviewerUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This incident changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "incident.review",
+        subjectType: "Incident",
+        subjectId: incidentId,
+        detail: "review started",
+      },
+    });
+  });
+}
+
+/**
+ * Close the incident (AC4): reviewer, timestamp, and outcome recorded in
+ * one transaction; the record becomes read-only history (AC6 — archival
+ * states only, never deletion). The outcome text stays out of audit
+ * detail — non-sensitive codes only.
+ */
+export async function closeIncident(
+  ctx: AuthContext,
+  incidentId: string,
+  outcome: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "incident.review")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    select: { id: true, status: true },
+  });
+  if (!incident) throw new NotFoundError();
+  assertIncidentTransition(incident.status, IncidentStatus.CLOSED);
+
+  const trimmed = outcome.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError(
+      "Record the outcome before closing — what was reviewed and decided.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.incident.updateMany({
+      where: {
+        id: incidentId,
+        status: { in: [IncidentStatus.OPEN, IncidentStatus.UNDER_REVIEW] },
+      },
+      data: {
+        status: IncidentStatus.CLOSED,
+        closedAt: new Date(),
+        closedByUserId: ctx.userId,
+        closureOutcome: trimmed,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This incident changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "incident.close",
+        subjectType: "Incident",
+        subjectId: incidentId,
+        detail: "closed",
+      },
+    });
+  });
+}
+
+export interface UrgentIncidentRow {
+  incidentId: string;
+  incidentNumber: string;
+  placementId: string;
+  placementNumber: string;
+  participantName: string;
+  severityLabel: string;
+  categoryLabel: string;
+  statusLabel: string;
+  reportedAtLabel: string;
+}
+
+/**
+ * The Operations dashboard's urgent-incident surface (AC2): every OPEN
+ * or UNDER_REVIEW incident at Serious/Emergency severity, newest first —
+ * always visible in-app, since real-time messaging is V2. Restricted
+ * narratives never ride this list.
+ */
+export async function listUrgentIncidents(
+  ctx: AuthContext,
+): Promise<UrgentIncidentRow[]> {
+  if (!hasPermission(ctx, "incident.review") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const incidents = await prisma.incident.findMany({
+    where: {
+      severity: { in: [...URGENT_INCIDENT_SEVERITIES] },
+      status: { in: [IncidentStatus.OPEN, IncidentStatus.UNDER_REVIEW] },
+    },
+    include: {
+      placement: {
+        select: {
+          id: true,
+          placementNumber: true,
+          participant: {
+            select: {
+              person: { select: { legalFirstName: true, legalLastName: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return incidents.map((incident) => ({
+    incidentId: incident.id,
+    incidentNumber: incident.incidentNumber,
+    placementId: incident.placement.id,
+    placementNumber: incident.placement.placementNumber,
+    participantName: `${incident.placement.participant.person.legalFirstName} ${incident.placement.participant.person.legalLastName}`,
+    severityLabel: INCIDENT_SEVERITY_LABELS[incident.severity],
+    categoryLabel: INCIDENT_CATEGORY_LABELS[incident.category],
+    statusLabel: INCIDENT_STATUS_LABELS[incident.status],
+    reportedAtLabel: formatDateTime(incident.createdAt),
+  }));
 }
 
 /**

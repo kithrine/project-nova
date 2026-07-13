@@ -18,7 +18,7 @@ Operate an active transitional placement.
 | 5.8  | Complete, convert, withdraw, or terminate | Blocked — pending policy validation |
 | 5.9  | Case notes                                | Done                                |
 | 5.10 | Evaluations                               | Done                                |
-| 5.11 | Incidents                                 | Ready for Development               |
+| 5.11 | Incidents                                 | Done                                |
 
 > Sequencing note: build 5.1 first as the shared workspace shell that later stories populate. 5.2, 5.3, and 5.4 supply the data that 5.5's blocker list evaluates, so sequence 5.2 → 5.3 → 5.4 → 5.5 → 5.6. 5.7 and 5.8 both require an Active placement (5.6) and are otherwise independent of each other; 5.8's Terminated path is additionally blocked on the open policy question in its Dependencies. 5.9 (Case Notes) has no lifecycle dependency and can be built in parallel with 5.2–5.6. 5.10 and 5.11 depend only on 5.1 for their authorization/data model, though exercising them end-to-end in tests is easiest once 5.6 exists.
 
@@ -789,7 +789,28 @@ Participant access to evaluations is unresolved: `docs/planning/assumptions.md` 
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: categories, severities, and ownership rules come verbatim
+> from incident-response.md (authoritative). The incident runs its own
+> Open → Under Review → Closed machine with CAS transitions, audited
+> review/close, and closure as read-only history — no delete surface
+> exists anywhere. Shelter staff report (org-scoped) and add append-only
+> follow-ups; no shelter-reachable write can touch category, severity,
+> or status. The restricted narrative is a separate column delivered
+> ONLY to incident.viewRestricted holders (RRS, mirroring the
+> background-data pattern; RRS gained placement.view so the surface its
+> duty lives in is reachable — tab shaping still withholds case notes
+> and evaluations from it) with every delivery audited; for all other
+> viewers the field is structurally absent, and no other query path
+> reads it — "excluded from general search" holds because no search
+> path exists over it. Serious/Emergency reports require an extra
+> confirmation and land on the Operations dashboard's always-visible
+> Urgent incidents queue (messaging is V2). Reports are accepted from
+> Onboarding onward including terminal stages — issues surface shortly
+> after an end; no artificial cutoff window was invented. The
+> emergency-services notice is persistent, icon + bold text, never
+> dismissible.
 
 ### User story
 

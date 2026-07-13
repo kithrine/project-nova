@@ -320,4 +320,61 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   ).toBeVisible({ timeout: 20_000 });
   // Nova reads; only shelter staff submit.
   await expect(page.getByRole("button", { name: "Submit Evaluation" })).toHaveCount(0);
+
+  // Phase 11 (Story 5.11) — the supervisor reports a Serious incident
+  // behind the extra confirmation, with the emergency-services notice
+  // persistent on the form; Nova sees it immediately on the dashboard's
+  // urgent queue, reviews, and closes it. Retries file a fresh incident
+  // (the prior one is closed), so matchers take .first().
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter/placements/e2e_placement_assign?tab=incidents");
+  await expect(
+    page.getByRole("heading", { name: "Report an incident" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByText(/does not replace calling emergency services/i).first(),
+  ).toBeVisible();
+  await page.getByLabel("Category").selectOption({ label: "Safety" });
+  await page.getByRole("radio", { name: "Serious" }).check();
+  const reportButton = page.getByRole("button", { name: "Report Incident" });
+  await expect(reportButton).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: /alerts Nova Operations immediately/i })
+    .check();
+  await page
+    .getByLabel("What happened")
+    .fill("Synthetic E2E incident — kennel gate latch failed during transfer.");
+  await reportButton.click();
+  await expect(page.getByText(/INC-\d{4}-[A-Z0-9]{6}/).first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Nova Operations: urgent queue -> review -> close.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations");
+  const urgentIncidents = page.getByRole("list", { name: "Urgent incidents" });
+  await expect(urgentIncidents).toBeVisible({ timeout: 20_000 });
+  await expect(
+    urgentIncidents.getByText(/Serious — Safety · Casey Synthetic-Assign/).first(),
+  ).toBeVisible();
+  await urgentIncidents
+    .getByRole("link", { name: /Open incident: INC-/ })
+    .first()
+    .click();
+  await expect(
+    page.getByText("Synthetic E2E incident — kennel gate latch failed during transfer.").first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Start Review" }).first().click();
+  await expect(page.getByText("Under review").first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Close Incident…" }).first().click();
+  await page
+    .getByLabel("Outcome (required)")
+    .fill("Reviewed with the site — latch replaced and rechecked.");
+  await page.getByRole("button", { name: "Yes, Close Incident" }).click();
+  await expect(
+    page.getByText(/Reviewed with the site — latch replaced and rechecked\./).first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Closed").first()).toBeVisible();
 });

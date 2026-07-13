@@ -2,22 +2,27 @@ import Link from "next/link";
 
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
-import { listUrgentBlockers } from "@/server/services/placement-service";
+import {
+  listUrgentBlockers,
+  listUrgentIncidents,
+} from "@/server/services/placement-service";
 
 export const metadata = { title: "Operations Dashboard" };
 
 /**
- * Operations dashboard (docs/ux/wireframes-layouts.md). Story 5.5 adds
- * the Urgent blockers surface: placements at the activation gate —
- * Onboarding with open prerequisites — each linking to its workspace,
- * where the full Blocker List carries the resolving actions. Today's
- * Work queues and upcoming deadlines arrive with later stories.
+ * Operations dashboard (docs/ux/wireframes-layouts.md). Story 5.5 added
+ * the Urgent blockers surface; Story 5.11 adds Urgent incidents — every
+ * open Serious/Emergency report, always visible in-app since real-time
+ * messaging is V2. Today's Work queues arrive with later stories.
  */
 export default async function OperationsDashboardPage() {
   const ctx = await getAuthContext();
   const canViewPlacements =
     ctx !== null && hasPermission(ctx, "placement.view") && hasNovaScope(ctx);
+  const canReviewIncidents =
+    ctx !== null && hasPermission(ctx, "incident.review") && hasNovaScope(ctx);
   const urgent = canViewPlacements && ctx ? await listUrgentBlockers(ctx) : [];
+  const urgentIncidents = canReviewIncidents && ctx ? await listUrgentIncidents(ctx) : [];
 
   return (
     <section className="flex flex-col gap-6">
@@ -28,6 +33,58 @@ export default async function OperationsDashboardPage() {
           case-management workflows are built.
         </p>
       </div>
+
+      {canReviewIncidents ? (
+        <div className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5 shrink-0 text-error"
+            >
+              <path d="M12 3 2.5 19.5h19L12 3Z" />
+              <path d="M12 10v4" />
+              <path d="M12 17.5v.5" />
+            </svg>
+            Urgent incidents
+          </h2>
+          {urgentIncidents.length === 0 ? (
+            <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+              No open Serious or Emergency incidents.
+            </p>
+          ) : (
+            <ul aria-label="Urgent incidents" className="flex max-w-3xl flex-col gap-2">
+              {urgentIncidents.map((row) => (
+                <li
+                  key={row.incidentId}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-error/40 bg-error/5 px-4 py-3"
+                >
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <p className="text-sm font-medium">
+                      {row.severityLabel} — {row.categoryLabel} · {row.participantName}
+                    </p>
+                    <p className="text-xs text-base-content/60">
+                      {row.incidentNumber} · {row.placementNumber} · {row.statusLabel} ·
+                      reported {row.reportedAtLabel}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/operations/placements/records/${row.placementId}?tab=incidents`}
+                    className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
+                  >
+                    Open incident: {row.incidentNumber}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       {canViewPlacements ? (
         <div className="flex flex-col gap-3">

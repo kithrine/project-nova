@@ -146,6 +146,18 @@ export const PERMISSIONS = [
   // (open-questions.md #5) and defaults closed — no participant grant,
   // no participant query path.
   "evaluation.view",
+  // Incidents (Story 5.11; docs/ops/incident-response.md is
+  // authoritative). Shelter staff and Nova Operations report and read,
+  // org-scoped for shelters by the service; Nova Operations alone
+  // reviews and closes (AC4).
+  "incident.view",
+  "incident.create",
+  "incident.review",
+  // The HIGHLY RESTRICTED narrative tier (security-privacy.md names
+  // "Serious incident investigations"): the same explicit-restricted-
+  // permission pattern as backgroundReview.view — RRS only by default,
+  // every delivered narrative audited.
+  "incident.viewRestricted",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -162,6 +174,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.view",
     "onboardingTask.complete",
     "evaluation.create",
+    "incident.view",
+    "incident.create",
   ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
@@ -171,6 +185,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.approve",
     "onboardingTask.complete",
     "evaluation.create",
+    "incident.view",
+    "incident.create",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -205,6 +221,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.resume",
     "caseNote.view",
     "evaluation.view",
+    "incident.view",
+    "incident.create",
+    "incident.review",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -246,15 +265,25 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.resume",
     "caseNote.view",
     "evaluation.view",
+    "incident.view",
+    "incident.create",
+    "incident.review",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
+  // The optional restricted role also reads placements' incident surface
+  // (Story 5.11): placement.view mirrors its application.view — the
+  // workspace its restricted duty lives in — while the tab shaping keeps
+  // case notes and evaluations structurally absent for it.
   [Role.RESTRICTED_REVIEW_SPECIALIST]: [
     "organization.view",
     "document.view",
     "application.view",
     "backgroundReview.view",
     "backgroundReview.decide",
+    "placement.view",
+    "incident.view",
+    "incident.viewRestricted",
   ],
 };
 
