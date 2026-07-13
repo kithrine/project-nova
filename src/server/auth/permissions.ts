@@ -112,6 +112,10 @@ export const PERMISSIONS = [
   // returns it — org-scoped, SHELTER_REVIEW-gated. Distinct from the
   // match-level shelter decision in Epic 4.
   "placement.approve",
+  // Funding assignments on a placement (Story 5.3; ADR-010): Grant
+  // Administrator primary, coordinator-tier per the role mapping. Exactly
+  // one ACTIVE assignment per placement; shelters never assign funding.
+  "funding.assign",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -161,11 +165,13 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.create",
     "placement.view",
     "placement.assign",
+    "funding.assign",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
     "funding.manage",
     "placement.view",
+    "funding.assign",
   ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
@@ -195,6 +201,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.create",
     "placement.view",
     "placement.assign",
+    "funding.assign",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

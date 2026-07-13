@@ -10,7 +10,7 @@ Operate an active transitional placement.
 | ---- | ----------------------------------------- | ----------------------------------- |
 | 5.1  | Placement workspace                       | Done                                |
 | 5.2  | Assign site, supervisor, and schedule     | Done                                |
-| 5.3  | Assign funding                            | Ready for Development               |
+| 5.3  | Assign funding                            | Done                                |
 | 5.4  | Placement onboarding                      | Ready for Development               |
 | 5.5  | Activation blockers                       | Ready for Development               |
 | 5.6  | Activate placement                        | Ready for Development               |
@@ -187,7 +187,21 @@ Funding assignment (5.3), onboarding tasks (5.4), activation itself (5.6), and o
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: FundingAssignment (status ACTIVE/ENDED, startDate/endDate,
+> optional hourlyRate Decimal(8,2) and hoursCap Decimal(7,2), assigner/
+> ender actor ids) with the one-ACTIVE-per-placement partial unique index
+> hand-written in migration SQL — the application check names the rule,
+> the index backstops the race, both integration-proven. End-then-replace
+> preserves every assignment in the Funding tab history (never deleted;
+> fundingSource FKs are Restrict, and the E2E funding-source cleanup now
+> skips sources with assignments). Amounts are decimal-shaped strings end
+> to end. funding.assign: Grant Administrator primary plus PC/NA; the
+> shelter's workspace view carries viewerCanAssign=false and zero source
+> options — controls never render and the server denies regardless. The
+> Overview funding summary prefers the active assignment over the
+> match-carried candidate reference.
 
 ### User story
 

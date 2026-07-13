@@ -549,6 +549,7 @@ model Placement {
   shelterReviewNote String?
 
   structuredSchedule PlacementSchedule?
+  fundingAssignments FundingAssignment[]
 
   events PlacementEvent[]
 
@@ -623,6 +624,43 @@ model PlacementScheduleDay {
   endTime   String
 
   @@unique([scheduleId, day])
+}
+
+// --- Funding assignments (Story 5.3; ADR-010) ---------------------------------
+
+enum FundingAssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
+// Exactly one ACTIVE funding assignment per placement (ADR-010) — the
+// partial unique index enforcing it is hand-written in the migration SQL
+// (database-design.md). History is never deleted: ending an assignment
+// marks it ENDED with its end date, and replacements append. Money and
+// hour caps are Decimal, never floating point (RULES.md). Blended or
+// simultaneous funding is explicitly deferred.
+model FundingAssignment {
+  id              String        @id @default(cuid())
+  placementId     String
+  placement       Placement     @relation(fields: [placementId], references: [id])
+  fundingSourceId String
+  fundingSource   FundingSource @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
+
+  status    FundingAssignmentStatus @default(ACTIVE)
+  startDate DateTime                @db.Date
+  endDate   DateTime?               @db.Date
+
+  hourlyRate Decimal? @db.Decimal(8, 2)
+  hoursCap   Decimal? @db.Decimal(7, 2)
+
+  assignedByUserId String
+  endedByUserId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placementId])
+  @@index([fundingSourceId])
 }
 
 // --- Documents (Story 2.4) --------------------------------------------------
@@ -970,6 +1008,7 @@ model FundingSource {
 
   placementMatches PlacementMatch[]
   placements       Placement[]
+  assignments      FundingAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

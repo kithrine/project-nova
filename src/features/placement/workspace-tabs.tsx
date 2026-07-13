@@ -1,4 +1,5 @@
 import { AssignmentForm } from "@/features/placement/assignment-form";
+import { FundingTab } from "@/features/placement/funding-tab";
 import type {
   PlacementWorkspaceView,
   WorkspaceTab,
@@ -135,17 +136,7 @@ export function WorkspaceTabContent({
         </EmptyTab>
       );
     case "funding":
-      return (
-        <div className="flex max-w-prose flex-col gap-2">
-          {view.fundingSummary ? (
-            <p className="text-sm">{view.fundingSummary} (carried from the match)</p>
-          ) : null}
-          <EmptyTab>
-            Funding assignments — exactly one active at a time — arrive with
-            Story 5.3.
-          </EmptyTab>
-        </div>
-      );
+      return <FundingTab placementId={view.id} funding={view.funding} />;
     case "history":
       return view.history.length === 0 ? (
         <EmptyTab>No lifecycle events recorded yet.</EmptyTab>
