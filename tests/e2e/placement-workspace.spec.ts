@@ -1,5 +1,4 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   E2E_OPS_USER_EMAIL,
@@ -7,6 +6,7 @@ import {
   E2E_PARTICIPANT_USER_EMAIL,
   E2E_USER_EMAIL,
 } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Placement workspace (Story 5.1): the same fixture placement renders
@@ -14,16 +14,6 @@ import {
  * shelter, plain-language My Placement for the participant — and a
  * cross-organization shelter user is denied.
  */
-
-async function signIn(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier: email } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
 
 test("a coordinator gets the full nine-tab workspace (AC1)", async ({ page }) => {
   await signIn(page, E2E_OPS_USER_EMAIL);

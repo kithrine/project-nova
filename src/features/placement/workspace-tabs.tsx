@@ -1,3 +1,4 @@
+import { AssignmentForm } from "@/features/placement/assignment-form";
 import type {
   PlacementWorkspaceView,
   WorkspaceTab,
@@ -64,16 +65,38 @@ export function WorkspaceTabContent({
       );
     case "schedule":
       return (
-        <div className="flex max-w-prose flex-col gap-2">
-          {view.scheduleSummary ? (
-            <p className="text-sm">
-              Candidate schedule from the match: {view.scheduleSummary}
-            </p>
+        <div className="flex flex-col gap-4">
+          {view.structuredSchedule ? (
+            <div className="flex max-w-prose flex-col gap-2">
+              <h3 className="text-sm font-semibold">Working schedule</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {view.structuredSchedule.days.map((entry) => (
+                  <li key={entry.day} className="flex gap-2">
+                    <span className="w-28 font-medium">{entry.dayLabel}</span>
+                    <span className="text-base-content/80">
+                      {entry.startTime}–{entry.endTime}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-base-content/70">
+                Weekly hours target: {view.structuredSchedule.weeklyHoursTarget}
+              </p>
+            </div>
+          ) : view.assignmentOptions === null ? (
+            <div className="flex max-w-prose flex-col gap-2">
+              {view.scheduleSummary ? (
+                <p className="text-sm">
+                  Candidate schedule from the match: {view.scheduleSummary}
+                </p>
+              ) : null}
+              <EmptyTab>
+                The working schedule is set while the placement is prepared for
+                shelter review.
+              </EmptyTab>
+            </div>
           ) : null}
-          <EmptyTab>
-            The structured schedule — days, times, and weekly hours — is set
-            during site and supervisor assignment (Story 5.2).
-          </EmptyTab>
+          {view.assignmentOptions ? <AssignmentForm view={view} /> : null}
         </div>
       );
     case "hours":

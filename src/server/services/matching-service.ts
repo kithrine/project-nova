@@ -149,6 +149,13 @@ export async function getMatchingQueue(ctx: AuthContext): Promise<MatchingQueueV
   const now = Date.now();
   const candidates: QueueCandidateView[] = [];
   for (const enrollment of enrollments) {
+    // Torn-read guard: Prisma loads included relations in follow-up
+    // queries, so a row deleted concurrently (ADR-006 targeted test
+    // cleanup, or a real removal) can stitch back as null despite the
+    // generated types. A vanishing candidate is skipped, never a crash.
+    if (!enrollment.participant || !enrollment.program || !enrollment.application) {
+      continue;
+    }
     const state = classifyQueueCandidate({
       hasNonTerminalMatch: enrollment.participant.placementMatches.length > 0,
       // Live since 4.8: an approved match's placement occupies the

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { PlacementStatus } from "@/generated/prisma/client";
 import {
+  ALLOWED_PLACEMENT_TRANSITIONS,
+  assertPlacementTransition,
   buildPlacementTimeline,
   NON_TERMINAL_PLACEMENT_STATUSES,
+  packageMissingPieces,
   PLACEMENT_STATUS_LABELS,
+  scheduleValidationError,
   TERMINAL_PLACEMENT_STATUSES,
 } from "./placement";
 
@@ -67,5 +71,92 @@ describe("buildPlacementTimeline (Story 5.1)", () => {
     ]) {
       expect(PLACEMENT_STATUS_LABELS[status]).toBeTruthy();
     }
+  });
+});
+
+describe("placement transitions (Story 5.2 onward)", () => {
+  it("walks the 5.2 review path and the change-request return to Draft", () => {
+    expect(() =>
+      assertPlacementTransition(PlacementStatus.DRAFT, PlacementStatus.PROPOSED),
+    ).not.toThrow();
+    expect(() =>
+      assertPlacementTransition(PlacementStatus.PROPOSED, PlacementStatus.SHELTER_REVIEW),
+    ).not.toThrow();
+    expect(() =>
+      assertPlacementTransition(PlacementStatus.SHELTER_REVIEW, PlacementStatus.APPROVED),
+    ).not.toThrow();
+    expect(() =>
+      assertPlacementTransition(PlacementStatus.SHELTER_REVIEW, PlacementStatus.DRAFT),
+    ).not.toThrow();
+    expect(() =>
+      assertPlacementTransition(PlacementStatus.DRAFT, PlacementStatus.ACTIVE),
+    ).toThrow(/cannot move from draft to active/i);
+  });
+
+  it("keeps every terminal state closed", () => {
+    for (const terminal of TERMINAL_PLACEMENT_STATUSES) {
+      expect(ALLOWED_PLACEMENT_TRANSITIONS[terminal]).toEqual([]);
+    }
+  });
+});
+
+describe("packageMissingPieces (Story 5.2 AC3)", () => {
+  it("names each missing piece and clears when complete", () => {
+    expect(
+      packageMissingPieces({
+        supervisorId: null,
+        coordinatorUserId: null,
+        hasStructuredSchedule: false,
+      }),
+    ).toEqual(["Supervisor", "Coordinator of record", "Work schedule"]);
+    expect(
+      packageMissingPieces({
+        supervisorId: "u1",
+        coordinatorUserId: "u2",
+        hasStructuredSchedule: true,
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("scheduleValidationError (Story 5.2)", () => {
+  const good = {
+    days: [
+      { day: "MONDAY", startTime: "09:00", endTime: "13:00" },
+      { day: "WEDNESDAY", startTime: "13:00", endTime: "17:30" },
+    ],
+    weeklyHoursTarget: "20.5",
+  };
+
+  it("accepts a well-formed schedule with decimal hours", () => {
+    expect(scheduleValidationError(good)).toBeNull();
+  });
+
+  it("rejects empty, duplicated, malformed, inverted, and out-of-range input", () => {
+    expect(scheduleValidationError({ ...good, days: [] })).toMatch(/at least one/);
+    expect(
+      scheduleValidationError({
+        ...good,
+        days: [good.days[0], { ...good.days[0] }],
+      }),
+    ).toMatch(/only once/);
+    expect(
+      scheduleValidationError({
+        ...good,
+        days: [{ day: "MONDAY", startTime: "9am", endTime: "13:00" }],
+      }),
+    ).toMatch(/24-hour/);
+    expect(
+      scheduleValidationError({
+        ...good,
+        days: [{ day: "MONDAY", startTime: "13:00", endTime: "09:00" }],
+      }),
+    ).toMatch(/end after it starts/);
+    expect(scheduleValidationError({ ...good, weeklyHoursTarget: "20.555" })).toMatch(
+      /two decimals/,
+    );
+    expect(scheduleValidationError({ ...good, weeklyHoursTarget: "81" })).toMatch(
+      /between 0 and 80/,
+    );
   });
 });

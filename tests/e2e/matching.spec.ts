@@ -1,5 +1,5 @@
 import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   E2E_OPS_USER_EMAIL,
@@ -8,22 +8,13 @@ import {
   E2E_SHELTER_MANAGER_USER_EMAIL,
   E2E_USER_EMAIL,
 } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Matching queue (Story 4.1): the coordinator worklist surfaces the ready
  * fixture participant and shelter capacity, and pairing selection opens the
  * review route; shelter and participant identities are denied.
  */
-
-async function signIn(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier: email } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
 
 test("a coordinator works the queue and opens a candidate pairing", async ({ page }) => {
   // One linear journey that grows with each story (4.1 -> 4.6): queue ->
