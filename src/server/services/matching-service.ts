@@ -3,7 +3,9 @@ import {
   EnrollmentStatus,
   MatchStatus,
   OrganizationKind,
+  ParticipantMatchDecision,
   Role,
+  ShelterMatchDecision,
   TrainingEnrollmentStatus,
 } from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
@@ -20,7 +22,12 @@ import {
   type QueueCandidateState,
 } from "@/server/domain/matching-queue";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
-import { draftCreationBlockReason } from "@/server/domain/placement-match";
+import {
+  assertMatchTransition,
+  decisionWindowEnd,
+  draftCreationBlockReason,
+  proposalMissingFields,
+} from "@/server/domain/placement-match";
 import {
   AuthorizationError,
   ConflictError,
@@ -703,6 +710,7 @@ export interface MatchWorklistRow {
 /** Non-terminal matches — the coordinator in-progress worklist. */
 export async function listMatchWorklist(ctx: AuthContext): Promise<MatchWorklistRow[]> {
   requireQueueAccess(ctx);
+  await expireStaleProposals();
   const matches = await prisma.placementMatch.findMany({
     where: { status: { in: [...NON_TERMINAL_MATCH_STATUSES] } },
     include: {
@@ -719,6 +727,271 @@ export async function listMatchWorklist(ctx: AuthContext): Promise<MatchWorklist
     organizationName: match.organizationSite.organization.name,
     siteName: match.organizationSite.name,
     status: match.status,
+    statusLabel: MATCH_STATUS_LABELS[match.status],
+  }));
+}
+
+// --- Propose match (Story 4.4) ---------------------------------------------------
+
+/**
+ * Draft -> Proposed: the moment match details first cross the organization
+ * boundary (AC1). Core fields are required and missing ones NAMED (AC2);
+ * both decision tracks reset to Pending; proposedAt and the decision-window
+ * target are stamped; lifecycle event + audit event commit with the change.
+ */
+export async function proposeMatch(ctx: AuthContext, matchId: string): Promise<void> {
+  if (!hasPermission(ctx, "placementMatch.propose")) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const match = await prisma.placementMatch.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      status: true,
+      proposedSupervisorId: true,
+      proposedSchedule: true,
+      proposedStartDate: true,
+      proposedEndDate: true,
+    },
+  });
+  if (!match) throw new NotFoundError();
+  assertMatchTransition(match.status, MatchStatus.PROPOSED);
+
+  const missing = proposalMissingFields(match);
+  if (missing.length > 0) {
+    throw new ValidationError(
+      `Complete these before proposing: ${missing.join("; ")}.`,
+    );
+  }
+
+  const proposedAt = new Date();
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.placementMatch.updateMany({
+      where: { id: matchId, status: match.status },
+      data: {
+        status: MatchStatus.PROPOSED,
+        participantDecision: ParticipantMatchDecision.PENDING,
+        shelterDecision: ShelterMatchDecision.PENDING,
+        proposedAt,
+        decisionWindowEndsAt: decisionWindowEnd(proposedAt),
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This match changed while you were working. Refresh and try again.",
+      );
+    }
+    await tx.placementMatchEvent.create({
+      data: {
+        placementMatchId: matchId,
+        fromStatus: match.status,
+        toStatus: MatchStatus.PROPOSED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "placementMatch.propose",
+        subjectType: "PlacementMatch",
+        subjectId: matchId,
+      },
+    });
+  });
+}
+
+/**
+ * Evaluate-on-access expiration (AC5): Proposed matches past their window
+ * with BOTH tracks still Pending transition to Expired. Each expiry is its
+ * own compare-and-set transaction with its lifecycle event, so a racing
+ * decision (4.5/4.6) can never be overwritten.
+ */
+export async function expireStaleProposals(now: Date = new Date()): Promise<number> {
+  const stale = await prisma.placementMatch.findMany({
+    where: {
+      status: MatchStatus.PROPOSED,
+      decisionWindowEndsAt: { lt: now },
+      participantDecision: ParticipantMatchDecision.PENDING,
+      shelterDecision: ShelterMatchDecision.PENDING,
+    },
+    select: { id: true },
+  });
+
+  let expired = 0;
+  for (const match of stale) {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.placementMatch.updateMany({
+        where: {
+          id: match.id,
+          status: MatchStatus.PROPOSED,
+          participantDecision: ParticipantMatchDecision.PENDING,
+          shelterDecision: ShelterMatchDecision.PENDING,
+        },
+        data: { status: MatchStatus.EXPIRED },
+      });
+      if (updated.count === 1) {
+        expired += 1;
+        await tx.placementMatchEvent.create({
+          data: {
+            placementMatchId: match.id,
+            fromStatus: MatchStatus.PROPOSED,
+            toStatus: MatchStatus.EXPIRED,
+            actorUserId: "system-expiration",
+          },
+        });
+      }
+    });
+  }
+  return expired;
+}
+
+function formatWindowDate(date: Date | null): string | null {
+  return date
+    ? date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : null;
+}
+
+export interface ProposedMatchParticipantView {
+  id: string;
+  organizationName: string;
+  siteName: string;
+  siteLocation: string | null;
+  schedule: string | null;
+  startDateLabel: string | null;
+  endDateLabel: string | null;
+  respondByLabel: string | null;
+}
+
+/**
+ * The participant's own proposed placement (AC3): resource scope = self,
+ * PROPOSED status or later only — never a Draft. Plain-language details;
+ * no coordinator notes, no compatibility read, no restricted content
+ * (structurally absent from the query).
+ */
+export async function getOwnProposedMatch(
+  ctx: AuthContext,
+): Promise<ProposedMatchParticipantView | null> {
+  await expireStaleProposals();
+
+  const person = await prisma.person.findUnique({
+    where: { userId: ctx.userId },
+    select: { participant: { select: { id: true } } },
+  });
+  if (!person?.participant) return null;
+
+  const match = await prisma.placementMatch.findFirst({
+    where: {
+      participantId: person.participant.id,
+      status: MatchStatus.PROPOSED,
+    },
+    select: {
+      id: true,
+      proposedSchedule: true,
+      proposedStartDate: true,
+      proposedEndDate: true,
+      decisionWindowEndsAt: true,
+      organizationSite: {
+        select: {
+          name: true,
+          city: true,
+          region: true,
+          organization: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (!match) return null;
+
+  const location = [match.organizationSite.city, match.organizationSite.region]
+    .filter(Boolean)
+    .join(", ");
+  return {
+    id: match.id,
+    organizationName: match.organizationSite.organization.name,
+    siteName: match.organizationSite.name,
+    siteLocation: location || null,
+    schedule: match.proposedSchedule,
+    startDateLabel: formatWindowDate(match.proposedStartDate),
+    endDateLabel: formatWindowDate(match.proposedEndDate),
+    respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
+  };
+}
+
+export interface ShelterApprovalView {
+  id: string;
+  participantName: string;
+  siteName: string;
+  supervisorName: string | null;
+  schedule: string | null;
+  startDateLabel: string | null;
+  endDateLabel: string | null;
+  respondByLabel: string | null;
+  statusLabel: string;
+}
+
+const SHELTER_ROLES: readonly Role[] = [Role.SHELTER_MANAGER, Role.SHELTER_SUPERVISOR];
+
+/**
+ * The shelter's Placement approvals list (AC4): resource scope =
+ * organization via hostOrganizationId, PROPOSED status or later — Draft is
+ * never visible regardless of scope (AC6 covers other organizations).
+ * Role-shaped: no coordinator notes, no compatibility snapshot.
+ */
+export async function listShelterApprovals(
+  ctx: AuthContext,
+): Promise<ShelterApprovalView[]> {
+  await expireStaleProposals();
+
+  const organizationIds = ctx.memberships
+    .filter((membership) => SHELTER_ROLES.includes(membership.role))
+    .map((membership) => membership.organizationId);
+  if (organizationIds.length === 0) {
+    throw new AuthorizationError();
+  }
+
+  const matches = await prisma.placementMatch.findMany({
+    where: {
+      hostOrganizationId: { in: organizationIds },
+      status: MatchStatus.PROPOSED,
+    },
+    include: {
+      participant: {
+        include: { person: { select: { legalFirstName: true, legalLastName: true } } },
+      },
+      organizationSite: { select: { name: true } },
+    },
+    orderBy: { proposedAt: "asc" },
+  });
+
+  const supervisorIds = [
+    ...new Set(
+      matches.map((m) => m.proposedSupervisorId).filter((id): id is string => !!id),
+    ),
+  ];
+  const supervisors = await prisma.user.findMany({
+    where: { id: { in: supervisorIds } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(supervisors.map((u) => [u.id, u.displayName]));
+
+  return matches.map((match) => ({
+    id: match.id,
+    participantName: `${match.participant.person.legalFirstName} ${match.participant.person.legalLastName}`,
+    siteName: match.organizationSite.name,
+    supervisorName: match.proposedSupervisorId
+      ? (nameById.get(match.proposedSupervisorId) ?? "Unknown user")
+      : null,
+    schedule: match.proposedSchedule,
+    startDateLabel: formatWindowDate(match.proposedStartDate),
+    endDateLabel: formatWindowDate(match.proposedEndDate),
+    respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
     statusLabel: MATCH_STATUS_LABELS[match.status],
   }));
 }

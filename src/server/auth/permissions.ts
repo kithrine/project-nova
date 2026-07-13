@@ -73,6 +73,9 @@ export const PERMISSIONS = [
   // Draft matches (Story 4.3): create, edit, and withdraw while DRAFT.
   // Drafts are coordinator-internal — never participant- or shelter-visible.
   "placementMatch.manageDraft",
+  // Draft -> Proposed (Story 4.4): the moment match details first cross
+  // the organization boundary to the participant and the shelter.
+  "placementMatch.propose",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -105,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.viewQueue",
     "placementMatch.viewCompatibility",
     "placementMatch.manageDraft",
+    "placementMatch.propose",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -128,6 +132,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.viewQueue",
     "placementMatch.viewCompatibility",
     "placementMatch.manageDraft",
+    "placementMatch.propose",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

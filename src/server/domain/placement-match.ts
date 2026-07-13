@@ -41,6 +41,58 @@ export function assertMatchTransition(from: MatchStatus, to: MatchStatus): void 
 }
 
 /**
+ * The proposal decision window (Story 4.4): a Proposed match with NO
+ * decision from either party inside this window is eligible to expire.
+ * A program parameter; adjust without a superseding ADR.
+ */
+export const DECISION_WINDOW_DAYS = 14;
+
+export function decisionWindowEnd(proposedAt: Date): Date {
+  return new Date(proposedAt.getTime() + DECISION_WINDOW_DAYS * 86_400_000);
+}
+
+/**
+ * The core fields a match must carry before it can cross the organization
+ * boundary (Story 4.4 AC2) — missing ones are named to the coordinator.
+ * Participant, host, and site are structurally present on every match.
+ */
+export function proposalMissingFields(match: {
+  proposedSupervisorId: string | null;
+  proposedSchedule: string | null;
+  proposedStartDate: Date | null;
+  proposedEndDate: Date | null;
+}): string[] {
+  const missing: string[] = [];
+  if (!match.proposedSupervisorId) missing.push("Candidate supervisor");
+  if (!match.proposedSchedule) missing.push("Candidate schedule");
+  if (!match.proposedStartDate) missing.push("Candidate start date");
+  if (!match.proposedEndDate) missing.push("Candidate end date");
+  return missing;
+}
+
+/**
+ * A Proposed match expires only when the window has passed AND neither
+ * decision track has moved from Pending (Story 4.4 AC5).
+ */
+export function isExpiredProposal(
+  match: {
+    status: MatchStatus;
+    decisionWindowEndsAt: Date | null;
+    participantDecision: string;
+    shelterDecision: string;
+  },
+  now: Date = new Date(),
+): boolean {
+  return (
+    match.status === MatchStatus.PROPOSED &&
+    match.decisionWindowEndsAt !== null &&
+    match.decisionWindowEndsAt.getTime() < now.getTime() &&
+    match.participantDecision === "PENDING" &&
+    match.shelterDecision === "PENDING"
+  );
+}
+
+/**
  * Why a draft cannot be created for this pairing, or null when it can
  * (Story 4.3 AC2 — the reason is named in plain language, referencing the
  * one-placement-at-a-time rule). Placement conflicts activate when the

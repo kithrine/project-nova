@@ -34,7 +34,11 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
   // The ready fixture participant appears as awaiting, with readiness
   // context and the blockers carried over from 3.6 (a required training
   // with no attempt on this fixture program).
-  await expect(page.getByText("Quinn Synthetic-Match", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByLabel("Participants awaiting match")
+      .getByText("Quinn Synthetic-Match", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByLabel("Participants awaiting match").getByText("Awaiting match"),
   ).toBeVisible();
@@ -99,16 +103,33 @@ test("a coordinator works the queue and opens a candidate pairing", async ({ pag
     page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }),
   ).toBeVisible();
 
-  // Withdraw to finish the journey (leaves the fixture clean for reruns).
+  // Story 4.4: complete the draft and propose it across the boundary.
   await page.getByRole("link", { name: "Open match: Quinn Synthetic-Match" }).click();
-  await page.getByRole("checkbox", { name: /withdrawing is final/i }).check();
-  await page.getByRole("button", { name: "Withdraw Draft" }).click();
+  await expect(page.getByLabel("Candidate supervisor")).toBeVisible({ timeout: 20_000 });
+  // The propose control stays disabled until the core fields are complete.
+  await expect(page.getByRole("button", { name: "Propose Match" })).toBeDisabled();
+  // Clerk provisioning syncs displayName from the Clerk profile on sign-in,
+  // so every fixture identity reads "Synthetic E2E" here.
+  await page.getByLabel("Candidate supervisor").selectOption({ label: "Synthetic E2E" });
+  await page.getByRole("button", { name: "Save Draft Details" }).click();
+  await expect(page.getByText(/Draft saved — the compatibility read/)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.getByRole("button", { name: "Propose Match" }).click();
+  await expect(page.getByText(/Status: .*Proposed/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Both parties are reviewing it/)).toBeVisible();
+
+  // The shelter side sees it under Placement approvals — their org only.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Matching queue" }),
+    page.getByRole("heading", { name: "Placement approvals" }),
   ).toBeVisible({ timeout: 20_000 });
-  await expect(
-    page.getByLabel("Participants awaiting match").getByText("Awaiting match"),
-  ).toBeVisible();
+  await expect(page.getByText("Quinn Synthetic-Match")).toBeVisible();
+  await expect(page.getByText("Schedule: Mon/Wed mornings")).toBeVisible();
+  await expect(page.getByText(/Supervisor: Synthetic E2E/)).toBeVisible();
 });
 
 test("a shelter manager is denied the queue (AC6)", async ({ page }) => {

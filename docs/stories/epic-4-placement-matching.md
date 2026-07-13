@@ -10,7 +10,7 @@ Create safe, approved participant-to-shelter matches.
 | 4.1 | Matching queue | Done |
 | 4.2 | Compatibility panel | Done |
 | 4.3 | Create match draft | Done |
-| 4.4 | Propose match | Ready for Development |
+| 4.4 | Propose match | Done |
 | 4.5 | Record participant decision | Ready for Development |
 | 4.6 | Record shelter decision | Ready for Development |
 | 4.7 | Request changes | Ready for Development |
@@ -206,7 +206,16 @@ Story 4.1 (queue entry point); Story 4.2 (compatibility snapshot); Epic 3 (enrol
 ## Story 4.4 — Propose match
 
 ### Status
-Ready for Development
+Done
+
+> Built note: the decision window is DECISION_WINDOW_DAYS = 14 (a program
+> parameter in src/server/domain/placement-match.ts). Expiration is
+> evaluated on access (each party's reads and the coordinator worklist run
+> the check) with per-match compare-and-set transactions so a racing 4.5/
+> 4.6 decision can never be overwritten; the expiry lifecycle event's
+> actor is "system-expiration". Participant and shelter views are
+> role-shaped view models with coordinator notes and the compatibility
+> snapshot structurally absent. Decision recording arrives with 4.5/4.6.
 
 ### User story
 As a Program Coordinator, I want to propose a Draft match to both the participant and the shelter, so that each party can review the arrangement and record their own decision.

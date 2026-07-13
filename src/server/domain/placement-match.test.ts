@@ -4,7 +4,10 @@ import { EnrollmentStatus, MatchStatus } from "@/generated/prisma/client";
 import {
   ALLOWED_MATCH_TRANSITIONS,
   assertMatchTransition,
+  decisionWindowEnd,
   draftCreationBlockReason,
+  isExpiredProposal,
+  proposalMissingFields,
 } from "./placement-match";
 
 describe("match transitions (Stories 4.3-4.8 lifecycle)", () => {
@@ -36,6 +39,59 @@ describe("match transitions (Stories 4.3-4.8 lifecycle)", () => {
     expect(() =>
       assertMatchTransition(MatchStatus.CHANGE_REQUESTED, MatchStatus.PROPOSED),
     ).not.toThrow();
+  });
+});
+
+describe("proposal gate and window (Story 4.4)", () => {
+  const complete = {
+    proposedSupervisorId: "user_1",
+    proposedSchedule: "Mon/Wed mornings",
+    proposedStartDate: new Date("2026-08-01T00:00:00Z"),
+    proposedEndDate: new Date("2026-12-01T00:00:00Z"),
+  };
+
+  it("passes a complete draft and names every missing core field (AC2)", () => {
+    expect(proposalMissingFields(complete)).toEqual([]);
+    expect(
+      proposalMissingFields({
+        proposedSupervisorId: null,
+        proposedSchedule: null,
+        proposedStartDate: null,
+        proposedEndDate: null,
+      }),
+    ).toEqual([
+      "Candidate supervisor",
+      "Candidate schedule",
+      "Candidate start date",
+      "Candidate end date",
+    ]);
+  });
+
+  it("computes the decision window from the proposal moment", () => {
+    const proposedAt = new Date("2026-07-13T00:00:00.000Z");
+    expect(decisionWindowEnd(proposedAt).toISOString()).toBe(
+      "2026-07-27T00:00:00.000Z",
+    );
+  });
+
+  it("expires only past-window proposals with BOTH tracks still pending (AC5)", () => {
+    const base = {
+      status: MatchStatus.PROPOSED,
+      decisionWindowEndsAt: new Date("2026-07-01T00:00:00Z"),
+      participantDecision: "PENDING",
+      shelterDecision: "PENDING",
+    };
+    const now = new Date("2026-07-13T00:00:00Z");
+    expect(isExpiredProposal(base, now)).toBe(true);
+    expect(isExpiredProposal({ ...base, participantDecision: "ACCEPTED" }, now)).toBe(false);
+    expect(isExpiredProposal({ ...base, shelterDecision: "APPROVED" }, now)).toBe(false);
+    expect(
+      isExpiredProposal(
+        { ...base, decisionWindowEndsAt: new Date("2026-08-01T00:00:00Z") },
+        now,
+      ),
+    ).toBe(false);
+    expect(isExpiredProposal({ ...base, status: MatchStatus.DRAFT }, now)).toBe(false);
   });
 });
 

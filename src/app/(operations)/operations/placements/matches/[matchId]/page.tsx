@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { CompatibilityPanel } from "@/features/matching/compatibility-panel";
 import { MatchDraftForm } from "@/features/matching/match-draft-form";
+import { ProposePanel } from "@/features/matching/propose-panel";
+import { proposalMissingFields } from "@/server/domain/placement-match";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { NotFoundError } from "@/server/errors/app-error";
@@ -57,10 +59,24 @@ export default async function MatchWorkspacePage({
       </div>
 
       {match.status === "DRAFT" ? (
-        <MatchDraftForm match={match} />
+        <>
+          <MatchDraftForm match={match} />
+          <ProposePanel
+            matchId={match.id}
+            missingFields={proposalMissingFields({
+              proposedSupervisorId: match.supervisorId,
+              proposedSchedule: match.schedule,
+              proposedStartDate: match.startDateValue ? new Date(match.startDateValue) : null,
+              proposedEndDate: match.endDateValue ? new Date(match.endDateValue) : null,
+            })}
+          />
+        </>
       ) : (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
           This match is {match.statusLabel.toLowerCase()} — draft editing is closed.
+          {match.status === "PROPOSED"
+            ? " Both parties are reviewing it; their decisions arrive with 4.5/4.6."
+            : ""}
         </p>
       )}
 
