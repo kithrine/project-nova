@@ -22,6 +22,8 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
 
   let coordinatorId: string;
   let shelterManagerId: string;
+  let shelterSupervisorId: string;
+  let otherOrgManagerId: string;
   let hostOrgId: string;
   let siteId: string;
   let programId: string;
@@ -37,6 +39,9 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
   let assisted: Fixture;
   let drafted: Fixture;
   let stale: Fixture;
+  let shelterApproving: Fixture;
+  let shelterChanging: Fixture;
+  let shelterDeclining: Fixture;
 
   async function contextFor(userId: string) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -170,6 +175,37 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
     });
     shelterManagerId = manager.id;
 
+    const supervisor = await prisma.user.create({
+      data: {
+        email: `${runId}-supervisor@synthetic.example`,
+        displayName: testScopedName(runId, "Shelter Supervisor"),
+        isSynthetic: true,
+        memberships: {
+          create: { organizationId: host.id, role: enums.Role.SHELTER_SUPERVISOR },
+        },
+      },
+    });
+    shelterSupervisorId = supervisor.id;
+
+    const otherOrg = await prisma.organization.create({
+      data: {
+        name: testScopedName(runId, "Other Shelter"),
+        kind: enums.OrganizationKind.HOST,
+        isSynthetic: true,
+      },
+    });
+    const otherManager = await prisma.user.create({
+      data: {
+        email: `${runId}-manager2@synthetic.example`,
+        displayName: testScopedName(runId, "Other Shelter Manager"),
+        isSynthetic: true,
+        memberships: {
+          create: { organizationId: otherOrg.id, role: enums.Role.SHELTER_MANAGER },
+        },
+      },
+    });
+    otherOrgManagerId = otherManager.id;
+
     accepting = await createFixture("accept", { status: "PROPOSED" });
     declining = await createFixture("decline", { status: "PROPOSED" });
     assisted = await createFixture("assist", { status: "PROPOSED" });
@@ -178,7 +214,10 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
       status: "PROPOSED",
       windowEndsAt: new Date(Date.now() - 86_400_000),
     });
-  }, 40_000);
+    shelterApproving = await createFixture("shapprove", { status: "PROPOSED" });
+    shelterChanging = await createFixture("shchange", { status: "PROPOSED" });
+    shelterDeclining = await createFixture("shdecline", { status: "PROPOSED" });
+  }, 60_000);
 
   afterAll(async () => {
     const emails = { startsWith: `${runId}-` };
@@ -386,5 +425,166 @@ describe.skipIf(!hasDatabase)("participant match decisions (integration)", () =>
     });
     expect(row.status).toBe(enums.MatchStatus.EXPIRED);
     expect(row.participantDecision).toBe(enums.ParticipantMatchDecision.PENDING);
+  }, 20_000);
+
+  // --- Shelter decision (Story 4.6) ---------------------------------------------
+
+  it("records a manager approval: track moves, match stays Proposed (4.6 AC1)", async () => {
+    const ctx = await contextFor(shelterManagerId);
+    await service.recordShelterDecision(ctx, shelterApproving.matchId, {
+      decision: "APPROVED",
+    });
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterApproving.matchId },
+    });
+    expect(row.shelterDecision).toBe(enums.ShelterMatchDecision.APPROVED);
+    expect(row.status).toBe(enums.MatchStatus.PROPOSED);
+    expect(row.shelterDecisionAt).toBeInstanceOf(Date);
+    expect(row.shelterDecisionRecordedByUserId).toBe(shelterManagerId);
+
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        action: "placementMatch.shelterDecision",
+        subjectId: shelterApproving.matchId,
+      },
+    });
+    expect(audit.actorUserId).toBe(shelterManagerId);
+    expect(audit.detail).toBe("approved");
+
+    // Still on the approvals list, now showing the recorded decision.
+    const approvals = await service.listShelterApprovals(ctx);
+    const rowView = approvals.find((m) => m.id === shelterApproving.matchId);
+    expect(rowView?.shelterDecisionLabel).toBe("Approved");
+    expect(rowView?.viewerCanDecide).toBe(true);
+  }, 20_000);
+
+  it("is one-way for the shelter track too (4.6 AC6)", async () => {
+    const ctx = await contextFor(shelterManagerId);
+    await expect(
+      service.recordShelterDecision(ctx, shelterApproving.matchId, {
+        decision: "DECLINED",
+        note: "changed our minds",
+      }),
+    ).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("already been recorded"),
+    });
+  }, 20_000);
+
+  it("routes a change request to the coordinator with its required note (4.6 AC2)", async () => {
+    const ctx = await contextFor(shelterManagerId);
+
+    // The note is required — its absence is a named validation error.
+    await expect(
+      service.recordShelterDecision(ctx, shelterChanging.matchId, {
+        decision: "CHANGE_REQUESTED",
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION",
+      message: expect.stringContaining("Add a note for the coordinator"),
+    });
+
+    await service.recordShelterDecision(ctx, shelterChanging.matchId, {
+      decision: "CHANGE_REQUESTED",
+      note: "Weekend mornings work better for our intake schedule",
+    });
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterChanging.matchId },
+    });
+    expect(row.status).toBe(enums.MatchStatus.CHANGE_REQUESTED);
+    expect(row.shelterDecision).toBe(enums.ShelterMatchDecision.CHANGE_REQUESTED);
+    expect(row.shelterDecisionNote).toContain("Weekend mornings");
+
+    const event = await prisma.placementMatchEvent.findFirstOrThrow({
+      where: {
+        placementMatchId: shelterChanging.matchId,
+        toStatus: enums.MatchStatus.CHANGE_REQUESTED,
+      },
+    });
+    expect(event.fromStatus).toBe(enums.MatchStatus.PROPOSED);
+
+    // Off the approvals list (it is with the coordinator now); the note
+    // never enters audit detail; Operations reads it in the workspace.
+    const approvals = await service.listShelterApprovals(ctx);
+    expect(approvals.find((m) => m.id === shelterChanging.matchId)).toBeUndefined();
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        action: "placementMatch.shelterDecision",
+        subjectId: shelterChanging.matchId,
+      },
+    });
+    expect(audit.detail).toBe("change requested");
+    expect(JSON.stringify(audit)).not.toContain("Weekend");
+
+    const coordinatorCtx = await contextFor(coordinatorId);
+    const workspace = await service.getMatchWorkspace(
+      coordinatorCtx,
+      shelterChanging.matchId,
+    );
+    expect(workspace.shelterDecisionNote).toContain("Weekend mornings");
+    expect(workspace.shelterDecisionLabel).toBe("Change requested");
+  }, 30_000);
+
+  it("treats a shelter decline as a unilateral veto (4.6 AC3)", async () => {
+    const ctx = await contextFor(shelterManagerId);
+    await service.recordShelterDecision(ctx, shelterDeclining.matchId, {
+      decision: "DECLINED",
+      note: "We can't supervise additional staff this season",
+    });
+
+    const row = await prisma.placementMatch.findUniqueOrThrow({
+      where: { id: shelterDeclining.matchId },
+    });
+    expect(row.status).toBe(enums.MatchStatus.DECLINED);
+    expect(row.shelterDecision).toBe(enums.ShelterMatchDecision.DECLINED);
+    // The participant track never moved — the veto is the shelter's alone.
+    expect(row.participantDecision).toBe(enums.ParticipantMatchDecision.PENDING);
+  }, 20_000);
+
+  it("gives supervisors view without decide (4.6 AC4)", async () => {
+    const ctx = await contextFor(shelterSupervisorId);
+
+    const approvals = await service.listShelterApprovals(ctx);
+    const anyRow = approvals.find((m) => m.id === accepting.matchId);
+    expect(anyRow).toBeTruthy();
+    expect(anyRow?.viewerCanDecide).toBe(false);
+
+    await expect(
+      service.recordShelterDecision(ctx, accepting.matchId, { decision: "APPROVED" }),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+  }, 20_000);
+
+  it("denies a different shelter's manager and Nova staff alike (4.6 AC5)", async () => {
+    const otherCtx = await contextFor(otherOrgManagerId);
+    await expect(
+      service.recordShelterDecision(otherCtx, accepting.matchId, {
+        decision: "APPROVED",
+      }),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+    // Their own approvals list contains nothing from the host org.
+    const approvals = await service.listShelterApprovals(otherCtx);
+    expect(approvals).toHaveLength(0);
+
+    const coordinatorCtx = await contextFor(coordinatorId);
+    await expect(
+      service.recordShelterDecision(coordinatorCtx, accepting.matchId, {
+        decision: "APPROVED",
+      }),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION" });
+  }, 20_000);
+
+  it("rejects shelter decisions on a match that is not Proposed (4.6 AC6)", async () => {
+    const ctx = await contextFor(shelterManagerId);
+    await expect(
+      service.recordShelterDecision(ctx, drafted.matchId, {
+        decision: "DECLINED",
+        note: "not workable",
+      }),
+    ).rejects.toMatchObject({
+      code: "LIFECYCLE",
+      message: expect.stringContaining("while a match is proposed"),
+    });
   }, 20_000);
 });

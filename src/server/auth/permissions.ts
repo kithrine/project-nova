@@ -81,6 +81,14 @@ export const PERMISSIONS = [
   // decides their OWN match via ownership (Person -> Participant), never
   // via a role grant — this permission is only the staff recording path.
   "placementMatch.recordParticipantDecision",
+  // Shelter-side visibility of matches at PROPOSED or later (Story 4.6),
+  // always additionally scoped to the member's own organization via
+  // hostOrganizationId — Draft is never visible regardless of scope.
+  "placementMatch.view",
+  // The shelter's decision track (Story 4.6): Shelter MANAGER only —
+  // "the partner representative approving placements" (TERMINOLOGY.md).
+  // Supervisors view; they never decide.
+  "placementMatch.recordShelterDecision",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -91,8 +99,12 @@ export type Permission = (typeof PERMISSIONS)[number];
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   [Role.PARTICIPANT]: ["organization.view"],
-  [Role.SHELTER_SUPERVISOR]: ["organization.view"],
-  [Role.SHELTER_MANAGER]: ["organization.view"],
+  [Role.SHELTER_SUPERVISOR]: ["organization.view", "placementMatch.view"],
+  [Role.SHELTER_MANAGER]: [
+    "organization.view",
+    "placementMatch.view",
+    "placementMatch.recordShelterDecision",
+  ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
     "document.view",

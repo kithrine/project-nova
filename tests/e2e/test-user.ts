@@ -11,6 +11,16 @@
 export const E2E_USER_EMAIL =
   process.env.E2E_CLERK_USER_EMAIL ?? "e2e+clerk_test@example.com";
 
+/** Shelter Manager at e2e_org_shelter (placement decisions, Story 4.6). */
+export const E2E_SHELTER_MANAGER_USER_EMAIL =
+  process.env.E2E_CLERK_SHELTER_MANAGER_USER_EMAIL ??
+  "e2e-manager+clerk_test@example.com";
+
+/** Shelter Manager at e2e_org_shelter2 — the OTHER shelter (org-scope denials). */
+export const E2E_OTHER_MANAGER_USER_EMAIL =
+  process.env.E2E_CLERK_OTHER_MANAGER_USER_EMAIL ??
+  "e2e-manager2+clerk_test@example.com";
+
 /** Program Coordinator at e2e_org_nova (operations experience). */
 export const E2E_OPS_USER_EMAIL =
   process.env.E2E_CLERK_OPS_USER_EMAIL ?? "e2e-ops+clerk_test@example.com";

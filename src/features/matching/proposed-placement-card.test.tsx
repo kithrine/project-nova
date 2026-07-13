@@ -138,7 +138,7 @@ describe("ParticipantDeclinedNotice (Story 4.5, AC2)", () => {
   });
 });
 
-describe("ShelterApprovalCard (Story 4.4, AC4)", () => {
+describe("ShelterApprovalCard (Stories 4.4/4.6)", () => {
   const match = {
     id: "match_1",
     participantName: "Quinn Example",
@@ -149,6 +149,9 @@ describe("ShelterApprovalCard (Story 4.4, AC4)", () => {
     endDateLabel: "December 4, 2026",
     respondByLabel: "July 27, 2026",
     statusLabel: "Proposed",
+    shelterDecision: "PENDING" as const,
+    shelterDecisionLabel: "Pending",
+    viewerCanDecide: true,
   };
 
   it("shows the operational details for the shelter's own proposal", () => {
@@ -163,6 +166,68 @@ describe("ShelterApprovalCard (Story 4.4, AC4)", () => {
     expect(screen.getByText("Supervisor: Sam Supervisor")).toBeInTheDocument();
     expect(screen.getByText("Schedule: Mon/Wed/Fri mornings")).toBeInTheDocument();
     expect(screen.getByText("Respond by July 27, 2026")).toBeInTheDocument();
+  });
+
+  it("offers the manager the three verb-first actions while pending (4.6)", () => {
+    render(
+      <ul>
+        <ShelterApprovalCard match={match} />
+      </ul>,
+    );
+
+    expect(screen.getByRole("button", { name: "Approve Placement" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request Changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Decline Placement" })).toBeInTheDocument();
+  });
+
+  it("requires a note before Request Changes can be confirmed (AC2)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ul>
+        <ShelterApprovalCard match={match} />
+      </ul>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Request Changes" }));
+    expect(
+      screen.getByText("Request changes to this placement?"),
+    ).toBeInTheDocument();
+    const note = screen.getByLabelText("Note for the coordinator (required)");
+    expect(note).toBeRequired();
+    expect(screen.getByRole("button", { name: "Yes, Request Changes" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Go Back" }));
+    expect(screen.getByRole("button", { name: "Approve Placement" })).toBeInTheDocument();
+  });
+
+  it("renders the visible read-only state for a Shelter Supervisor (AC4)", () => {
+    render(
+      <ul>
+        <ShelterApprovalCard match={{ ...match, viewerCanDecide: false }} />
+      </ul>,
+    );
+
+    expect(
+      screen.getByText(/Read-only — your Shelter Manager records the decision/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows the recorded decision with text + icon once decided (AC1)", () => {
+    render(
+      <ul>
+        <ShelterApprovalCard
+          match={{
+            ...match,
+            shelterDecision: "APPROVED",
+            shelterDecisionLabel: "Approved",
+          }}
+        />
+      </ul>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Your decision: Approved/);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("includes no coordinator-internal or restricted content", () => {

@@ -1,4 +1,5 @@
 import { ParticipantDecisionControls } from "@/features/matching/participant-decision-controls";
+import { ShelterDecisionControls } from "@/features/matching/shelter-decision-controls";
 import type {
   DeclinedPlacementNotice,
   ProposedMatchParticipantView,
@@ -142,6 +143,8 @@ export function ParticipantDeclinedNotice({
 }
 
 export function ShelterApprovalCard({ match }: { match: ShelterApprovalView }) {
+  const pending = match.shelterDecision === "PENDING";
+
   return (
     <li className="flex flex-col gap-2 rounded-md border border-base-300 bg-base-100 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,9 +163,35 @@ export function ShelterApprovalCard({ match }: { match: ShelterApprovalView }) {
         ) : null}
         {match.respondByLabel ? <span>Respond by {match.respondByLabel}</span> : null}
       </p>
-      <p className="text-xs text-base-content/60">
-        Recording your decision arrives with the next update (Story 4.6).
-      </p>
+      {!pending ? (
+        <p className="flex items-center gap-1.5 text-xs text-base-content/70">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-4 shrink-0 text-success"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+          </svg>
+          <span role="status">
+            Your decision: {match.shelterDecisionLabel} — Nova completes the final
+            review once the participant has also accepted.
+          </span>
+        </p>
+      ) : match.viewerCanDecide ? (
+        <ShelterDecisionControls matchId={match.id} />
+      ) : (
+        // The visible read-only state for Shelter Supervisor (AC4) — a calm
+        // explanation, never a broken or missing action.
+        <p className="text-xs text-base-content/60">
+          Read-only — your Shelter Manager records the decision on proposals.
+        </p>
+      )}
     </li>
   );
 }
