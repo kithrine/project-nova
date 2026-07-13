@@ -14,6 +14,9 @@ export function ReadinessCard({ readiness }: { readiness: OwnReadinessView }) {
         aria-labelledby="readiness-heading"
         className="flex max-w-prose flex-col gap-2 rounded-lg border border-success/30 bg-success/5 p-5"
       >
+        <p role="status" className="sr-only">
+          Current step: Ready for matching.
+        </p>
         <h2 id="readiness-heading" className="flex items-center gap-2 text-lg font-semibold">
           <svg
             aria-hidden="true"

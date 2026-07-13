@@ -421,7 +421,14 @@ The actual Ready for Matching transition (3.7) and the Epic 4 matching queue tha
 
 ### Status
 
-Ready for Development
+Done
+
+> Built note: the transition re-runs `computeMatchingReadiness` INSIDE the
+> transaction (all four source reads through the transaction client), so
+> the gate that is displayed (3.6) is byte-for-byte the gate that is
+> enforced, evaluated on live rows at commit time. Rejections name the
+> specific remaining blockers. Epic 4 consumes READY_FOR_MATCHING
+> enrollments directly; no Placement objects are created here (ADR-002).
 
 ### User story
 

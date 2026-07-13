@@ -89,6 +89,13 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("trainingEnrollment.update"), `training update for ${role}`).toBe(
         expected,
       );
+      expect(granted.has("certification.record"), `certification for ${role}`).toBe(
+        expected,
+      );
+      expect(
+        granted.has("enrollment.markReadyForMatching"),
+        `mark ready for ${role}`,
+      ).toBe(expected);
     }
   });
 

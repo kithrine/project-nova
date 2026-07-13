@@ -5,6 +5,7 @@ import { PermissionDenied } from "@/components/feedback/permission-denied";
 import { TaskList } from "@/features/enrollment/task-list";
 import { CertificationPanel } from "@/features/certifications/certification-panel";
 import { BlockerList } from "@/features/enrollment/blocker-list";
+import { ReadyPanel } from "@/features/enrollment/ready-panel";
 import { TrainingList } from "@/features/training/training-list";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
@@ -67,7 +68,21 @@ export default async function EnrollmentPage({
           recomputed live from tasks, training, and certifications (3.7 enforces
           this same gate).
         </p>
-        <BlockerList blockers={(await getEnrollmentReadiness(ctx, enrollment.id)).blockers} />
+        {await (async () => {
+          const readiness = await getEnrollmentReadiness(ctx, enrollment.id);
+          return (
+            <>
+              <BlockerList blockers={readiness.blockers} />
+              {hasPermission(ctx, "enrollment.markReadyForMatching") ? (
+                <ReadyPanel
+                  enrollmentId={enrollment.id}
+                  ready={readiness.ready}
+                  alreadyReady={enrollment.status === "READY_FOR_MATCHING"}
+                />
+              ) : null}
+            </>
+          );
+        })()}
       </div>
 
       <div id="onboarding-tasks" className="flex scroll-mt-6 flex-col gap-3 border-t border-base-300 pt-6">

@@ -60,6 +60,9 @@ export const PERMISSIONS = [
   // Certifications (Story 3.5; ADR-017): coordinator-recorded credentials.
   // Participants read their OWN certifications via ownership, never this.
   "certification.record",
+  // The gated Training -> Ready for Matching transition (Story 3.7):
+  // re-evaluates the 3.6 blocker policy inside the transaction.
+  "enrollment.markReadyForMatching",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -88,6 +91,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "trainingEnrollment.create",
     "trainingEnrollment.update",
     "certification.record",
+    "enrollment.markReadyForMatching",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -107,6 +111,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "trainingEnrollment.create",
     "trainingEnrollment.update",
     "certification.record",
+    "enrollment.markReadyForMatching",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
