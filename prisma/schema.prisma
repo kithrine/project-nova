@@ -577,6 +577,7 @@ model Placement {
   fundingAssignments FundingAssignment[]
   onboardingTasks    OnboardingTask[]
   caseNotes          CaseNote[]
+  evaluations        Evaluation[]
 
   events PlacementEvent[]
 
@@ -1013,6 +1014,46 @@ model TrainingEnrollmentEvent {
   createdAt DateTime @default(now())
 
   @@index([trainingEnrollmentId])
+}
+
+// --- Evaluations (Story 5.10) -------------------------------------------------
+
+enum EvaluationRating {
+  NEEDS_SUPPORT
+  DEVELOPING
+  MEETS_EXPECTATIONS
+  EXCEEDS_EXPECTATIONS
+}
+
+// One periodic workplace evaluation submitted by shelter staff against a
+// placement (mvp.md places Evaluations under the Shelter Portal). The
+// three performance areas are a fixed MVP rubric defined in domain code
+// (src/server/domain/evaluation.ts) — one labeled rating per area, never
+// color-coded numbers. Submissions are IMMUTABLE: there is no update
+// path; a correction is a new evaluation, so history preservation is
+// absolute (data-governance.md — never hard-deleted). Participant
+// visibility is an open policy question (open-questions.md #5) and
+// defaults closed — no participant query path exists.
+model Evaluation {
+  id          String    @id @default(cuid())
+  placementId String
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  authorUserId   String
+  // The period/date this evaluation covers, as recorded by the author.
+  evaluationDate DateTime @db.Date
+
+  reliabilityRating  EvaluationRating
+  taskQualityRating  EvaluationRating
+  teamworkRating     EvaluationRating
+  strengths          String
+  growthAreas        String?
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([placementId])
 }
 
 // --- Funding (Story 1.8) ----------------------------------------------------

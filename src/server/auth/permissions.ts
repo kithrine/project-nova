@@ -137,6 +137,15 @@ export const PERMISSIONS = [
   // document circumstances through case notes or incidents instead.
   "placement.pause",
   "placement.resume",
+  // Workplace evaluations (Story 5.10; mvp.md Shelter Portal): shelter
+  // staff submit, additionally scoped to their own organization's
+  // placements and to Active/Paused stages by the service.
+  "evaluation.create",
+  // Nova Operations reads all evaluations in scope (Story 5.10).
+  // Participant visibility is an OPEN policy question
+  // (open-questions.md #5) and defaults closed — no participant grant,
+  // no participant query path.
+  "evaluation.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -152,6 +161,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.view",
     "placement.view",
     "onboardingTask.complete",
+    "evaluation.create",
   ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
@@ -160,6 +170,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.view",
     "placement.approve",
     "onboardingTask.complete",
+    "evaluation.create",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -193,6 +204,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.pause",
     "placement.resume",
     "caseNote.view",
+    "evaluation.view",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -233,6 +245,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.pause",
     "placement.resume",
     "caseNote.view",
+    "evaluation.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

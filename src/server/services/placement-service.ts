@@ -8,6 +8,7 @@ import {
   Role,
   ScheduleDay,
   type EnrollmentStatus,
+  type EvaluationRating,
   type ParticipantMatchDecision,
   type ShelterMatchDecision,
 } from "@/generated/prisma/client";
@@ -35,6 +36,13 @@ import {
   type ActivationPrerequisiteKey,
   type ActivationSnapshot,
 } from "@/server/domain/placement-activation";
+import {
+  EVALUATION_AREAS,
+  EVALUATION_RATING_LABELS,
+  EVALUATION_SUBMITTABLE_STATUSES,
+  evaluationValidationError,
+  type EvaluationInput,
+} from "@/server/domain/evaluation";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
 import { loadReadinessInputs } from "@/server/services/readiness-service";
 import {
@@ -217,6 +225,35 @@ export interface PlacementWorkspaceView {
    * query never even runs for them.
    */
   caseNotes?: CaseNoteTabView;
+  /**
+   * Workplace evaluations (Story 5.10): shelter viewers (their own
+   * organization's placement) and Nova viewers holding evaluation.view.
+   * Undefined otherwise — participant visibility is an open policy
+   * question and defaults closed (open-questions.md #5).
+   */
+  evaluations?: EvaluationsTabView;
+}
+
+export interface EvaluationRatingView {
+  areaLabel: string;
+  ratingLabel: string;
+}
+
+export interface EvaluationView {
+  id: string;
+  authorName: string;
+  evaluationDateLabel: string;
+  submittedAtLabel: string;
+  ratings: EvaluationRatingView[];
+  strengths: string;
+  growthAreas: string | null;
+}
+
+export interface EvaluationsTabView {
+  /** Newest first. */
+  entries: EvaluationView[];
+  /** Shelter staff with evaluation.create while Active/Paused. */
+  viewerCanSubmit: boolean;
 }
 
 export interface CaseNoteRevisionView {
@@ -441,13 +478,17 @@ export async function getPlacementWorkspace(
         ? `Candidate: ${placement.fundingSource.name}`
         : null;
     })(),
-    // Case Notes is present only for Nova viewers HOLDING caseNote.view
-    // (Story 5.9): a Grant Administrator gets the workspace without the
-    // tab — structural absence, not hiding, at every tier.
+    // Permission-shaped tabs: Case Notes needs caseNote.view (5.9) and
+    // Evaluations needs evaluation.view (5.10) for Nova viewers — a Grant
+    // Administrator gets the workspace without either. Structural
+    // absence, not hiding, at every tier; shelter tabs are org-scoped by
+    // the workspace gate itself.
     tabs:
       viewer === "NOVA"
         ? NOVA_TABS.filter(
-            (tab) => tab !== "caseNotes" || hasPermission(ctx, "caseNote.view"),
+            (tab) =>
+              (tab !== "caseNotes" || hasPermission(ctx, "caseNote.view")) &&
+              (tab !== "evaluations" || hasPermission(ctx, "evaluation.view")),
           )
         : [...SHELTER_TABS],
     timeline: buildPlacementTimeline(
@@ -551,7 +592,117 @@ export async function getPlacementWorkspace(
       viewer === "NOVA" && hasPermission(ctx, "caseNote.view")
         ? await buildCaseNotesTab(ctx, placement.id)
         : undefined,
+    evaluations:
+      viewer === "SHELTER" ||
+      (viewer === "NOVA" && hasPermission(ctx, "evaluation.view"))
+        ? await buildEvaluationsTab(ctx, viewer, placement)
+        : undefined,
   };
+}
+
+/**
+ * The Evaluations tab (Story 5.10): shelter staff see and submit their
+ * own organization's placement evaluations (mvp.md Shelter Portal); Nova
+ * Operations reads all in scope. Submissions are immutable — corrections
+ * are new evaluations — so listing is the whole read surface.
+ */
+async function buildEvaluationsTab(
+  ctx: AuthContext,
+  viewer: WorkspaceViewer,
+  placement: { id: string; status: PlacementStatus },
+): Promise<EvaluationsTabView> {
+  const evaluations = await prisma.evaluation.findMany({
+    where: { placementId: placement.id },
+    orderBy: { submittedAt: "desc" },
+  });
+  const authors = await prisma.user.findMany({
+    where: { id: { in: [...new Set(evaluations.map((entry) => entry.authorUserId))] } },
+    select: { id: true, displayName: true },
+  });
+  const nameById = new Map(authors.map((user) => [user.id, user.displayName]));
+
+  return {
+    entries: evaluations.map((entry) => ({
+      id: entry.id,
+      authorName: nameById.get(entry.authorUserId) ?? "Unknown user",
+      evaluationDateLabel: formatDate(entry.evaluationDate) ?? "",
+      submittedAtLabel: formatDateTime(entry.submittedAt),
+      ratings: [
+        {
+          areaLabel: EVALUATION_AREAS[0].label,
+          ratingLabel: EVALUATION_RATING_LABELS[entry.reliabilityRating],
+        },
+        {
+          areaLabel: EVALUATION_AREAS[1].label,
+          ratingLabel: EVALUATION_RATING_LABELS[entry.taskQualityRating],
+        },
+        {
+          areaLabel: EVALUATION_AREAS[2].label,
+          ratingLabel: EVALUATION_RATING_LABELS[entry.teamworkRating],
+        },
+      ],
+      strengths: entry.strengths,
+      growthAreas: entry.growthAreas,
+    })),
+    viewerCanSubmit:
+      viewer === "SHELTER" &&
+      hasPermission(ctx, "evaluation.create") &&
+      EVALUATION_SUBMITTABLE_STATUSES.includes(placement.status),
+  };
+}
+
+/**
+ * Submit a workplace evaluation (Story 5.10 AC1). Shelter Supervisors
+ * and Managers only, scoped to their own organization's placement (AC3),
+ * while the placement is Active or Paused (AC5) — earlier stages have no
+ * workplace performance to evaluate. Immutable once saved (AC4): no
+ * update path exists; a correction is a new submission.
+ */
+export async function submitEvaluation(
+  ctx: AuthContext,
+  placementId: string,
+  input: EvaluationInput,
+): Promise<void> {
+  if (!hasPermission(ctx, "evaluation.create")) {
+    throw new AuthorizationError();
+  }
+
+  const placement = await prisma.placement.findUnique({
+    where: { id: placementId },
+    select: { id: true, status: true, hostOrganizationId: true },
+  });
+  if (!placement) throw new NotFoundError();
+
+  const isHostShelterStaff = ctx.memberships.some(
+    (membership) =>
+      SHELTER_ROLES.includes(membership.role) &&
+      membership.organizationId === placement.hostOrganizationId,
+  );
+  if (!isHostShelterStaff) {
+    throw new AuthorizationError();
+  }
+  if (!EVALUATION_SUBMITTABLE_STATUSES.includes(placement.status)) {
+    throw new LifecycleError(
+      "Evaluations are submitted while the placement is active or paused.",
+    );
+  }
+
+  const problem = evaluationValidationError(input);
+  if (problem) throw new ValidationError(problem);
+
+  await prisma.evaluation.create({
+    data: {
+      placementId,
+      authorUserId: ctx.userId,
+      evaluationDate: input.evaluationDate,
+      // Validated against the rating enum above — the cast is sound.
+      reliabilityRating: input.ratings.reliability as EvaluationRating,
+      taskQualityRating: input.ratings.taskQuality as EvaluationRating,
+      teamworkRating: input.ratings.teamwork as EvaluationRating,
+      strengths: input.strengths.trim(),
+      growthAreas: input.growthAreas?.trim() ? input.growthAreas.trim() : null,
+    },
+  });
 }
 
 /**

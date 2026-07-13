@@ -1,7 +1,11 @@
 import { clerk } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 
-import { E2E_OPS_USER_EMAIL, E2E_SHELTER_MANAGER_USER_EMAIL } from "./test-user";
+import {
+  E2E_OPS_USER_EMAIL,
+  E2E_SHELTER_MANAGER_USER_EMAIL,
+  E2E_USER_EMAIL,
+} from "./test-user";
 import { signIn } from "./sign-in";
 
 /**
@@ -17,7 +21,7 @@ const WORKSPACE = "/operations/placements/records/e2e_placement_assign";
 test("the package is assigned, reviewed, revised, and approved (Story 5.2)", async ({
   page,
 }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(420_000);
 
   // Phase 1 — the coordinator builds and proposes the package.
   await signIn(page, E2E_OPS_USER_EMAIL);
@@ -275,4 +279,45 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     timeout: 20_000,
   });
   await expect(page.getByText(/Paused \(Medical leave\)/).first()).toBeVisible();
+
+  // Phase 10 (Story 5.10) — the assigned supervisor submits a structured
+  // evaluation on the now-active placement from the shelter workspace;
+  // retries simply add another (submissions are immutable, corrections
+  // are new records), so matchers take .first().
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter/placements/e2e_placement_assign?tab=evaluations");
+  await expect(
+    page.getByRole("heading", { name: "Submit an evaluation" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await page
+    .getByRole("group", { name: "Reliability and attendance" })
+    .getByRole("radio", { name: "Meets expectations" })
+    .check();
+  await page
+    .getByRole("group", { name: "Task quality and safety" })
+    .getByRole("radio", { name: "Exceeds expectations" })
+    .check();
+  await page
+    .getByRole("group", { name: "Teamwork and communication" })
+    .getByRole("radio", { name: "Developing" })
+    .check();
+  await page
+    .getByLabel("What went well")
+    .fill("Synthetic E2E evaluation — steady and careful with the animals.");
+  await page.getByRole("button", { name: "Submit Evaluation" }).click();
+  await expect(
+    page.getByText("Synthetic E2E evaluation — steady and careful with the animals.").first(),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Meets expectations").first()).toBeVisible();
+
+  // The coordinator reads the same evaluation from the operations side.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto(`${WORKSPACE}?tab=evaluations`);
+  await expect(
+    page.getByText("Synthetic E2E evaluation — steady and careful with the animals.").first(),
+  ).toBeVisible({ timeout: 20_000 });
+  // Nova reads; only shelter staff submit.
+  await expect(page.getByRole("button", { name: "Submit Evaluation" })).toHaveCount(0);
 });
