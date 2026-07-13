@@ -8,6 +8,7 @@ import {
 } from "@/generated/prisma/client";
 import {
   ALLOWED_MATCH_TRANSITIONS,
+  approvalBlockers,
   assertMatchTransition,
   decisionBlockReason,
   decisionWindowEnd,
@@ -162,6 +163,52 @@ describe("shelter decision rules (Story 4.6)", () => {
   });
 });
 
+describe("approvalBlockers (Story 4.8 AC2 — the human gate)", () => {
+  const favorable = {
+    status: MatchStatus.PROPOSED,
+    participantDecision: ParticipantMatchDecision.ACCEPTED,
+    shelterDecision: ShelterMatchDecision.APPROVED,
+  };
+
+  it("clears when both tracks are favorable and no placement conflicts", () => {
+    expect(approvalBlockers(favorable, false)).toEqual([]);
+  });
+
+  it("names each outstanding prerequisite, not just the first", () => {
+    expect(
+      approvalBlockers(
+        {
+          status: MatchStatus.PROPOSED,
+          participantDecision: ParticipantMatchDecision.PENDING,
+          shelterDecision: ShelterMatchDecision.PENDING,
+        },
+        false,
+      ),
+    ).toEqual([
+      "Waiting on the participant's acceptance.",
+      "Waiting on the shelter's approval.",
+    ]);
+    expect(
+      approvalBlockers(
+        { ...favorable, participantDecision: ParticipantMatchDecision.PENDING },
+        false,
+      ),
+    ).toEqual(["Waiting on the participant's acceptance."]);
+  });
+
+  it("blocks on a conflicting placement pipeline (AC3)", () => {
+    expect(approvalBlockers(favorable, true)).toEqual([
+      expect.stringMatching(/placement in progress/),
+    ]);
+  });
+
+  it("only ever approves from Proposed (AC2)", () => {
+    expect(
+      approvalBlockers({ ...favorable, status: MatchStatus.DRAFT }, false),
+    ).toEqual(["Only a proposed match can be approved."]);
+  });
+});
+
 describe("describePriorCycle (Story 4.7 history archiving)", () => {
   it("captures both decision values and the shelter note", () => {
     expect(
@@ -206,7 +253,7 @@ describe("draftCreationBlockReason (Story 4.3 AC2)", () => {
   it("names the placement conflict when one exists", () => {
     expect(
       draftCreationBlockReason({ ...clear, hasBlockingPlacement: true }),
-    ).toMatch(/onboarding, active, or paused placement/);
+    ).toMatch(/placement in progress .* one placement at a time/);
   });
 
   it("requires a ready-for-matching enrollment", () => {

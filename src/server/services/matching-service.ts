@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 import {
   ActiveStatus,
   EnrollmentStatus,
@@ -23,6 +25,7 @@ import {
 } from "@/server/domain/matching-queue";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
 import {
+  approvalBlockers,
   assertMatchTransition,
   DECISION_WINDOW_DAYS,
   decisionBlockReason,
@@ -34,6 +37,7 @@ import {
   proposalMissingFields,
   shelterDecisionRequiresNote,
 } from "@/server/domain/placement-match";
+import { NON_TERMINAL_PLACEMENT_STATUSES } from "@/server/domain/placement";
 import {
   AuthorizationError,
   ConflictError,
@@ -114,6 +118,10 @@ export async function getMatchingQueue(ctx: AuthContext): Promise<MatchingQueueV
               where: { status: { in: [...NON_TERMINAL_MATCH_STATUSES] } },
               select: { id: true },
             },
+            placements: {
+              where: { status: { in: [...NON_TERMINAL_PLACEMENT_STATUSES] } },
+              select: { id: true },
+            },
           },
         },
         events: {
@@ -143,8 +151,9 @@ export async function getMatchingQueue(ctx: AuthContext): Promise<MatchingQueueV
   for (const enrollment of enrollments) {
     const state = classifyQueueCandidate({
       hasNonTerminalMatch: enrollment.participant.placementMatches.length > 0,
-      // Placement model arrives with 4.8/Epic 5.
-      hasBlockingPlacement: false,
+      // Live since 4.8: an approved match's placement occupies the
+      // pipeline until it reaches a terminal status.
+      hasBlockingPlacement: enrollment.participant.placements.length > 0,
     });
     if (state === "EXCLUDED") continue;
 
@@ -420,16 +429,24 @@ export async function createMatchDraft(
     throw new ValidationError("Choose an active shelter site.");
   }
 
-  const existing = await prisma.placementMatch.count({
-    where: {
-      participantId: enrollment.participantId,
-      status: { in: [...NON_TERMINAL_MATCH_STATUSES] },
-    },
-  });
+  const [existing, blockingPlacements] = await Promise.all([
+    prisma.placementMatch.count({
+      where: {
+        participantId: enrollment.participantId,
+        status: { in: [...NON_TERMINAL_MATCH_STATUSES] },
+      },
+    }),
+    prisma.placement.count({
+      where: {
+        participantId: enrollment.participantId,
+        status: { in: [...NON_TERMINAL_PLACEMENT_STATUSES] },
+      },
+    }),
+  ]);
   const blocked = draftCreationBlockReason({
     enrollmentStatus: enrollment.status,
     hasNonTerminalMatch: existing > 0,
-    hasBlockingPlacement: false, // Placement model arrives with 4.8/Epic 5.
+    hasBlockingPlacement: blockingPlacements > 0,
   });
   if (blocked) {
     throw new ConflictError(blocked);
@@ -517,6 +534,14 @@ export interface MatchWorkspaceView {
   shelterDecisionAtLabel: string | null;
   /** The shelter's operational note (4.6) — actionable input for 4.7. */
   shelterDecisionNote: string | null;
+  /**
+   * Outstanding prerequisites for final approval (Story 4.8 AC2) — empty
+   * exactly when the human gate may be taken. Always empty off PROPOSED.
+   */
+  approvalBlockers: string[];
+  /** The resulting placement's reference once APPROVED (AC5). */
+  placementNumber: string | null;
+  approvedAtLabel: string | null;
 }
 
 /** The coordinator draft workspace (drafts are coordinator-only, AC6). */
@@ -539,9 +564,20 @@ export async function getMatchWorkspace(
       organizationSite: {
         include: { organization: { select: { id: true, name: true } } },
       },
+      resultingPlacement: { select: { placementNumber: true } },
     },
   });
   if (!match) throw new NotFoundError();
+
+  const blockingPlacements =
+    match.status === MatchStatus.PROPOSED
+      ? await prisma.placement.count({
+          where: {
+            participantId: match.participantId,
+            status: { in: [...NON_TERMINAL_PLACEMENT_STATUSES] },
+          },
+        })
+      : 0;
 
   const [sites, supervisors, funding] = await Promise.all([
     prisma.organizationSite.findMany({
@@ -608,6 +644,12 @@ export async function getMatchWorkspace(
     shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
     shelterDecisionAtLabel: formatWindowDate(match.shelterDecisionAt),
     shelterDecisionNote: match.shelterDecisionNote,
+    approvalBlockers:
+      match.status === MatchStatus.PROPOSED
+        ? approvalBlockers(match, blockingPlacements > 0)
+        : [],
+    placementNumber: match.resultingPlacement?.placementNumber ?? null,
+    approvedAtLabel: formatWindowDate(match.approvedAt),
   };
 }
 
@@ -1473,4 +1515,171 @@ export async function recordShelterDecision(
       },
     });
   });
+}
+
+// --- Approve match and create placement (Story 4.8) ------------------------------
+
+/**
+ * Human-facing placement number (database-design.md), mirroring the
+ * application-number scheme: unambiguous alphabet, DB-unique, retried by
+ * the caller on the vanishingly small collision.
+ */
+export function generatePlacementNumber(year = new Date().getFullYear()): string {
+  const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  let suffix = "";
+  for (let i = 0; i < 6; i++) {
+    suffix += alphabet[randomInt(alphabet.length)];
+  }
+  return `PLC-${year}-${suffix}`;
+}
+
+/**
+ * The epic's human-in-the-loop gate (AC1; ADR-011): with the participant
+ * accepted and the shelter approved, an explicit coordinator action — and
+ * only that — converts the match. ONE transaction: the match transitions
+ * to Approved and a Placement is created at Draft, carrying the agreed
+ * arrangement and linked via sourceMatchId; lifecycle events land on both
+ * records with the audit event. "No conflicting placement" is re-checked
+ * INSIDE the transaction immediately before the create (AC3), with the
+ * one-active-placement partial unique index as the database backstop, and
+ * any failure leaves no partial state (AC4). The created Placement is
+ * handed to Epic 5 at Draft for the second gate — the shelter's review of
+ * the specific site/supervisor/schedule package (ADR-013).
+ */
+export async function approveMatch(
+  ctx: AuthContext,
+  matchId: string,
+): Promise<{ placementId: string; placementNumber: string }> {
+  if (
+    !hasPermission(ctx, "placementMatch.approve") ||
+    !hasPermission(ctx, "placement.create")
+  ) {
+    throw new AuthorizationError();
+  }
+  requireNovaScope(ctx);
+
+  const match = await prisma.placementMatch.findUnique({
+    where: { id: matchId },
+    select: {
+      id: true,
+      status: true,
+      participantDecision: true,
+      shelterDecision: true,
+      participantId: true,
+      programEnrollmentId: true,
+      hostOrganizationId: true,
+      organizationSiteId: true,
+      proposedSupervisorId: true,
+      proposedSchedule: true,
+      proposedStartDate: true,
+      proposedEndDate: true,
+      candidateFundingSourceId: true,
+    },
+  });
+  if (!match) throw new NotFoundError();
+
+  const decisionsOutstanding = approvalBlockers(match, false);
+  if (decisionsOutstanding.length > 0) {
+    throw new LifecycleError(decisionsOutstanding.join(" "));
+  }
+
+  // Retry only the vanishingly small placement-number collision — every
+  // other failure aborts cleanly with no partial state (AC4).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const placementNumber = generatePlacementNumber();
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // AC3: circumstances may have changed since the draft was built —
+        // re-validate immediately before commit, inside the transaction.
+        const conflicting = await tx.placement.count({
+          where: {
+            participantId: match.participantId,
+            status: { in: [...NON_TERMINAL_PLACEMENT_STATUSES] },
+          },
+        });
+        if (conflicting > 0) {
+          throw new ConflictError(
+            "This participant's placements changed since this match was built — they already have one in progress. Refresh to review.",
+          );
+        }
+
+        const updated = await tx.placementMatch.updateMany({
+          where: {
+            id: matchId,
+            status: MatchStatus.PROPOSED,
+            participantDecision: ParticipantMatchDecision.ACCEPTED,
+            shelterDecision: ShelterMatchDecision.APPROVED,
+          },
+          data: {
+            status: MatchStatus.APPROVED,
+            approvedAt: new Date(),
+            approvedByUserId: ctx.userId,
+          },
+        });
+        if (updated.count === 0) {
+          throw new ConflictError(
+            "This match changed while you were working. Refresh and try again.",
+          );
+        }
+
+        const placement = await tx.placement.create({
+          data: {
+            placementNumber,
+            participantId: match.participantId,
+            programEnrollmentId: match.programEnrollmentId,
+            hostOrganizationId: match.hostOrganizationId,
+            organizationSiteId: match.organizationSiteId,
+            sourceMatchId: match.id,
+            supervisorId: match.proposedSupervisorId,
+            schedule: match.proposedSchedule,
+            startDate: match.proposedStartDate,
+            endDate: match.proposedEndDate,
+            fundingSourceId: match.candidateFundingSourceId,
+          },
+          select: { id: true, placementNumber: true, status: true },
+        });
+
+        await tx.placementEvent.create({
+          data: {
+            placementId: placement.id,
+            fromStatus: null,
+            toStatus: placement.status,
+            actorUserId: ctx.userId,
+          },
+        });
+        await tx.placementMatchEvent.create({
+          data: {
+            placementMatchId: matchId,
+            fromStatus: MatchStatus.PROPOSED,
+            toStatus: MatchStatus.APPROVED,
+            actorUserId: ctx.userId,
+          },
+        });
+        await tx.auditEvent.create({
+          data: {
+            actorUserId: ctx.userId,
+            action: "placementMatch.approve",
+            subjectType: "PlacementMatch",
+            subjectId: matchId,
+            detail: `placement created: ${placement.placementNumber}`,
+          },
+        });
+
+        return { placementId: placement.id, placementNumber: placement.placementNumber };
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const target = (error as { meta?: { target?: string[] } }).meta?.target ?? [];
+      if (code === "P2002" && target.includes("placementNumber") && attempt < 2) {
+        continue;
+      }
+      if (code === "P2002" && target.includes("sourceMatchId")) {
+        throw new ConflictError(
+          "This match was already approved — its placement exists.",
+        );
+      }
+      throw error;
+    }
+  }
+  throw new ConflictError("Could not allocate a placement number. Try again.");
 }

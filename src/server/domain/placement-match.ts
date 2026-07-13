@@ -159,6 +159,39 @@ export function shelterDecisionRequiresNote(decision: ShelterMatchDecision): boo
 }
 
 /**
+ * Everything still standing between a match and final approval (Story
+ * 4.8 AC2) — the human gate stays disabled with each outstanding
+ * prerequisite NAMED, never a mystery. An empty list means the
+ * coordinator may take the explicit approval action (ADR-011: the system
+ * surfaces eligibility; a human makes the decision).
+ */
+export function approvalBlockers(
+  match: {
+    status: MatchStatus;
+    participantDecision: ParticipantMatchDecision;
+    shelterDecision: ShelterMatchDecision;
+  },
+  hasBlockingPlacement: boolean,
+): string[] {
+  if (match.status !== MatchStatus.PROPOSED) {
+    return ["Only a proposed match can be approved."];
+  }
+  const blockers: string[] = [];
+  if (match.participantDecision !== ParticipantMatchDecision.ACCEPTED) {
+    blockers.push("Waiting on the participant's acceptance.");
+  }
+  if (match.shelterDecision !== ShelterMatchDecision.APPROVED) {
+    blockers.push("Waiting on the shelter's approval.");
+  }
+  if (hasBlockingPlacement) {
+    blockers.push(
+      "This participant already has a placement in progress — approving would create a second one.",
+    );
+  }
+  return blockers;
+}
+
+/**
  * The cycle-boundary archive line (Story 4.7): when a revision or
  * withdrawal closes a proposal cycle, the outgoing decision values and
  * the shelter's note are written into the lifecycle event's detail before
@@ -187,7 +220,7 @@ export function draftCreationBlockReason(input: {
   hasBlockingPlacement: boolean;
 }): string | null {
   if (input.hasBlockingPlacement) {
-    return "This participant already has an onboarding, active, or paused placement — one placement at a time.";
+    return "This participant already has a placement in progress (from approval through active) — one placement at a time.";
   }
   if (input.hasNonTerminalMatch) {
     return "This participant already has a match in progress (draft, proposed, or change requested) — one match at a time, per the one-placement-at-a-time rule.";

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
+  approveMatch,
   createMatchDraft,
   proposeMatch,
   recordParticipantDecision,
@@ -212,6 +213,36 @@ export async function recordShelterDecisionAction(
   revalidatePath("/participant");
   revalidatePath(`/operations/placements/matches/${matchId}`);
   revalidatePath("/operations/placements");
+  return { status: "saved" };
+}
+
+/**
+ * Final match approval (Story 4.8) — the transactional approve-and-create.
+ * The service enforces the two-permission gate, both-favorable decisions,
+ * and the in-transaction conflicting-placement re-check.
+ */
+export async function approveMatchAction(
+  matchId: string,
+  _prev: MatchFormState,
+  _formData: FormData,
+): Promise<MatchFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await approveMatch(ctx, matchId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      revalidatePath(`/operations/placements/matches/${matchId}`);
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/operations/placements/matches/${matchId}`);
+  revalidatePath("/operations/placements");
+  revalidatePath("/participant");
+  revalidatePath("/shelter");
   return { status: "saved" };
 }
 

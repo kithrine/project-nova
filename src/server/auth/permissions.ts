@@ -93,6 +93,11 @@ export const PERMISSIONS = [
   // re-propose (both decision tracks reset), or withdraw. Coordinator-only
   // in MVP — never participant- or shelter-initiated.
   "placementMatch.revise",
+  // The epic's human-in-the-loop gate (Story 4.8; ADR-011): final match
+  // approval, taken together with placement.create in ONE transaction —
+  // the system surfaces eligibility but never approves on its own.
+  "placementMatch.approve",
+  "placement.create",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -132,6 +137,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.propose",
     "placementMatch.recordParticipantDecision",
     "placementMatch.revise",
+    "placementMatch.approve",
+    "placement.create",
   ],
   [Role.GRANT_ADMINISTRATOR]: ["organization.view", "funding.manage"],
   [Role.NOVA_ADMINISTRATOR]: [
@@ -158,6 +165,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placementMatch.propose",
     "placementMatch.recordParticipantDecision",
     "placementMatch.revise",
+    "placementMatch.approve",
+    "placement.create",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
