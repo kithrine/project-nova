@@ -9,6 +9,7 @@
 - Background-check and adverse-action process reviewed by Washington employment counsel (`ADR-015`; includes the "unsupervised access to vulnerable persons" exemption question)
 - Permanent-disqualification criteria and applicant-facing wording reviewed by counsel (`ADR-016`)
 - Employer-of-record/host training responsibilities reviewed against WAC 296-801 and related WISHA rules; shelter agreement and record-confirmation process approved (`ADR-017`)
+- Placement-termination process reviewed by Washington employment counsel (`ADR-018`; at-will status of transitional workers, wrongful-termination exposure, RCW 49.48 final-pay timing in the payroll process, grant documentation standards)
 - Incident procedures approved
 - Grant requirements mapped
 - Payroll process confirmed

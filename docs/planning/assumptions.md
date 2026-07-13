@@ -21,4 +21,4 @@
 - Document storage provider
 - Record retention periods
 - Participant access to evaluations
-- Who may terminate a placement
+- ~~Who may terminate a placement~~ — working policy adopted (`ADR-018`: Nova Operations only, single actor); counsel review outstanding
