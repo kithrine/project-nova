@@ -11,7 +11,8 @@
 - Employer-of-record/host training responsibilities reviewed against federal OSHA duties (29 CFR 1910; Colorado has no state plan) and the Colorado heat-illness rule (7 CCR 1103-15); shelter agreement and record-confirmation process approved (`ADR-017`/`ADR-019`)
 - Placement-termination process reviewed by Colorado employment counsel (`ADR-018`/`ADR-019`; at-will status of transitional workers, wrongful-termination exposure, C.R.S. § 8-4-109 immediate final-pay timing in the payroll process, grant documentation standards)
 - Incident procedures approved
-- Grant requirements mapped (includes validating the provisional reporting format `ADR-020` against each executed award before any reimbursement use)
+- Grant requirements mapped (includes validating the provisional reporting format `ADR-020` against each executed award before any reimbursement use, and each award's export field sets and any artifact-storage demands against the ephemeral-export rule, `ADR-021`)
+- Retention schedule reviewed by Colorado counsel (`ADR-021`; the provisional 5-year / 3-years-from-final-report schedule and the no-deletion posture — no deletion capability may be implemented before this review)
 - Payroll process confirmed
 
 ## Technical
