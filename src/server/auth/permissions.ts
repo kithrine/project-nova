@@ -204,6 +204,11 @@ export const PERMISSIONS = [
   // Supervisors keep their operational views; reports are management
   // surfaces (7.1/7.3). Participants are never granted reporting.
   "reporting.view",
+  // Audit review (Story 7.6): reading the audit trail is itself a
+  // privileged, restricted action — Nova Administrator plus the Grant
+  // Administrator (whose compliance duty the trail serves). Never
+  // coordinators, shelter roles, participants, or RRS.
+  "audit.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -298,6 +303,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.view",
     "timesheet.lock",
     "reporting.view",
+    "audit.view",
   ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
@@ -343,6 +349,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.reject",
     "timesheet.lock",
     "reporting.view",
+    "audit.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

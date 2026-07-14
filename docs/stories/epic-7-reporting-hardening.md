@@ -12,7 +12,7 @@ Provide pilot reporting and safely launch.
 | 7.3 | Shelter roster | Done |
 | 7.4 | Outcome summary | Done |
 | 7.5 | Scoped exports | Blocked — pending policy validation |
-| 7.6 | Audit review | Ready for Development |
+| 7.6 | Audit review | Done |
 | 7.7 | Accessibility hardening | Ready for Development |
 | 7.8 | Security tests | Ready for Development |
 | 7.9 | Production launch checklist | Ready for Development |
@@ -355,7 +355,26 @@ Scheduled report delivery and enhanced file workflows (V2); the final export fie
 ## Story 7.6 — Audit review
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** `audit.view` is deliberately narrower than
+> reporting: **Nova Administrator and Grant Administrator only** — even a
+> Program Coordinator gets Permission denied (registry sweep, integration,
+> and an E2E journey all prove it). `listAuditEvents` (audit-service):
+> newest-first over the append-only trail, capped at 100 with an honest
+> "showing the N most recent" truncation note and a true total; filters
+> narrow by actor, action code, resource type, and date window (AC2), with
+> filter options built from the events themselves. Rows carry actor name,
+> action, subject TYPE + ID reference, the 2.7-constrained non-sensitive
+> detail line, and a UTC timestamp — never record contents (AC4; row-shape
+> assertion + payload sweep). AC5's append-only rule is tested two ways:
+> the audit module exposes no update/delete/purge export, and listing
+> never changes the row count. Audit and lifecycle events remain distinct
+> stores. Surface: `/operations/administration/audit` (Administration
+> gains the link, marked restricted). E2E: a deterministic anchor event
+> (subject `e2e_audit_anchor`, shaped like a real 6.7 lock) lets the
+> Grant Administrator find and filter a known row; the "export event from
+> 7.5" journey lands with Story 7.5.
 
 ### User story
 As a Nova Administrator, I want to review audit events, so that I can verify that sensitive actions and exports are properly recorded and investigate any concerns.
