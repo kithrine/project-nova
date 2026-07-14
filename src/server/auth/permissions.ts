@@ -189,6 +189,10 @@ export const PERMISSIONS = [
   // (assigned supervisor | Shelter Manager | authorized Nova staff)
   // AND the timesheet is SUBMITTED.
   "timesheet.approve",
+  // Rejection for correction (Story 6.6): the same reviewer set and
+  // standing rule as approval, with a REQUIRED rationale — the other
+  // outcome a SUBMITTED week can reach.
+  "timesheet.reject",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -214,6 +218,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.create",
     "timesheet.view",
     "timesheet.approve",
+    "timesheet.reject",
   ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
@@ -227,6 +232,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.create",
     "timesheet.view",
     "timesheet.approve",
+    "timesheet.reject",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -268,6 +274,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.terminate",
     "timesheet.view",
     "timesheet.approve",
+    "timesheet.reject",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -316,6 +323,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "placement.terminate",
     "timesheet.view",
     "timesheet.approve",
+    "timesheet.reject",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

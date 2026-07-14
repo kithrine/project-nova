@@ -84,6 +84,8 @@ export interface MyHoursWeekView {
   submitDisabledReason: string | null;
   /** Plain-language what-happens-next for post-submission statuses. */
   statusNote: string | null;
+  /** Correction notes render with a warning icon, never color alone. */
+  statusNoteKind?: "info" | "correction";
 }
 
 export interface MyHoursView {
@@ -259,8 +261,14 @@ export async function getOrCreateOwnTimesheet(
               timesheet.status === TimesheetStatus.LOCKED
             ? "Your hours for this week were approved."
             : timesheet.status === TimesheetStatus.REJECTED
-              ? "Your supervisor asked for a correction — you can edit your entries and resubmit."
+              ? `Your supervisor asked for a correction on your hours for the ${weekLabel(
+                  timesheet.weekStartDate,
+                ).toLowerCase()}${
+                  timesheet.rejectionReason ? `: ${timesheet.rejectionReason}` : ""
+                } — you can edit your entries and resubmit.`
               : null,
+      statusNoteKind:
+        timesheet.status === TimesheetStatus.REJECTED ? "correction" : "info",
     },
     siteName: placement.organizationSite.name,
     organizationName: placement.organizationSite.organization.name,
@@ -323,6 +331,11 @@ export async function submitOwnTimesheet(
         status: TimesheetStatus.SUBMITTED,
         submittedAt: new Date(),
         totalHours: total,
+        // Archive-then-reset (6.6): the rejection reason lives on in the
+        // event trail; the row's correction fields clear on resubmission.
+        rejectedAt: null,
+        rejectedByUserId: null,
+        rejectionReason: null,
       },
     });
     if (updated.count === 0) {
@@ -384,7 +397,7 @@ interface ReviewableTimesheet {
  */
 function reviewStandingFor(
   ctx: AuthContext,
-  permission: "timesheet.approve",
+  permission: "timesheet.approve" | "timesheet.reject",
   timesheet: ReviewableTimesheet,
 ) {
   return {
@@ -479,7 +492,11 @@ export interface TimesheetReviewView {
   submittedAtLabel: string | null;
   approvedAtLabel: string | null;
   approvedByName: string | null;
+  rejectedAtLabel: string | null;
+  rejectedByName: string | null;
+  rejectionReason: string | null;
   viewerCanApprove: boolean;
+  viewerCanReject: boolean;
 }
 
 /**
@@ -534,6 +551,14 @@ export async function getTimesheetReview(
         })
       )?.displayName ?? "Staff")
     : null;
+  const rejectedByName = timesheet.rejectedByUserId
+    ? ((
+        await prisma.user.findUnique({
+          where: { id: timesheet.rejectedByUserId },
+          select: { displayName: true },
+        })
+      )?.displayName ?? "Staff")
+    : null;
 
   return {
     timesheetId: timesheet.id,
@@ -553,9 +578,18 @@ export async function getTimesheetReview(
       ? formatDateTime(timesheet.approvedAt)
       : null,
     approvedByName,
+    rejectedAtLabel: timesheet.rejectedAt
+      ? formatDateTime(timesheet.rejectedAt)
+      : null,
+    rejectedByName,
+    rejectionReason: timesheet.rejectionReason,
     viewerCanApprove:
       reviewDenialReason(
         reviewStandingFor(ctx, "timesheet.approve", timesheet),
+      ) === null,
+    viewerCanReject:
+      reviewDenialReason(
+        reviewStandingFor(ctx, "timesheet.reject", timesheet),
       ) === null,
   };
 }
@@ -621,6 +655,86 @@ export async function approveTimesheet(
         subjectType: "Timesheet",
         subjectId: timesheetId,
         detail: `${timesheet.totalHours.toFixed(2)} hours`,
+      },
+    });
+  });
+}
+
+/**
+ * Send a submitted week back for correction (Story 6.6): the SAME
+ * standing rule as approval, a REQUIRED rationale, one transaction —
+ * compare-and-set on SUBMITTED (the approve/reject race resolves to
+ * exactly one outcome), the reviewer and reason on the row for the
+ * participant to act on, the reason archived in the event detail so a
+ * later resubmission and approval never erase it (AC6), and an audit
+ * event carrying no free text.
+ */
+export async function rejectTimesheet(
+  ctx: AuthContext,
+  timesheetId: string,
+  reason: string,
+): Promise<void> {
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: {
+      id: true,
+      status: true,
+      placement: { select: { hostOrganizationId: true, supervisorId: true } },
+    },
+  });
+  if (!timesheet) throw new NotFoundError();
+
+  const denial = reviewDenialReason(
+    reviewStandingFor(ctx, "timesheet.reject", timesheet),
+  );
+  if (denial) {
+    if (timesheet.status !== TimesheetStatus.SUBMITTED) {
+      throw new LifecycleError(denial);
+    }
+    throw new AuthorizationError(denial);
+  }
+
+  const trimmed = reason.trim();
+  if (trimmed.length === 0) {
+    throw new ValidationError(
+      "Explain what needs correction — the participant sees this reason.",
+    );
+  }
+  if (trimmed.length > 1000) {
+    throw new ValidationError("Keep the reason under 1,000 characters.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.timesheet.updateMany({
+      where: { id: timesheetId, status: TimesheetStatus.SUBMITTED },
+      data: {
+        status: TimesheetStatus.REJECTED,
+        rejectedAt: new Date(),
+        rejectedByUserId: ctx.userId,
+        rejectionReason: trimmed,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "Another reviewer acted on this timesheet first. Refresh to see its latest state.",
+      );
+    }
+    await tx.timesheetEvent.create({
+      data: {
+        timesheetId,
+        fromStatus: TimesheetStatus.SUBMITTED,
+        toStatus: TimesheetStatus.REJECTED,
+        actorUserId: ctx.userId,
+        detail: `Correction requested: ${trimmed}`,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "timesheet.reject",
+        subjectType: "Timesheet",
+        subjectId: timesheetId,
+        detail: "correction requested",
       },
     });
   });

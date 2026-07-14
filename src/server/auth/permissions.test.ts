@@ -164,6 +164,7 @@ describe("permissionsForRoles (deny-by-default)", () => {
       const granted = permissionsForRoles([role]);
       expect(granted.has("timesheet.view"), `view for ${role}`).toBe(expected);
       expect(granted.has("timesheet.approve"), `approve for ${role}`).toBe(expected);
+      expect(granted.has("timesheet.reject"), `reject for ${role}`).toBe(expected);
     }
   });
 

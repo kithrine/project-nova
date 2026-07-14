@@ -1057,6 +1057,12 @@ model Timesheet {
   // authorized Nova staff standing in (business-rules.md).
   approvedByUserId String?
   rejectedAt  DateTime?
+  // The correction request (Story 6.6): who sent it back and why. The
+  // row carries the CURRENT reason for the participant to act on;
+  // resubmission archives it to the event trail and clears these three
+  // (archive-then-reset) — history is never lost, the row never stale.
+  rejectedByUserId String?
+  rejectionReason  String?
   lockedAt    DateTime?
 
   entries WorkEntry[]

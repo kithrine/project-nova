@@ -1,4 +1,5 @@
 import { ApproveTimesheetPanel } from "@/features/timesheets/approve-timesheet-panel";
+import { RejectTimesheetPanel } from "@/features/timesheets/reject-timesheet-panel";
 import type { TimesheetReviewView } from "@/server/services/timesheet-service";
 
 /**
@@ -25,6 +26,13 @@ export function TimesheetReviewCard({ review }: { review: TimesheetReviewView })
         {review.approvedAtLabel ? (
           <p className="text-sm text-base-content/70">
             Approved by {review.approvedByName} · {review.approvedAtLabel}
+          </p>
+        ) : null}
+        {review.rejectionReason ? (
+          <p className="text-sm text-base-content/70">
+            Correction requested by {review.rejectedByName}
+            {review.rejectedAtLabel ? ` · ${review.rejectedAtLabel}` : ""}:{" "}
+            {review.rejectionReason}
           </p>
         ) : null}
       </header>
@@ -68,8 +76,15 @@ export function TimesheetReviewCard({ review }: { review: TimesheetReviewView })
         </p>
       </div>
 
-      {review.viewerCanApprove ? (
-        <ApproveTimesheetPanel timesheetId={review.timesheetId} />
+      {review.viewerCanApprove || review.viewerCanReject ? (
+        <div className="flex flex-col gap-2">
+          {review.viewerCanApprove ? (
+            <ApproveTimesheetPanel timesheetId={review.timesheetId} />
+          ) : null}
+          {review.viewerCanReject ? (
+            <RejectTimesheetPanel timesheetId={review.timesheetId} />
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
