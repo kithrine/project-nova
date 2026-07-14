@@ -1,6 +1,11 @@
-import { PlacementStatus, Prisma, TimesheetStatus } from "@/generated/prisma/client";
+import {
+  PlacementStatus,
+  Prisma,
+  Role,
+  TimesheetStatus,
+} from "@/generated/prisma/client";
 import type { AuthContext } from "@/server/auth/context";
-import { hasPermission } from "@/server/auth/authorize";
+import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
 import {
   isoDate,
@@ -9,6 +14,7 @@ import {
   PARTICIPANT_EDITABLE_TIMESHEET_STATUSES,
   parseWeekParam,
   previousWeek,
+  reviewDenialReason,
   TIMESHEET_STATUS_LABELS,
   weekCreationBlockReason,
   weekEndFor,
@@ -227,30 +233,7 @@ export async function getOrCreateOwnTimesheet(
     where: { timesheetId: timesheet.id },
     orderBy: [{ workDate: "asc" }, { startTime: "asc" }],
   });
-  const days: WeekDayView[] = [];
-  for (let offset = 0; offset < 7; offset += 1) {
-    const date = new Date(weekStart.getTime() + offset * 86_400_000);
-    const dateIso = isoDate(date);
-    days.push({
-      dateIso,
-      dayLabel: date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        timeZone: "UTC",
-      }),
-      entries: entries
-        .filter((entry) => isoDate(entry.workDate) === dateIso)
-        .map((entry) => ({
-          id: entry.id,
-          startTime: entry.startTime,
-          endTime: entry.endTime,
-          breakMinutes: entry.breakMinutes,
-          hours: entry.hours.toFixed(2),
-          note: entry.note,
-        })),
-    });
-  }
+  const days = buildWeekDays(weekStart, entries);
 
   const hasEntries = entries.length > 0;
   const editable = PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status);
@@ -365,6 +348,339 @@ export async function submitOwnTimesheet(
       },
     });
   });
+}
+
+// --- Shelter review (Stories 6.5/6.6) --------------------------------------------
+
+const SHELTER_ROLES: readonly Role[] = [
+  Role.SHELTER_SUPERVISOR,
+  Role.SHELTER_MANAGER,
+];
+
+function formatDateTime(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+interface ReviewableTimesheet {
+  id: string;
+  status: TimesheetStatus;
+  placement: {
+    hostOrganizationId: string;
+    supervisorId: string | null;
+  };
+}
+
+/**
+ * Assemble the four facts the canonical standing check decides on
+ * (Story 6.5; authorization-rbac.md). The permission code is a
+ * parameter because approval (6.5) and rejection (6.6) share the rule.
+ */
+function reviewStandingFor(
+  ctx: AuthContext,
+  permission: "timesheet.approve",
+  timesheet: ReviewableTimesheet,
+) {
+  return {
+    holdsPermission: hasPermission(ctx, permission),
+    isNovaStaff: hasNovaScope(ctx) && hasPermission(ctx, permission),
+    isMemberOfHostOrg: ctx.memberships.some(
+      (membership) =>
+        SHELTER_ROLES.includes(membership.role) &&
+        membership.organizationId === timesheet.placement.hostOrganizationId,
+    ),
+    isAssignedSupervisor: ctx.userId === timesheet.placement.supervisorId,
+    isManagerAtHostOrg: ctx.memberships.some(
+      (membership) =>
+        membership.role === Role.SHELTER_MANAGER &&
+        membership.organizationId === timesheet.placement.hostOrganizationId,
+    ),
+    status: timesheet.status,
+  };
+}
+
+export interface TimesheetQueueRow {
+  timesheetId: string;
+  placementId: string;
+  participantName: string;
+  placementNumber: string;
+  weekLabel: string;
+  totalHours: string;
+  submittedAtLabel: string;
+}
+
+/**
+ * The shelter Timesheets queue (Story 6.5): SUBMITTED weeks for
+ * placements at the member's organization(s), oldest submission first
+ * so nothing waits at the back. Nova staff use the workspace Hours tab
+ * instead — this queue is the Shelter Portal surface.
+ */
+export async function listShelterTimesheetQueue(
+  ctx: AuthContext,
+): Promise<TimesheetQueueRow[]> {
+  if (!hasPermission(ctx, "timesheet.view")) {
+    throw new AuthorizationError();
+  }
+  const orgIds = ctx.memberships
+    .filter((membership) => SHELTER_ROLES.includes(membership.role))
+    .map((membership) => membership.organizationId);
+  if (orgIds.length === 0) {
+    throw new AuthorizationError();
+  }
+
+  const timesheets = await prisma.timesheet.findMany({
+    where: {
+      status: TimesheetStatus.SUBMITTED,
+      placement: { hostOrganizationId: { in: orgIds } },
+    },
+    include: {
+      placement: {
+        select: {
+          id: true,
+          placementNumber: true,
+          participant: {
+            select: {
+              person: { select: { legalFirstName: true, legalLastName: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { submittedAt: "asc" },
+  });
+  return timesheets.map((timesheet) => ({
+    timesheetId: timesheet.id,
+    placementId: timesheet.placement.id,
+    participantName: `${timesheet.placement.participant.person.legalFirstName} ${timesheet.placement.participant.person.legalLastName}`,
+    placementNumber: timesheet.placement.placementNumber,
+    weekLabel: weekLabel(timesheet.weekStartDate),
+    totalHours: timesheet.totalHours.toFixed(2),
+    submittedAtLabel: formatDateTime(timesheet.submittedAt ?? timesheet.createdAt),
+  }));
+}
+
+export interface TimesheetReviewView {
+  timesheetId: string;
+  placementId: string;
+  participantName: string;
+  placementNumber: string;
+  siteName: string;
+  weekLabel: string;
+  statusKey: TimesheetStatus;
+  statusLabel: string;
+  totalHours: string;
+  days: WeekDayView[];
+  submittedAtLabel: string | null;
+  approvedAtLabel: string | null;
+  approvedByName: string | null;
+  viewerCanApprove: boolean;
+}
+
+/**
+ * The Timesheet Review Card (Story 6.5): the week's entries and total,
+ * read-only — only the participant edits entries — plus the viewer's
+ * decision capability computed through the canonical standing check.
+ * Readable by shelter members of the host organization and Nova staff.
+ */
+export async function getTimesheetReview(
+  ctx: AuthContext,
+  timesheetId: string,
+): Promise<TimesheetReviewView> {
+  if (!hasPermission(ctx, "timesheet.view")) {
+    throw new AuthorizationError();
+  }
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    include: {
+      entries: { orderBy: [{ workDate: "asc" }, { startTime: "asc" }] },
+      placement: {
+        select: {
+          id: true,
+          placementNumber: true,
+          hostOrganizationId: true,
+          supervisorId: true,
+          organizationSite: { select: { name: true } },
+          participant: {
+            select: {
+              person: { select: { legalFirstName: true, legalLastName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!timesheet) throw new NotFoundError();
+
+  const isMemberOfHostOrg = ctx.memberships.some(
+    (membership) =>
+      SHELTER_ROLES.includes(membership.role) &&
+      membership.organizationId === timesheet.placement.hostOrganizationId,
+  );
+  if (!isMemberOfHostOrg && !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+
+  const approvedByName = timesheet.approvedByUserId
+    ? ((
+        await prisma.user.findUnique({
+          where: { id: timesheet.approvedByUserId },
+          select: { displayName: true },
+        })
+      )?.displayName ?? "Staff")
+    : null;
+
+  return {
+    timesheetId: timesheet.id,
+    placementId: timesheet.placement.id,
+    participantName: `${timesheet.placement.participant.person.legalFirstName} ${timesheet.placement.participant.person.legalLastName}`,
+    placementNumber: timesheet.placement.placementNumber,
+    siteName: timesheet.placement.organizationSite.name,
+    weekLabel: weekLabel(timesheet.weekStartDate),
+    statusKey: timesheet.status,
+    statusLabel: TIMESHEET_STATUS_LABELS[timesheet.status],
+    totalHours: timesheet.totalHours.toFixed(2),
+    days: buildWeekDays(timesheet.weekStartDate, timesheet.entries),
+    submittedAtLabel: timesheet.submittedAt
+      ? formatDateTime(timesheet.submittedAt)
+      : null,
+    approvedAtLabel: timesheet.approvedAt
+      ? formatDateTime(timesheet.approvedAt)
+      : null,
+    approvedByName,
+    viewerCanApprove:
+      reviewDenialReason(
+        reviewStandingFor(ctx, "timesheet.approve", timesheet),
+      ) === null,
+  };
+}
+
+/**
+ * Approve a submitted week (Story 6.5 AC1) — the canonical four-part
+ * check, then one transaction: compare-and-set on SUBMITTED (a racing
+ * reviewer gets a clean conflict, AC6), approver identity recorded,
+ * lifecycle event and audit event alongside. Approval never touches
+ * entries — it confirms the server-calculated hours as-is.
+ */
+export async function approveTimesheet(
+  ctx: AuthContext,
+  timesheetId: string,
+): Promise<void> {
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: {
+      id: true,
+      status: true,
+      totalHours: true,
+      placement: { select: { hostOrganizationId: true, supervisorId: true } },
+    },
+  });
+  if (!timesheet) throw new NotFoundError();
+
+  const denial = reviewDenialReason(
+    reviewStandingFor(ctx, "timesheet.approve", timesheet),
+  );
+  if (denial) {
+    if (timesheet.status !== TimesheetStatus.SUBMITTED) {
+      throw new LifecycleError(denial);
+    }
+    throw new AuthorizationError(denial);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.timesheet.updateMany({
+      where: { id: timesheetId, status: TimesheetStatus.SUBMITTED },
+      data: {
+        status: TimesheetStatus.APPROVED,
+        approvedAt: new Date(),
+        approvedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "Another reviewer acted on this timesheet first. Refresh to see its latest state.",
+      );
+    }
+    await tx.timesheetEvent.create({
+      data: {
+        timesheetId,
+        fromStatus: TimesheetStatus.SUBMITTED,
+        toStatus: TimesheetStatus.APPROVED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "timesheet.approve",
+        subjectType: "Timesheet",
+        subjectId: timesheetId,
+        detail: `${timesheet.totalHours.toFixed(2)} hours`,
+      },
+    });
+  });
+}
+
+/** The shelter dashboard's awaiting-review count (wireframes-layouts.md). */
+export async function countShelterTimesheetsAwaitingReview(
+  ctx: AuthContext,
+): Promise<number | null> {
+  if (!hasPermission(ctx, "timesheet.view")) return null;
+  const orgIds = ctx.memberships
+    .filter((membership) => SHELTER_ROLES.includes(membership.role))
+    .map((membership) => membership.organizationId);
+  if (orgIds.length === 0) return null;
+  return prisma.timesheet.count({
+    where: {
+      status: TimesheetStatus.SUBMITTED,
+      placement: { hostOrganizationId: { in: orgIds } },
+    },
+  });
+}
+
+/** The seven day buckets for a week's entries (6.1/6.2/6.5 views). */
+function buildWeekDays(
+  weekStart: Date,
+  entries: {
+    id: string;
+    workDate: Date;
+    startTime: string;
+    endTime: string;
+    breakMinutes: number;
+    hours: Prisma.Decimal;
+    note: string | null;
+  }[],
+): WeekDayView[] {
+  const days: WeekDayView[] = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = new Date(weekStart.getTime() + offset * 86_400_000);
+    const dateIso = isoDate(date);
+    days.push({
+      dateIso,
+      dayLabel: date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+      entries: entries
+        .filter((entry) => isoDate(entry.workDate) === dateIso)
+        .map((entry) => ({
+          id: entry.id,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          breakMinutes: entry.breakMinutes,
+          hours: entry.hours.toFixed(2),
+          note: entry.note,
+        })),
+    });
+  }
+  return days;
 }
 
 // --- Work entries (Story 6.2) ---------------------------------------------------

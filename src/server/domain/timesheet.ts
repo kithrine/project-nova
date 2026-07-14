@@ -99,3 +99,47 @@ export function weekLabel(weekStart: Date): string {
     timeZone: "UTC",
   })}`;
 }
+
+/**
+ * The canonical Authorization = Permission + Resource Scope + Lifecycle
+ * State worked example (Story 6.5; authorization-rbac.md). Reviewing a
+ * submitted timesheet requires ALL FOUR, evaluated in order:
+ *   1. the actor holds the review permission (approve/reject);
+ *   2. the placement is in their reach — a membership at its host
+ *      organization, or Nova Operations standing in;
+ *   3. they have STANDING there — the placement's assigned supervisor,
+ *      a Shelter Manager at that organization, or Nova staff (a
+ *      supervisor who is neither assigned nor a manager is denied even
+ *      though they hold the permission);
+ *   4. the timesheet is SUBMITTED — the only reviewable state.
+ * Pure: the service assembles the facts; this decides. Used by both
+ * approval (6.5) and rejection (6.6), which share the rule.
+ */
+export interface ReviewStandingInput {
+  holdsPermission: boolean;
+  isNovaStaff: boolean;
+  isMemberOfHostOrg: boolean;
+  isAssignedSupervisor: boolean;
+  isManagerAtHostOrg: boolean;
+  status: TimesheetStatus;
+}
+
+export function reviewDenialReason(input: ReviewStandingInput): string | null {
+  if (!input.holdsPermission) {
+    return "You don't have permission to review timesheets.";
+  }
+  if (!input.isNovaStaff && !input.isMemberOfHostOrg) {
+    return "This timesheet belongs to a placement outside your organization.";
+  }
+  if (
+    !input.isNovaStaff &&
+    !input.isAssignedSupervisor &&
+    !input.isManagerAtHostOrg
+  ) {
+    return "Only the placement's assigned supervisor or a Shelter Manager can review this timesheet.";
+  }
+  if (input.status !== TimesheetStatus.SUBMITTED) {
+    return "Only a submitted timesheet can be reviewed.";
+  }
+  return null;
+}

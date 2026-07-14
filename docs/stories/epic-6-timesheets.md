@@ -11,7 +11,7 @@ Record and approve participant work hours.
 | 6.2 | Add work entries | Done |
 | 6.3 | Calculate hours server-side | Done |
 | 6.4 | Submit timesheet | Done |
-| 6.5 | Shelter approval | Ready for Development |
+| 6.5 | Shelter approval | Done |
 | 6.6 | Reject for correction | Ready for Development |
 | 6.7 | Lock approved timesheet | Ready for Development |
 
@@ -282,7 +282,25 @@ The review/approval decision itself (6.5, 6.6), notification delivery.
 ## Story 6.5 — Shelter approval
 
 ### Status
-Ready for Development
+Done
+
+> Built note: the canonical A = P + S + L check lives as a PURE domain
+> function (reviewDenialReason) deciding four facts the service
+> assembles — permission, host-org reach, standing (assigned supervisor
+> | Shelter Manager | Nova staff), SUBMITTED — with each part
+> unit-denied independently; approval and rejection (6.6) share it via
+> a permission parameter. Surfaces: the shelter Timesheets queue
+> (oldest submission first), the read-only Timesheet Review Card at
+> /shelter/timesheets/[id] with an operations twin at
+> /operations/timesheets/[id] (Nova reaches it from the workspace Hours
+> tab — Operations has no queue in the IA), the Hours tab's week list,
+> and the dashboard's awaiting-review count. Approve is explicit and
+> confirmed, never inferred from viewing; the CAS resolves the
+> concurrent-reviewer race to exactly one outcome (proven with
+> Promise.allSettled), approver identity + hours-only audit detail
+> recorded. The unassigned-supervisor denial (permission + org, no
+> standing) is E2E'd implicitly via integration and covered in the
+> canonical unit battery.
 
 ### User story
 As a Shelter Supervisor, I want to review and approve a participant's submitted timesheet, so that their hours are confirmed accurate and ready to count toward their placement and funding.

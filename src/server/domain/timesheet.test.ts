@@ -8,9 +8,11 @@ import {
   PARTICIPANT_EDITABLE_TIMESHEET_STATUSES,
   parseWeekParam,
   previousWeek,
+  reviewDenialReason,
   weekCreationBlockReason,
   weekEndFor,
   weekLabel,
+  type ReviewStandingInput,
 } from "./timesheet";
 
 describe("timesheet weeks (Story 6.1)", () => {
@@ -78,5 +80,68 @@ describe("timesheet weeks (Story 6.1)", () => {
       TimesheetStatus.DRAFT,
       TimesheetStatus.REJECTED,
     ]);
+  });
+});
+
+describe("review standing — the canonical A = P + S + L example (Story 6.5)", () => {
+  const assignedSupervisor: ReviewStandingInput = {
+    holdsPermission: true,
+    isNovaStaff: false,
+    isMemberOfHostOrg: true,
+    isAssignedSupervisor: true,
+    isManagerAtHostOrg: false,
+    status: TimesheetStatus.SUBMITTED,
+  };
+
+  it("passes each of the four standings the story names", () => {
+    expect(reviewDenialReason(assignedSupervisor)).toBeNull();
+    // A Shelter Manager at the org, not the assigned supervisor.
+    expect(
+      reviewDenialReason({
+        ...assignedSupervisor,
+        isAssignedSupervisor: false,
+        isManagerAtHostOrg: true,
+      }),
+    ).toBeNull();
+    // Authorized Nova staff standing in for the shelter.
+    expect(
+      reviewDenialReason({
+        ...assignedSupervisor,
+        isNovaStaff: true,
+        isMemberOfHostOrg: false,
+        isAssignedSupervisor: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("denies each missing part independently (AC2/AC3/AC5)", () => {
+    // 1. Permission.
+    expect(
+      reviewDenialReason({ ...assignedSupervisor, holdsPermission: false }),
+    ).toMatch(/permission/);
+    // 2. Organization scope — even with the permission.
+    expect(
+      reviewDenialReason({
+        ...assignedSupervisor,
+        isMemberOfHostOrg: false,
+        isAssignedSupervisor: false,
+      }),
+    ).toMatch(/outside your organization/);
+    // 3. Standing — a supervisor at the org who is neither assigned nor
+    // a manager holds the permission and the scope, and is still denied.
+    expect(
+      reviewDenialReason({ ...assignedSupervisor, isAssignedSupervisor: false }),
+    ).toMatch(/assigned supervisor or a Shelter Manager/);
+    // 4. Lifecycle state.
+    for (const status of [
+      TimesheetStatus.DRAFT,
+      TimesheetStatus.REJECTED,
+      TimesheetStatus.APPROVED,
+      TimesheetStatus.LOCKED,
+    ]) {
+      expect(reviewDenialReason({ ...assignedSupervisor, status })).toMatch(
+        /submitted timesheet/,
+      );
+    }
   });
 });

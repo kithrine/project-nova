@@ -4,29 +4,33 @@ import { ShelterApprovalCard } from "@/features/matching/proposed-placement-card
 import { getAuthContext } from "@/server/auth/context";
 import { listShelterApprovals } from "@/server/services/matching-service";
 import { listShelterPackageReviews } from "@/server/services/placement-service";
+import { countShelterTimesheetsAwaitingReview } from "@/server/services/timesheet-service";
 
 export const metadata = { title: "Shelter Dashboard" };
 
 /**
- * Shelter dashboard (Stories 1.7/4.4). Placement approvals list proposed
- * matches for THIS shelter's organization only (resource scope =
- * hostOrganizationId; Drafts never appear). Timesheets and evaluations
- * arrive with Epics 5–6.
+ * Shelter dashboard (Stories 1.7/4.4/6.5). Placement approvals list
+ * proposed matches for THIS shelter's organization only (resource scope
+ * = hostOrganizationId; Drafts never appear); the timesheets card counts
+ * submitted weeks awaiting review (wireframes-layouts.md).
  */
 export default async function ShelterDashboardPage() {
   const ctx = await getAuthContext();
   let approvals: Awaited<ReturnType<typeof listShelterApprovals>> = [];
   let packageReviews: Awaited<ReturnType<typeof listShelterPackageReviews>> = [];
+  let timesheetsAwaiting: number | null = null;
   if (ctx) {
     try {
-      [approvals, packageReviews] = await Promise.all([
+      [approvals, packageReviews, timesheetsAwaiting] = await Promise.all([
         listShelterApprovals(ctx),
         listShelterPackageReviews(ctx),
+        countShelterTimesheetsAwaitingReview(ctx),
       ]);
     } catch {
       // Not a shelter member (e.g. staff previewing) — show the empty shell.
       approvals = [];
       packageReviews = [];
+      timesheetsAwaiting = null;
     }
   }
 
@@ -78,9 +82,28 @@ export default async function ShelterDashboardPage() {
         )}
       </div>
 
-      <p className="max-w-prose text-sm text-base-content/60">
-        Timesheets awaiting review and evaluations due arrive with later updates.
-      </p>
+      <div className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Timesheets awaiting review</h2>
+        {timesheetsAwaiting === null || timesheetsAwaiting === 0 ? (
+          <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+            No submitted timesheets are waiting on your review.
+          </p>
+        ) : (
+          <Link
+            href="/shelter/timesheets"
+            className="flex max-w-2xl flex-col gap-1 rounded-md border border-warning/40 bg-warning/5 px-4 py-3 transition-colors hover:bg-warning/10"
+          >
+            <span className="text-sm font-medium">
+              {timesheetsAwaiting}{" "}
+              {timesheetsAwaiting === 1 ? "timesheet" : "timesheets"} awaiting
+              review
+            </span>
+            <span className="text-xs text-base-content/60">
+              Open the Timesheets queue
+            </span>
+          </Link>
+        )}
+      </div>
     </section>
   );
 }
