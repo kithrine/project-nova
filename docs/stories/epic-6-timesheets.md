@@ -12,7 +12,7 @@ Record and approve participant work hours.
 | 6.3 | Calculate hours server-side | Done |
 | 6.4 | Submit timesheet | Done |
 | 6.5 | Shelter approval | Done |
-| 6.6 | Reject for correction | Ready for Development |
+| 6.6 | Reject for correction | Done |
 | 6.7 | Lock approved timesheet | Ready for Development |
 
 > Sequencing note: the epic is numbered 6.1–6.7 for reference, but 6.2 and 6.3 are tightly coupled — the work-entry form in 6.2 depends on 6.3's server-side calculation service to produce the hours it displays and stores, so build 6.3 alongside or before 6.2. Stories 6.5 and 6.6 share the same Submitted-timesheet review surface (the Timesheet Review Card and the shelter Timesheets queue, both built in 6.5), so they are naturally implemented together even though they are specified separately for their distinct outcomes.
@@ -348,7 +348,22 @@ Rejecting (6.6), locking (6.7), any edit to entries at approval time.
 ## Story 6.6 — Reject for correction
 
 ### Status
-Ready for Development
+Done
+
+> Built note: rejection reuses 6.5's pure standing function through a
+> permission parameter — one rule, two outcomes. The rationale is
+> required with copy that says why ("the participant sees this
+> reason"), rides the row for the participant to act on, and is
+> archived verbatim in the REJECTED event's detail; resubmission then
+> archive-then-resets the row's three correction fields, so the trail
+> keeps every cycle (DRAFT→SUBMITTED→REJECTED→SUBMITTED→APPROVED
+> proven in order with the reason intact) while the row never shows a
+> stale reason. The participant's My Hours note renders the story's
+> exact copy shape — "Your supervisor asked for a correction on your
+> hours for the week of [date]: [reason]" — with a warning icon, never
+> color alone. The audit detail is content-free ("correction
+> requested"). E2E runs the full cycle on the current week as its own
+> phase-guarded test converging on Approved.
 
 ### User story
 As a Shelter Supervisor, I want to send a submitted timesheet back to the participant with a clear reason, so that they can fix a mistake before I approve their hours.

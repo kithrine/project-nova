@@ -8,6 +8,7 @@ import { TimesheetReviewCard } from "./timesheet-review-card";
 
 vi.mock("@/features/timesheets/actions", () => ({
   approveTimesheetAction: vi.fn(async () => ({ status: "saved" })),
+  rejectTimesheetAction: vi.fn(async () => ({ status: "saved" })),
 }));
 
 function review(overrides: Partial<TimesheetReviewView> = {}): TimesheetReviewView {
@@ -40,7 +41,11 @@ function review(overrides: Partial<TimesheetReviewView> = {}): TimesheetReviewVi
     submittedAtLabel: "Jul 10, 2026, 5:00 PM",
     approvedAtLabel: null,
     approvedByName: null,
+    rejectedAtLabel: null,
+    rejectedByName: null,
+    rejectionReason: null,
     viewerCanApprove: true,
+    viewerCanReject: true,
     ...overrides,
   };
 }

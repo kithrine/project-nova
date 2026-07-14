@@ -69,9 +69,29 @@ export function WeeklyHoursCard({
             {week.statusNote ? (
               <p
                 role="status"
-                className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm"
+                className={`flex items-start gap-2 rounded-md border px-4 py-3 text-sm ${
+                  week.statusNoteKind === "correction"
+                    ? "border-warning/50 bg-warning/5"
+                    : "border-primary/30 bg-primary/5"
+                }`}
               >
-                {week.statusNote}
+                {week.statusNoteKind === "correction" ? (
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mt-0.5 size-5 shrink-0 text-warning"
+                  >
+                    <path d="M12 3 2.5 19.5h19L12 3Z" />
+                    <path d="M12 10v4" />
+                    <path d="M12 17.5v.5" />
+                  </svg>
+                ) : null}
+                <span>{week.statusNote}</span>
               </p>
             ) : null}
             {week.timesheetId ? (

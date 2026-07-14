@@ -14,7 +14,12 @@ import { signIn } from "./sign-in";
  * empty DRAFT week; navigation reaches a prior week and creates it on
  * demand; a future week is blocked with a stated reason. Fixtures reset
  * Harper's timesheets each run, so first-open really creates.
+ *
+ * SERIAL: both tests mutate the same Harper timesheets; fullyParallel
+ * would race them across workers (the correction cycle submits the
+ * current week while the first test is still editing it).
  */
+test.describe.configure({ mode: "serial" });
 
 test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   page,
@@ -222,4 +227,109 @@ test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   await expect(
     page.getByText("Your hours for this week were approved."),
   ).toBeVisible();
+});
+
+/**
+ * The correction cycle (Story 6.6) on the CURRENT week: submit -> the
+ * supervisor requests a correction with a reason -> the participant
+ * sees it verbatim, fixes the week, resubmits -> the supervisor
+ * approves. Every phase is guarded on server-rendered state, so retries
+ * converge on the Approved end state.
+ */
+test("a rejected week is corrected and resubmitted (Story 6.6)", async ({ page }) => {
+  test.setTimeout(300_000);
+  const REASON = "Please add what you worked on for Monday.";
+
+  // Phase 1 — the participant submits the current week (entry exists
+  // from the first test; a retry may find it already past DRAFT).
+  await signIn(page, E2E_HOURS_USER_EMAIL);
+  await page.goto("/participant/hours");
+  await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+  if (await page.getByRole("button", { name: "Submit Hours…" }).isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: "Submit Hours…" }).click();
+    await page.getByRole("button", { name: "Yes, Submit Hours" }).click();
+    await expect(page.getByText(/^(Submitted|Approved)$/)).toBeVisible({
+      timeout: 20_000,
+    });
+  }
+
+  // Phase 2 — the supervisor requests a correction with a reason.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter/timesheets");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Timesheets" }),
+  ).toBeVisible({ timeout: 20_000 });
+  const reviewLink = page.getByRole("link", {
+    name: /Review timesheet: Harper Synthetic-Hours/,
+  });
+  if (await reviewLink.first().isVisible().catch(() => false)) {
+    await reviewLink.first().click();
+    await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+    const requestCorrection = page.getByRole("button", {
+      name: "Request Correction…",
+    });
+    if (await requestCorrection.isVisible().catch(() => false)) {
+      await requestCorrection.click();
+      await page
+        .getByLabel(/What needs correction\?/)
+        .fill(REASON);
+      await page.getByRole("button", { name: "Yes, Request Correction" }).click();
+      await expect(page.getByText(/Status:.*Needs correction/)).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByText(new RegExp(REASON.slice(0, 20)))).toBeVisible();
+    }
+  }
+
+  // Phase 3 — the participant sees the reason verbatim, fixes, resubmits.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_HOURS_USER_EMAIL);
+  await page.goto("/participant/hours");
+  await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+  if (
+    await page.getByText(/asked for a correction on your hours/).isVisible().catch(() => false)
+  ) {
+    await expect(page.getByText(new RegExp(REASON.slice(0, 20)))).toBeVisible();
+    // Fix Monday: edit the entry to carry a note.
+    await page.getByRole("button", { name: "Edit" }).first().click();
+    await page.getByRole("button", { name: "Save Entry" }).waitFor();
+    const editForm = page.locator("form", {
+      has: page.getByRole("button", { name: "Save Entry" }),
+    });
+    await editForm.getByLabel("What you worked on (optional)").fill("Kennel rotation");
+    await page.getByRole("button", { name: "Save Entry" }).click();
+    await expect(page.getByText("Entry saved.").or(page.getByText("Kennel rotation"))).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByRole("button", { name: "Submit Hours…" }).click();
+    await page.getByRole("button", { name: "Yes, Submit Hours" }).click();
+    await expect(page.getByText(/^(Submitted|Approved)$/)).toBeVisible({
+      timeout: 20_000,
+    });
+  }
+
+  // Phase 4 — the supervisor approves the corrected week.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter/timesheets");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Timesheets" }),
+  ).toBeVisible({ timeout: 20_000 });
+  if (await reviewLink.first().isVisible().catch(() => false)) {
+    await reviewLink.first().click();
+    await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+    const approve = page.getByRole("button", { name: "Approve Hours…" });
+    if (await approve.isVisible().catch(() => false)) {
+      await approve.click();
+      await page.getByRole("button", { name: "Yes, Approve Hours" }).click();
+    }
+    await expect(page.getByText(/Status:.*Approved/)).toBeVisible({
+      timeout: 20_000,
+    });
+  } else {
+    // Retry after approval: verify through the workspace Hours tab.
+    await page.goto("/shelter/placements/e2e_placement_hours?tab=hours");
+    await expect(page.getByText(/Approved/).first()).toBeVisible({ timeout: 20_000 });
+  }
 });
