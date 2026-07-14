@@ -10,7 +10,7 @@ Record and approve participant work hours.
 | 6.1 | Create weekly timesheet | Done |
 | 6.2 | Add work entries | Done |
 | 6.3 | Calculate hours server-side | Done |
-| 6.4 | Submit timesheet | Ready for Development |
+| 6.4 | Submit timesheet | Done |
 | 6.5 | Shelter approval | Ready for Development |
 | 6.6 | Reject for correction | Ready for Development |
 | 6.7 | Lock approved timesheet | Ready for Development |
@@ -215,7 +215,26 @@ Overtime rules, rounding conventions beyond exact decimal-hours conversion, and 
 ## Story 6.4 — Submit timesheet
 
 ### Status
-Ready for Development
+Done
+
+> Built note: one submit action serves both DRAFT and REJECTED
+> (resubmission is the same mechanism, per the story), with the
+> at-least-one-entry rule checked INSIDE the transaction alongside a
+> fresh 6.3 total recalculation — an integration test tampers with the
+> stored totalHours pre-submit and proves submission recomputes 7.75,
+> never trusting the last-saved value. The compare-and-set turns a
+> replayed submit or a racing tab into a clean lifecycle/conflict
+> error; the event trail preserves every cycle
+> (DRAFT→SUBMITTED→REJECTED→SUBMITTED proven in order); the audit
+> detail carries only the hour total. The Submit control is disabled
+> WITH its reason until an entry exists, then confirms with
+> plain-language consequence copy; the post-submission statusNote
+> ("Your hours were submitted for review…") is the on-screen
+> what-happens-next, role=status for assistive tech. Visibility in the
+> shelter's review queue is 6.5's surface — this story ends at the
+> frozen, submitted week. E2E submits the PRIOR week so within-run
+> retries keep the current week editable; submission being one-way
+> makes the phase converge.
 
 ### User story
 As a participant, I want to submit my completed timesheet, so that my shelter supervisor can review and approve my hours.

@@ -144,12 +144,13 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
-  it("grants timesheet.create to participants alone — ownership still scopes every use (6.1)", () => {
+  it("grants the participant timesheet writes to participants alone — ownership still scopes every use (6.1/6.2/6.4)", () => {
     for (const role of Object.values(Role)) {
-      expect(
-        permissionsForRoles([role]).has("timesheet.create"),
-        `timesheet.create for ${role}`,
-      ).toBe(role === Role.PARTICIPANT);
+      const expected = role === Role.PARTICIPANT;
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("timesheet.create"), `create for ${role}`).toBe(expected);
+      expect(granted.has("timesheet.edit"), `edit for ${role}`).toBe(expected);
+      expect(granted.has("timesheet.submit"), `submit for ${role}`).toBe(expected);
     }
   });
 

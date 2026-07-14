@@ -19,6 +19,9 @@ function week(overrides: Partial<MyHoursWeekView> = {}): MyHoursWeekView {
     previousWeekIso: "2026-07-06",
     nextWeekIso: null,
     days: [],
+    viewerCanSubmit: true,
+    submitDisabledReason: "Add at least one work day before submitting.",
+    statusNote: null,
     ...overrides,
   };
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SubmitTimesheetPanel } from "@/features/timesheets/submit-timesheet-panel";
 import { WorkEntryEditor } from "@/features/timesheets/work-entry-editor";
 import type { MyHoursWeekView } from "@/server/services/timesheet-service";
 
@@ -65,11 +66,25 @@ export function WeeklyHoursCard({
               Total hours this week:{" "}
               <span className="font-medium tabular-nums">{week.totalHours}</span>
             </p>
+            {week.statusNote ? (
+              <p
+                role="status"
+                className="rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm"
+              >
+                {week.statusNote}
+              </p>
+            ) : null}
             {week.timesheetId ? (
               <WorkEntryEditor
                 timesheetId={week.timesheetId}
                 days={week.days}
                 editable={week.editable}
+              />
+            ) : null}
+            {week.timesheetId && week.viewerCanSubmit ? (
+              <SubmitTimesheetPanel
+                timesheetId={week.timesheetId}
+                disabledReason={week.submitDisabledReason}
               />
             ) : null}
           </>
