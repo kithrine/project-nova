@@ -1,0 +1,65 @@
+import { expect, test } from "@playwright/test";
+
+import { signIn } from "./sign-in";
+import { E2E_OPS_USER_EMAIL, E2E_SHELTER_MANAGER_USER_EMAIL } from "./test-user";
+
+/**
+ * Story 7.1 — Active placement summary. Read-only journeys: no fixture
+ * data is mutated, so these tests are safe under full parallelism.
+ * Assertions anchor on structure (headings, table, count line) rather
+ * than exact fixture names — other specs create and transition their own
+ * placements concurrently, so row totals are never assumed.
+ */
+
+test("coordinator opens the reports area and filters the active placement summary (7.1)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  // Reports is now a real navigation destination (Story 7.1 flips it on).
+  await page.goto("/operations/reports");
+  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Active placement summary" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Active placement summary" }),
+  ).toBeVisible();
+
+  // The live count and the table render; Harper's ACTIVE fixture placement
+  // guarantees at least one in-progress row.
+  await expect(page.getByText(/\d+ in-progress placements?/)).toBeVisible();
+  const table = page.getByRole("table");
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: /participant/i })).toBeVisible();
+  expect(await table.locator("tbody tr").count()).toBeGreaterThanOrEqual(1);
+
+  // Filtering by stage narrows the list: every remaining stage cell reads
+  // Active, and the URL carries the filter.
+  await page.getByLabel("Lifecycle stage").selectOption("ACTIVE");
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await page.waitForURL(/stage=ACTIVE/);
+  await expect(page.getByText(/\d+ in-progress placements?/)).toBeVisible();
+  const stageCells = page.getByRole("table").locator("tbody tr td:nth-child(6)");
+  const stageCount = await stageCells.count();
+  expect(stageCount).toBeGreaterThanOrEqual(1);
+  for (let i = 0; i < stageCount; i++) {
+    await expect(stageCells.nth(i)).toHaveText(/Active/);
+  }
+
+  // Clearing filters returns to the unfiltered report.
+  await page.getByRole("link", { name: "Clear filters" }).click();
+  await expect(page).toHaveURL(/active-placements$/);
+});
+
+test("a shelter user cannot reach the operations reports area (7.1 organization boundary)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
+
+  await page.goto("/operations/reports/active-placements");
+  await expect(
+    page.getByRole("heading", { name: "You don't have access to this page" }),
+  ).toBeVisible();
+});

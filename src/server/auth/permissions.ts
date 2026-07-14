@@ -197,6 +197,13 @@ export const PERMISSIONS = [
   // operational or funding oversight only — never shelters, never
   // participants. Locked hours are what Epic 7 reporting relies on.
   "timesheet.lock",
+  // Read-only reports (Epic 7, Story 7.1): Nova Operations roles read
+  // Nova-wide; the Shelter Manager reads organization-scoped — every
+  // reporting query applies the viewer's scope itself, and restricted
+  // fields are excluded at the query layer, never merely hidden.
+  // Supervisors keep their operational views; reports are management
+  // surfaces (7.1/7.3). Participants are never granted reporting.
+  "reporting.view",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -237,6 +244,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.view",
     "timesheet.approve",
     "timesheet.reject",
+    "reporting.view",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -280,6 +288,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.approve",
     "timesheet.reject",
     "timesheet.lock",
+    "reporting.view",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -288,6 +297,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "funding.assign",
     "timesheet.view",
     "timesheet.lock",
+    "reporting.view",
   ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
@@ -332,6 +342,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.approve",
     "timesheet.reject",
     "timesheet.lock",
+    "reporting.view",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
