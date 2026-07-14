@@ -1053,6 +1053,9 @@ model Timesheet {
   // Stamped as each lifecycle stage is reached; null until then.
   submittedAt DateTime?
   approvedAt  DateTime?
+  // Who approved (Story 6.5) — a shelter reviewer with standing, or
+  // authorized Nova staff standing in (business-rules.md).
+  approvedByUserId String?
   rejectedAt  DateTime?
   lockedAt    DateTime?
 

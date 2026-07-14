@@ -23,9 +23,15 @@ describe("AppShell", () => {
       "href",
       "/shelter",
     );
-    // Future destinations are Disabled entries, not links.
-    expect(within(desktopNav).queryByRole("link", { name: /timesheets/i })).toBeNull();
-    expect(within(desktopNav).getByText("Timesheets").closest("[aria-disabled]")).not.toBeNull();
+    // Timesheets went live with Story 6.5; Evaluations remains a
+    // Disabled future entry, not a link.
+    expect(
+      within(desktopNav).getByRole("link", { name: /timesheets/i }),
+    ).toHaveAttribute("href", "/shelter/timesheets");
+    expect(within(desktopNav).queryByRole("link", { name: /evaluations/i })).toBeNull();
+    expect(
+      within(desktopNav).getByText("Evaluations").closest("[aria-disabled]"),
+    ).not.toBeNull();
   });
 
   it("labels each experience's navigation landmark distinctly", () => {

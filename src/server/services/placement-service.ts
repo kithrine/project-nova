@@ -60,6 +60,10 @@ import {
   type IncidentInput,
 } from "@/server/domain/incident";
 import { computeMatchingReadiness } from "@/server/domain/matching-readiness";
+import {
+  TIMESHEET_STATUS_LABELS as TIMESHEET_STATUS_LABELS_FOR_HOURS,
+  weekLabel,
+} from "@/server/domain/timesheet";
 import { loadReadinessInputs } from "@/server/services/readiness-service";
 import {
   AuthorizationError,
@@ -256,6 +260,11 @@ export interface PlacementWorkspaceView {
    */
   incidents?: IncidentsTabView;
   /**
+   * The Hours tab (Story 6.5): the placement's weekly timesheets for
+   * viewers holding timesheet.view — shelter staff and Nova Operations.
+   */
+  hoursRows?: HoursTabRow[];
+  /**
    * Terminal-outcome controls (Story 5.8; ADR-018): Nova viewers on an
    * Active or Paused placement. Terminate is separately permission-gated.
    */
@@ -263,6 +272,14 @@ export interface PlacementWorkspaceView {
   viewerCanTerminate: boolean;
   /** The Employment Outcome once converted (Story 5.8 AC2). */
   outcome: EmploymentOutcomeView | null;
+}
+
+export interface HoursTabRow {
+  timesheetId: string;
+  weekLabel: string;
+  statusLabel: string;
+  totalHours: string;
+  submittedAtLabel: string | null;
 }
 
 export interface EmploymentOutcomeView {
@@ -672,6 +689,22 @@ export async function getPlacementWorkspace(
         : undefined,
     incidents: hasPermission(ctx, "incident.view")
       ? await buildIncidentsTab(ctx, viewer, placement)
+      : undefined,
+    hoursRows: hasPermission(ctx, "timesheet.view")
+      ? (
+          await prisma.timesheet.findMany({
+            where: { placementId: placement.id },
+            orderBy: { weekStartDate: "desc" },
+          })
+        ).map((timesheet) => ({
+          timesheetId: timesheet.id,
+          weekLabel: weekLabel(timesheet.weekStartDate),
+          statusLabel: TIMESHEET_STATUS_LABELS_FOR_HOURS[timesheet.status],
+          totalHours: timesheet.totalHours.toFixed(2),
+          submittedAtLabel: timesheet.submittedAt
+            ? formatDateTime(timesheet.submittedAt)
+            : null,
+        }))
       : undefined,
     viewerCanRecordOutcome:
       viewer === "NOVA" &&

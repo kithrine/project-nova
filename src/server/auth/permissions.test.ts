@@ -154,6 +154,19 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("grants review reads and approval to shelter staff and Nova Operations (6.5)", () => {
+    for (const role of Object.values(Role)) {
+      const expected =
+        role === Role.SHELTER_SUPERVISOR ||
+        role === Role.SHELTER_MANAGER ||
+        role === Role.PROGRAM_COORDINATOR ||
+        role === Role.NOVA_ADMINISTRATOR;
+      const granted = permissionsForRoles([role]);
+      expect(granted.has("timesheet.view"), `view for ${role}`).toBe(expected);
+      expect(granted.has("timesheet.approve"), `approve for ${role}`).toBe(expected);
+    }
+  });
+
   it("keeps terminal outcomes to PC and NA — placement.complete and placement.terminate (5.8; ADR-018)", () => {
     for (const role of Object.values(Role)) {
       const granted = permissionsForRoles([role]);

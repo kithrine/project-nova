@@ -6,6 +6,7 @@ import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   addWorkEntry,
+  approveTimesheet,
   removeWorkEntry,
   submitOwnTimesheet,
   updateWorkEntry,
@@ -96,6 +97,30 @@ export async function submitTimesheetAction(
     throw error;
   }
 
+  revalidatePath("/participant/hours");
+  return { status: "saved" };
+}
+
+export async function approveTimesheetAction(
+  timesheetId: string,
+  _prev: TimesheetFormState,
+  _formData: FormData,
+): Promise<TimesheetFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await approveTimesheet(ctx, timesheetId);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/shelter/timesheets", "layout");
+  revalidatePath("/operations/timesheets", "layout");
+  revalidatePath("/shelter");
   revalidatePath("/participant/hours");
   return { status: "saved" };
 }

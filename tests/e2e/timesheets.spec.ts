@@ -1,6 +1,11 @@
+import { clerk } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 
-import { E2E_HOURS_USER_EMAIL } from "./test-user";
+import {
+  E2E_HOURS_USER_EMAIL,
+  E2E_OTHER_MANAGER_USER_EMAIL,
+  E2E_USER_EMAIL,
+} from "./test-user";
 import { signIn } from "./sign-in";
 
 /**
@@ -14,7 +19,7 @@ import { signIn } from "./sign-in";
 test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   await signIn(page, E2E_HOURS_USER_EMAIL);
   await page.goto("/participant/hours");
 
@@ -142,14 +147,79 @@ test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
     ).toBeVisible();
     await page.getByRole("button", { name: "Yes, Submit Hours" }).click();
   }
-  await expect(page.getByText("Submitted", { exact: true })).toBeVisible({
+  // A retry may find the week already Approved by the 6.5 phase below —
+  // both are one-way, frozen states, so either satisfies 6.4's outcome.
+  await expect(page.getByText(/^(Submitted|Approved)$/)).toBeVisible({
     timeout: 20_000,
   });
   await expect(
-    page.getByText(/Your hours were submitted for review/),
+    page.getByText(
+      /Your hours were submitted for review|Your hours for this week were approved/,
+    ),
   ).toBeVisible();
   // Frozen for review: no entry editing, no second submission (AC1/AC4).
   await expect(page.getByText("Add a work day")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Submit Hours/ })).toHaveCount(0);
+
+  // Story 6.5 — the ASSIGNED supervisor reviews and approves from the
+  // shelter queue. Approval is one-way, so retries converge on Approved.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_USER_EMAIL);
+  await page.goto("/shelter/timesheets");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Timesheets" }),
+  ).toBeVisible({ timeout: 20_000 });
+  const reviewLink = page.getByRole("link", {
+    name: /Review timesheet: Harper Synthetic-Hours/,
+  });
+  if (await reviewLink.first().isVisible().catch(() => false)) {
+    await reviewLink.first().click();
+    await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+    const approve = page.getByRole("button", { name: "Approve Hours…" });
+    if (await approve.isVisible().catch(() => false)) {
+      await approve.click();
+      await page.getByRole("button", { name: "Yes, Approve Hours" }).click();
+    }
+    await expect(page.getByText(/Status:.*Approved/)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/Approved by Synthetic E2E/)).toBeVisible();
+  } else {
+    // A retry after approval: the queue is empty of Harper's week; verify
+    // through the placement workspace Hours tab instead.
+    await page.goto("/shelter/placements/e2e_placement_hours?tab=hours");
+    await page.getByRole("link", { name: /Open week: / }).first().click();
+    await expect(page.getByText(/Status:.*Approved/)).toBeVisible({
+      timeout: 20_000,
+    });
+  }
+
+  // Cross-shelter access is denied (testing-strategy.md): the other
+  // organization's manager sees no Harper week and cannot open the card.
+  const approvedUrl = page.url();
+  await clerk.signOut({ page });
+  await signIn(page, E2E_OTHER_MANAGER_USER_EMAIL);
+  await page.goto("/shelter/timesheets");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Timesheets" }),
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Harper Synthetic-Hours/)).toHaveCount(0);
+  await page.goto(approvedUrl);
+  await expect(
+    page.getByRole("heading", { name: "You don't have access to this page" }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // The participant sees the approval in plain language.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_HOURS_USER_EMAIL);
+  await page.goto("/participant/hours");
+  await page.getByRole("link", { name: "← Previous week" }).click();
+  await page.waitForURL(/\?week=\d{4}-\d{2}-\d{2}/, { timeout: 20_000 });
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.getByText("Your hours for this week were approved."),
+  ).toBeVisible();
 });

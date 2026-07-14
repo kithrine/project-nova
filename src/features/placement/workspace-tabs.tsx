@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AssignmentForm } from "@/features/placement/assignment-form";
 import { CaseNotesTab } from "@/features/placement/case-notes-tab";
 import { EvaluationsTab } from "@/features/placement/evaluations-tab";
@@ -114,12 +116,43 @@ export function WorkspaceTabContent({
         </div>
       );
     case "hours":
-      return (
-        <EmptyTab>
-          Hours summaries and timesheets arrive with Epic 6. This tab will show
-          a read-only summary with a link into the participant&apos;s timesheets.
-        </EmptyTab>
-      );
+      return view.hoursRows ? (
+        view.hoursRows.length === 0 ? (
+          <EmptyTab>
+            No timesheets yet. Weeks appear here as the participant records
+            hours.
+          </EmptyTab>
+        ) : (
+          <ul aria-label="Timesheets" className="flex max-w-2xl flex-col gap-2">
+            {view.hoursRows.map((row) => (
+              <li
+                key={row.timesheetId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-4 py-3"
+              >
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="text-sm font-medium">{row.weekLabel}</p>
+                  <p className="text-xs text-base-content/60">
+                    {row.statusLabel} · {row.totalHours} hours
+                    {row.submittedAtLabel
+                      ? ` · submitted ${row.submittedAtLabel}`
+                      : ""}
+                  </p>
+                </div>
+                <Link
+                  href={
+                    view.viewer === "NOVA"
+                      ? `/operations/timesheets/${row.timesheetId}`
+                      : `/shelter/timesheets/${row.timesheetId}`
+                  }
+                  className="whitespace-nowrap text-sm font-medium underline underline-offset-2"
+                >
+                  Open week: {row.weekLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null;
     case "evaluations":
       return view.evaluations ? (
         <EvaluationsTab

@@ -178,6 +178,17 @@ export const PERMISSIONS = [
   // one entry and a fresh in-transaction total recalculation — the
   // participant's own timesheet only.
   "timesheet.submit",
+  // Review reads (Story 6.5): the shelter Timesheets queue and Review
+  // Card — organization-scoped for shelter roles, Nova-scoped for
+  // Operations. Participants read their OWN weeks via ownership, never
+  // this.
+  "timesheet.view",
+  // Approval (Story 6.5) — the canonical Authorization = Permission +
+  // Resource Scope + Lifecycle State worked example
+  // (authorization-rbac.md): holder AND host-org membership AND
+  // (assigned supervisor | Shelter Manager | authorized Nova staff)
+  // AND the timesheet is SUBMITTED.
+  "timesheet.approve",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -201,6 +212,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "evaluation.create",
     "incident.view",
     "incident.create",
+    "timesheet.view",
+    "timesheet.approve",
   ],
   [Role.SHELTER_MANAGER]: [
     "organization.view",
@@ -212,6 +225,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "evaluation.create",
     "incident.view",
     "incident.create",
+    "timesheet.view",
+    "timesheet.approve",
   ],
   [Role.PROGRAM_COORDINATOR]: [
     "organization.view",
@@ -251,6 +266,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.review",
     "placement.complete",
     "placement.terminate",
+    "timesheet.view",
+    "timesheet.approve",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
@@ -297,6 +314,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "incident.review",
     "placement.complete",
     "placement.terminate",
+    "timesheet.view",
+    "timesheet.approve",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
