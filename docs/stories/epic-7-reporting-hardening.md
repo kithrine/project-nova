@@ -8,7 +8,7 @@ Provide pilot reporting and safely launch.
 | ID | Story | Status |
 |---|---|---|
 | 7.1 | Active placement summary | Done |
-| 7.2 | Approved hours by funding source | Ready for Development |
+| 7.2 | Approved hours by funding source | Done |
 | 7.3 | Shelter roster | Ready for Development |
 | 7.4 | Outcome summary | Ready for Development |
 | 7.5 | Scoped exports | Blocked — pending policy validation |
@@ -95,7 +95,37 @@ Epic 5 (placements exist), 1.5 (authorization context), 1.7 (Operations protecte
 ## Story 7.2 — Approved hours by funding source
 
 ### Status
-Ready for Development — unblocked by `ADR-020` (provisional pilot format; validation against executed awards is a launch-checklist gate)
+Done — built on `ADR-020` (provisional pilot format; validation against executed awards is a launch-checklist gate)
+
+> **Built (2026-07-14):** pure domain first
+> (`src/server/domain/reporting.ts`): `parseReportRange` (valid ISO range or
+> the current UTC month; injected clock), `mondayWithinRange` (ADR-020's
+> attribution — a week belongs to the period containing its Monday, so
+> contiguous periods never double-count), and `rollupHoursByFunding`, which
+> sums stored Decimal-shaped strings through Story 6.3's exact
+> integer-hundredths helpers — `LOCKED` and `APPROVED` accumulate
+> separately and are never blended (AC3). The service
+> (`getApprovedHoursByFundingSource`) requires `reporting.view` **plus Nova
+> scope** — a Shelter Manager holding the permission for the org-scoped
+> reports is still denied here (funding reach is Nova-only). Attribution
+> uses each placement's single ACTIVE funding assignment (ADR-010);
+> placements without one roll up under a visible "No funding assigned"
+> bucket rather than vanishing. The report page
+> (`/operations/reports/hours-by-funding`) renders the **provisional
+> ADR-020 notice on its face in every state**, a date-range GET form,
+> per-source groups (name, kind, award code) with separate
+> finalized/approved columns and a grand-total footer, mobile cards
+> enhancing to the md+ table. Unit: range defaults/fallbacks, boundary
+> attribution, float-trap exactness (0.10+0.20), status filtering,
+> single-group attribution. Integration (run-id-derived week anchor so
+> shared-DB runs never collide): exact per-source Decimal strings,
+> Monday-boundary inclusion/exclusion, SUBMITTED exclusion, unassigned
+> bucket, PC permitted, SM/participant denied, no restricted fields or
+> participant identifiers, invalid-range fallback. E2E: the Grant
+> Administrator filters to Harper's fixture January week and reads 12.34
+> locked hours under "E2E Grant Fund (Synthetic)" (deterministic fixtures:
+> Harper's placement now carries the grant assignment and one LOCKED
+> January timesheet).
 
 ### User story
 As a Grant Administrator, I want approved work hours rolled up by funding source, so that I can prepare accurate reimbursement support for each grant.
