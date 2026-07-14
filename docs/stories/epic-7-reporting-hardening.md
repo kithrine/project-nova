@@ -9,7 +9,7 @@ Provide pilot reporting and safely launch.
 |---|---|---|
 | 7.1 | Active placement summary | Done |
 | 7.2 | Approved hours by funding source | Done |
-| 7.3 | Shelter roster | Ready for Development |
+| 7.3 | Shelter roster | Done |
 | 7.4 | Outcome summary | Ready for Development |
 | 7.5 | Scoped exports | Blocked — pending policy validation |
 | 7.6 | Audit review | Ready for Development |
@@ -172,7 +172,29 @@ Epic 6 (locked timesheets, 6.7), Story 5.3 (funding assignment), and Story 1.8 (
 ## Story 7.3 — Shelter roster
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** `getShelterRoster` reads every HOST organization
+> in the viewer's scope — Nova viewers get all shelters INCLUDING
+> zero-placement ones (AC3's zero-count rule lives in the pure
+> `mergeSiteCounts` helper, unit-tested); a Shelter Manager gets only
+> their own organization(s). Counts cover the ACTIVE tier
+> (Onboarding/Active/Paused) via one `groupBy`; staff comes from ACTIVE
+> `SHELTER_MANAGER`/`SHELTER_SUPERVISOR` memberships only, so the query
+> can never select participant data (AC4 — plus a payload regex sweep).
+> One shared `ShelterRoster` component serves two surfaces: the
+> Operations report (`/operations/reports/shelter-roster`, index entry
+> flipped on) and the shelter experience's **Organization** page
+> (`/shelter/organization`, nav item flipped on) — the org-scoped shelter
+> surface promised in 7.1's built note. Supervisors do not hold
+> `reporting.view`, so the Organization nav item shows them the
+> Permission-denied state; the roster is a Shelter Manager surface.
+> Integration: all-orgs-with-zero-counts, ACTIVE-tier-only counting
+> (WITHDRAWN/DRAFT excluded), manager contact + ACTIVE-membership-only
+> supervisors, SM org scoping, participant/supervisor denial, no
+> participant fields. E2E: the coordinator reads both fixture shelters on
+> the ops report; the Shelter Manager's Organization page shows their own
+> shelter and never the other one.
 
 ### User story
 As a Program Coordinator, I want a roster of participating shelters, so that I can see partner capacity and engagement at a glance.

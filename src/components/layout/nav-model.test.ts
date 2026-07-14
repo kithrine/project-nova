@@ -73,7 +73,7 @@ describe("navigation models (information-architecture.md)", () => {
         "My Hours",
         "Certifications",
       ],
-      shelter: ["Dashboard", "Placements", "Timesheets"],
+      shelter: ["Dashboard", "Placements", "Timesheets", "Organization"],
       operations: ["Dashboard", "Applications", "Placements", "Reports", "Administration"],
     });
   });

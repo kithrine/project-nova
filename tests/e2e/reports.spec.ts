@@ -68,6 +68,39 @@ test("a shelter user cannot reach the operations reports area (7.1 organization 
   ).toBeVisible();
 });
 
+test("coordinator reviews the shelter roster across organizations (7.3)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  await page.goto("/operations/reports");
+  await page.getByRole("link", { name: "Shelter roster" }).click();
+  await expect(page.getByRole("heading", { name: "Shelter roster" })).toBeVisible();
+
+  // Nova sees every participating shelter — including the one with no
+  // placements, shown with numeric zero counts rather than omitted.
+  const roster = page.getByRole("list", { name: "Participating shelters" });
+  await expect(roster.getByText("E2E Test Shelter (Synthetic)")).toBeVisible();
+  await expect(roster.getByText("E2E Other Shelter (Synthetic)")).toBeVisible();
+  await expect(roster.getByText(/\d+ active of \d+ capacity/).first()).toBeVisible();
+});
+
+test("shelter manager's Organization page shows only their own shelter (7.3)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
+
+  await page.goto("/shelter/organization");
+  await expect(page.getByRole("heading", { name: "Organization" })).toBeVisible();
+
+  const roster = page.getByRole("list", { name: "Participating shelters" });
+  await expect(roster.getByText("E2E Test Shelter (Synthetic)")).toBeVisible();
+  // Organization scope: the other shelter never appears.
+  await expect(roster.getByText("E2E Other Shelter (Synthetic)")).toHaveCount(0);
+});
+
 test("grant administrator sees locked hours under the correct funding source with an exact total (7.2)", async ({
   page,
 }) => {
