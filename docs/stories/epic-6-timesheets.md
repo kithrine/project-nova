@@ -9,7 +9,7 @@ Record and approve participant work hours.
 |---|---|---|
 | 6.1 | Create weekly timesheet | Done |
 | 6.2 | Add work entries | Ready for Development |
-| 6.3 | Calculate hours server-side | Ready for Development |
+| 6.3 | Calculate hours server-side | Done |
 | 6.4 | Submit timesheet | Ready for Development |
 | 6.5 | Shelter approval | Ready for Development |
 | 6.6 | Reject for correction | Ready for Development |
@@ -137,7 +137,20 @@ The calculation algorithm itself (6.3), submission (6.4), any entry mutation on 
 ## Story 6.3 — Calculate hours server-side
 
 ### Status
-Ready for Development
+Done — built before 6.2 per the epic sequencing note
+
+> Built note: pure integer arithmetic end to end — times become minutes
+> since midnight, hours become hundredths of an hour, and the single
+> rounding moment (net minutes × 100 ÷ 60, round half-up) is documented
+> in code as the MVP convention; 7h45m = "7.75" exactly, and repeated
+> runs are bit-identical (proven 1000×). Totals sum the STORED per-entry
+> strings exactly, so the timesheet total always equals the sum of what
+> each entry displays — no re-derivation that could disagree. Midnight
+> crossing presents as end ≤ start on one calendar date and is invalid;
+> a break consuming the whole shift is invalid rather than a 0.00 entry.
+> The mutation wiring (entry saves calling this path, spoofed-hours
+> rejection) lands with 6.2, whose input shape carries no hours field at
+> all — the strongest form of "ignored".
 
 ### User story
 As a Nova engineer, I want work-entry and timesheet hours calculated and stored authoritatively on the server, so that approved hours are always accurate, tamper-proof, and safe to rely on for funding and reporting.
