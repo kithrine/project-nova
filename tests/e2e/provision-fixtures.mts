@@ -1571,6 +1571,13 @@ try {
       status: "READY_FOR_MATCHING",
     },
   });
+  // Work entries (Story 6.2), then events, then the timesheets — every
+  // child before its RESTRICT-protected parent.
+  await prisma.workEntry.deleteMany({
+    where: {
+      timesheet: { placement: { participantId: "e2e_participant_hours" } },
+    },
+  });
   await prisma.timesheetEvent.deleteMany({
     where: {
       timesheet: { placement: { participantId: "e2e_participant_hours" } },

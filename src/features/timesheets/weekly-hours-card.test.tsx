@@ -18,6 +18,7 @@ function week(overrides: Partial<MyHoursWeekView> = {}): MyHoursWeekView {
     isCurrentWeek: true,
     previousWeekIso: "2026-07-06",
     nextWeekIso: null,
+    days: [],
     ...overrides,
   };
 }
@@ -47,12 +48,28 @@ describe("WeeklyHoursCard (Story 6.1)", () => {
           totalHours: "12.50",
           isCurrentWeek: false,
           nextWeekIso: "2026-07-20",
+          days: [
+            {
+              dateIso: "2026-07-13",
+              dayLabel: "Monday, July 13",
+              entries: [
+                {
+                  id: "we_1",
+                  startTime: "08:00",
+                  endTime: "20:30",
+                  breakMinutes: 0,
+                  hours: "12.50",
+                  note: null,
+                },
+              ],
+            },
+          ],
         })}
         siteName={null}
       />,
     );
 
-    expect(screen.getByText("12.50")).toBeInTheDocument();
+    expect(screen.getByText("12.50", { exact: true })).toBeInTheDocument();
     expect(screen.queryByText(/No hours recorded yet/)).toBeNull();
     expect(screen.getByRole("link", { name: "Next week →" })).toHaveAttribute(
       "href",

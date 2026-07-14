@@ -8,7 +8,7 @@ Record and approve participant work hours.
 | ID | Story | Status |
 |---|---|---|
 | 6.1 | Create weekly timesheet | Done |
-| 6.2 | Add work entries | Ready for Development |
+| 6.2 | Add work entries | Done |
 | 6.3 | Calculate hours server-side | Done |
 | 6.4 | Submit timesheet | Ready for Development |
 | 6.5 | Shelter approval | Ready for Development |
@@ -89,7 +89,24 @@ Epic 5 (Active Placement — an `ACTIVE` placement with a schedule must exist; `
 ## Story 6.2 — Add work entries
 
 ### Status
-Ready for Development
+Done
+
+> Built note: WorkEntry is a pure child of the Timesheet aggregate; the
+> write contract carries NO hours field, so a spoofed value has nowhere
+> to enter — proven by an integration test passing extraneous
+> hours/totalHours through a cast and asserting the stored values are
+> the 6.3-computed ones (that test also satisfies 6.3's integration
+> AC). Every mutation revalidates ownership (Person → Participant) and
+> the DRAFT/REJECTED window server-side; inside the transaction a
+> status-guarded no-op update turns an entry save racing a submission
+> into a clean conflict. Totals always recompute from the CURRENT full
+> entry set — never incremental. Removal is a hard delete of
+> pre-submission working data (the auditable record is the submitted
+> week; post-submission entries are immutable through every path) —
+> the story's "archives" wording resolved in favor of the simpler
+> honest model, documented here. E2E self-heals on retry by clearing
+> leftover entries before the deterministic add→invalid→correct→edit→
+> remove cycle.
 
 ### User story
 As a participant, I want to add my worked hours for each day of the week to my timesheet, so that my shelter supervisor has an accurate record to review.

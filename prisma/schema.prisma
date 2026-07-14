@@ -1056,13 +1056,39 @@ model Timesheet {
   rejectedAt  DateTime?
   lockedAt    DateTime?
 
-  events TimesheetEvent[]
+  entries WorkEntry[]
+  events  TimesheetEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([placementId, weekStartDate])
   @@index([placementId])
+}
+
+// One worked shift on a timesheet (Story 6.2) — a child of the
+// Timesheet aggregate, never its own boundary (domain-model.md). More
+// than one entry per day is allowed (split shifts). hours is ALWAYS
+// server-computed from start/end/break by the 6.3 calculation path —
+// the write contract carries no client hours field at all. Editable
+// only while the timesheet is DRAFT or REJECTED (business-rules.md);
+// entries on a submitted week are immutable through every path.
+model WorkEntry {
+  id          String    @id @default(cuid())
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
+
+  workDate     DateTime @db.Date
+  startTime    String
+  endTime      String
+  breakMinutes Int      @default(0)
+  hours        Decimal  @db.Decimal(5, 2)
+  note         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([timesheetId])
 }
 
 // Append-only lifecycle event for one Timesheet transition, written

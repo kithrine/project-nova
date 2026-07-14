@@ -170,6 +170,10 @@ export const PERMISSIONS = [
   // the service to the participant's OWN placement (Person ->
   // Participant chain) and business-gated to an ACTIVE placement.
   "timesheet.create",
+  // Work entries (Story 6.2): add/edit/remove on the participant's OWN
+  // timesheet, lifecycle-gated to DRAFT or REJECTED server-side on
+  // every mutation (business-rules.md).
+  "timesheet.edit",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -179,7 +183,7 @@ export type Permission = (typeof PERMISSIONS)[number];
  * is denied. Never derived from client input or Clerk claims (ADR-004).
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  [Role.PARTICIPANT]: ["organization.view", "timesheet.create"],
+  [Role.PARTICIPANT]: ["organization.view", "timesheet.create", "timesheet.edit"],
   [Role.SHELTER_SUPERVISOR]: [
     "organization.view",
     "placementMatch.view",

@@ -14,7 +14,19 @@ import {
   weekEndFor,
   weekLabel,
 } from "@/server/domain/timesheet";
-import { AuthorizationError } from "@/server/errors/app-error";
+import {
+  hoursStringFromHundredths,
+  shiftHourHundredths,
+  shiftValidationError,
+  totalHoursString,
+} from "@/server/domain/work-hours";
+import {
+  AuthorizationError,
+  ConflictError,
+  LifecycleError,
+  NotFoundError,
+  ValidationError,
+} from "@/server/errors/app-error";
 
 /**
  * TimesheetService (Epic 6; api-service-design.md). Story 6.1 owns the
@@ -24,6 +36,23 @@ import { AuthorizationError } from "@/server/errors/app-error";
  * never part of the contract (AC6). Weeks are Monday-Sunday; at most one
  * timesheet per placement per week, backed by the unique constraint.
  */
+
+export interface WorkEntryView {
+  id: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  /** Server-computed Decimal-shaped string (Story 6.3). */
+  hours: string;
+  note: string | null;
+}
+
+export interface WeekDayView {
+  dateIso: string;
+  /** "Monday, July 13" */
+  dayLabel: string;
+  entries: WorkEntryView[];
+}
 
 export interface MyHoursWeekView {
   /** Null when the requested week cannot hold a timesheet (with reason). */
@@ -41,6 +70,8 @@ export interface MyHoursWeekView {
   previousWeekIso: string;
   /** Null at the current week — future weeks are never navigable (AC4). */
   nextWeekIso: string | null;
+  /** The week's seven days with entries, oldest day first (Story 6.2). */
+  days: WeekDayView[];
 }
 
 export interface MyHoursView {
@@ -140,6 +171,7 @@ export async function getOrCreateOwnTimesheet(
           totalHours: null,
           editable: false,
           blockedReason,
+          days: [],
         },
         siteName: placement.organizationSite.name,
         organizationName: placement.organizationSite.organization.name,
@@ -182,6 +214,35 @@ export async function getOrCreateOwnTimesheet(
     }
   }
 
+  const entries = await prisma.workEntry.findMany({
+    where: { timesheetId: timesheet.id },
+    orderBy: [{ workDate: "asc" }, { startTime: "asc" }],
+  });
+  const days: WeekDayView[] = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = new Date(weekStart.getTime() + offset * 86_400_000);
+    const dateIso = isoDate(date);
+    days.push({
+      dateIso,
+      dayLabel: date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+      entries: entries
+        .filter((entry) => isoDate(entry.workDate) === dateIso)
+        .map((entry) => ({
+          id: entry.id,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+          breakMinutes: entry.breakMinutes,
+          hours: entry.hours.toFixed(2),
+          note: entry.note,
+        })),
+    });
+  }
+
   return {
     week: {
       ...base,
@@ -191,8 +252,207 @@ export async function getOrCreateOwnTimesheet(
       totalHours: timesheet.totalHours.toFixed(2),
       editable: PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status),
       blockedReason: null,
+      days,
     },
     siteName: placement.organizationSite.name,
     organizationName: placement.organizationSite.organization.name,
   };
+}
+
+// --- Work entries (Story 6.2) ---------------------------------------------------
+
+export interface WorkEntryInput {
+  workDate: Date;
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  note: string | null;
+}
+
+/**
+ * Resolve a timesheet the authenticated participant OWNS and may edit:
+ * permission, Person -> Participant ownership, and the DRAFT/REJECTED
+ * lifecycle window, enforced on every mutation server-side (AC2) — the
+ * client id is only ever a lookup key, never trusted for scope.
+ */
+async function loadOwnEditableTimesheet(ctx: AuthContext, timesheetId: string) {
+  if (!hasPermission(ctx, "timesheet.edit")) {
+    throw new AuthorizationError();
+  }
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: {
+      id: true,
+      status: true,
+      weekStartDate: true,
+      weekEndDate: true,
+      placement: {
+        select: {
+          participant: { select: { person: { select: { userId: true } } } },
+        },
+      },
+    },
+  });
+  if (!timesheet || timesheet.placement.participant.person.userId !== ctx.userId) {
+    throw new NotFoundError();
+  }
+  if (!PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status)) {
+    throw new LifecycleError(
+      "Hours can't be changed after submission — your supervisor is reviewing them.",
+    );
+  }
+  return timesheet;
+}
+
+function validateEntryInput(
+  timesheet: { weekStartDate: Date; weekEndDate: Date },
+  input: WorkEntryInput,
+): string {
+  if (Number.isNaN(input.workDate.getTime())) {
+    return "Pick the day you worked.";
+  }
+  const day = input.workDate.getTime();
+  if (
+    day < timesheet.weekStartDate.getTime() ||
+    day > timesheet.weekEndDate.getTime()
+  ) {
+    return "Pick a day inside this timesheet's week.";
+  }
+  const shiftProblem = shiftValidationError({
+    startTime: input.startTime,
+    endTime: input.endTime,
+    breakMinutes: input.breakMinutes,
+  });
+  if (shiftProblem) return shiftProblem;
+  if (input.note && input.note.length > 500) {
+    return "Keep the note under 500 characters.";
+  }
+  return "";
+}
+
+/**
+ * Recompute the timesheet total from the CURRENT full set of entries
+ * (AC6) — never adjusted incrementally, never client-supplied. The
+ * status re-check inside the transaction turns an entry save racing a
+ * submission into a clean conflict instead of a silent post-submit edit.
+ */
+async function applyEntryMutation(
+  ctx: AuthContext,
+  timesheetId: string,
+  mutate: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const guarded = await tx.timesheet.updateMany({
+      where: {
+        id: timesheetId,
+        status: { in: [...PARTICIPANT_EDITABLE_TIMESHEET_STATUSES] },
+      },
+      data: {},
+    });
+    if (guarded.count === 0) {
+      throw new ConflictError(
+        "This timesheet changed while you were working. Refresh to see its latest state.",
+      );
+    }
+    await mutate(tx);
+    const entries = await tx.workEntry.findMany({
+      where: { timesheetId },
+      select: { hours: true },
+    });
+    await tx.timesheet.update({
+      where: { id: timesheetId },
+      data: {
+        totalHours: totalHoursString(
+          entries.map((entry) => entry.hours.toFixed(2)),
+        ),
+      },
+    });
+  });
+}
+
+/** Add a worked shift (AC1) — hours computed by the 6.3 path, only. */
+export async function addWorkEntry(
+  ctx: AuthContext,
+  timesheetId: string,
+  input: WorkEntryInput,
+): Promise<void> {
+  const timesheet = await loadOwnEditableTimesheet(ctx, timesheetId);
+  const problem = validateEntryInput(timesheet, input);
+  if (problem) throw new ValidationError(problem);
+
+  const hours = hoursStringFromHundredths(
+    shiftHourHundredths({
+      startTime: input.startTime,
+      endTime: input.endTime,
+      breakMinutes: input.breakMinutes,
+    }),
+  );
+  await applyEntryMutation(ctx, timesheetId, async (tx) => {
+    await tx.workEntry.create({
+      data: {
+        timesheetId,
+        workDate: input.workDate,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        breakMinutes: input.breakMinutes,
+        hours,
+        note: input.note?.trim() ? input.note.trim() : null,
+      },
+    });
+  });
+}
+
+/** Edit a shift (AC6): full revalidation, recomputed hours and total. */
+export async function updateWorkEntry(
+  ctx: AuthContext,
+  entryId: string,
+  input: WorkEntryInput,
+): Promise<void> {
+  const entry = await prisma.workEntry.findUnique({
+    where: { id: entryId },
+    select: { id: true, timesheetId: true },
+  });
+  if (!entry) throw new NotFoundError();
+  const timesheet = await loadOwnEditableTimesheet(ctx, entry.timesheetId);
+  const problem = validateEntryInput(timesheet, input);
+  if (problem) throw new ValidationError(problem);
+
+  const hours = hoursStringFromHundredths(
+    shiftHourHundredths({
+      startTime: input.startTime,
+      endTime: input.endTime,
+      breakMinutes: input.breakMinutes,
+    }),
+  );
+  await applyEntryMutation(ctx, entry.timesheetId, async (tx) => {
+    await tx.workEntry.update({
+      where: { id: entryId },
+      data: {
+        workDate: input.workDate,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        breakMinutes: input.breakMinutes,
+        hours,
+        note: input.note?.trim() ? input.note.trim() : null,
+      },
+    });
+  });
+}
+
+/**
+ * Remove a shift from a DRAFT/REJECTED week (AC6). Pre-submission
+ * working data: the auditable record is the submitted timesheet, and
+ * post-submission entries are immutable through every path (AC2).
+ */
+export async function removeWorkEntry(ctx: AuthContext, entryId: string): Promise<void> {
+  const entry = await prisma.workEntry.findUnique({
+    where: { id: entryId },
+    select: { id: true, timesheetId: true },
+  });
+  if (!entry) throw new NotFoundError();
+  await loadOwnEditableTimesheet(ctx, entry.timesheetId);
+
+  await applyEntryMutation(ctx, entry.timesheetId, async (tx) => {
+    await tx.workEntry.delete({ where: { id: entryId } });
+  });
 }
