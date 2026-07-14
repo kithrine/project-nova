@@ -580,6 +580,7 @@ model Placement {
   evaluations        Evaluation[]
   incidents          Incident[]
   employmentOutcome  EmploymentOutcome?
+  timesheets         Timesheet[]
 
   events PlacementEvent[]
 
@@ -1017,6 +1018,69 @@ model TrainingEnrollmentEvent {
   createdAt DateTime @default(now())
 
   @@index([trainingEnrollmentId])
+}
+
+// --- Timesheets (Epic 6) --------------------------------------------------------
+
+// The full lifecycle enum arrives with 6.1 (business-rules.md); later
+// stories drive the transitions: 6.4 submits, 6.5 approves, 6.6 rejects
+// back to the participant-editable window, 6.7 locks terminally.
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+// One participant week of work hours against one placement (Story 6.1).
+// Get-or-create, idempotent: at most one per placement per week,
+// enforced by the unique below. Weeks run Monday-Sunday (fixed MVP
+// convention); weekStartDate is always that Monday. totalHours is
+// Decimal and ALWAYS server-computed (Story 6.3) — no client value is
+// ever trusted or stored verbatim (RULES.md).
+model Timesheet {
+  id          String    @id @default(cuid())
+  placementId String
+  placement   Placement @relation(fields: [placementId], references: [id])
+
+  weekStartDate DateTime @db.Date
+  weekEndDate   DateTime @db.Date
+
+  status     TimesheetStatus @default(DRAFT)
+  totalHours Decimal         @default(0) @db.Decimal(5, 2)
+
+  // Stamped as each lifecycle stage is reached; null until then.
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  lockedAt    DateTime?
+
+  events TimesheetEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([placementId, weekStartDate])
+  @@index([placementId])
+}
+
+// Append-only lifecycle event for one Timesheet transition, written
+// transactionally with the change — the same pattern as every workflow
+// aggregate. fromStatus is null for the creation event.
+model TimesheetEvent {
+  id          String    @id @default(cuid())
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
+
+  fromStatus  TimesheetStatus?
+  toStatus    TimesheetStatus
+  actorUserId String
+  detail      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([timesheetId])
 }
 
 // --- Employment outcomes (Story 5.8) -------------------------------------------

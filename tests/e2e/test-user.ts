@@ -38,6 +38,14 @@ export const E2E_RRS_USER_EMAIL =
   process.env.E2E_CLERK_RRS_USER_EMAIL ?? "e2e-rrs+clerk_test@example.com";
 
 /**
+ * Second participant, holding an ACTIVE placement (Epic 6): the My Hours
+ * fixture login. Parker keeps the ONBOARDING placement several specs
+ * depend on; Harper records hours.
+ */
+export const E2E_HOURS_USER_EMAIL =
+  process.env.E2E_CLERK_HOURS_USER_EMAIL ?? "e2e-hours+clerk_test@example.com";
+
+/**
  * Fresh applicant (Story 2.2): exists in Clerk only — the fixture script
  * deletes this user's internal rows each run so every E2E run exercises
  * provision-on-first-sign-in and the onboarding flow from scratch.
