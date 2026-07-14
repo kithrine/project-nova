@@ -11,13 +11,13 @@ Provide pilot reporting and safely launch.
 | 7.2 | Approved hours by funding source | Done |
 | 7.3 | Shelter roster | Done |
 | 7.4 | Outcome summary | Done |
-| 7.5 | Scoped exports | Blocked — pending policy validation |
+| 7.5 | Scoped exports | Done |
 | 7.6 | Audit review | Done |
 | 7.7 | Accessibility hardening | Ready for Development |
 | 7.8 | Security tests | Ready for Development |
 | 7.9 | Production launch checklist | Ready for Development |
 
-> Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate). 7.5 remains Blocked on retention periods (open question #7) — its export field sets follow `ADR-020`'s allow-list principle when built; see each story's Dependencies.
+> Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate), and 7.5 on the same day by `ADR-021` (provisional retention schedule; exports are ephemeral and never stored) — both keep counsel/award validation as launch gates; see each story's Dependencies.
 
 ---
 
@@ -307,7 +307,31 @@ Epic 5 (terminal placements and `EmploymentOutcome`), Epic 3 (certifications), a
 ## Story 7.5 — Scoped exports
 
 ### Status
-Blocked — pending policy validation
+Done — unblocked by `ADR-021` (provisional retention schedule; ephemeral exports)
+
+> **Built (2026-07-14):** four named exports over the 7.1–7.4 reports,
+> each a **fixed field allow-list** (`EXPORT_DEFINITIONS`) rendered by a
+> pure, hardened CSV writer (RFC-4180 quoting, CRLF, spreadsheet
+> formula-injection guard — unit-tested). `runNamedExport` requires the
+> new `report.export` permission (Grant Administrator and Nova
+> Administrator only; registry sweep) plus Nova scope, builds rows from
+> the role-shaped report views (restricted fields excluded by
+> construction), **writes the audit event that is the export's durable
+> record** (action `report.export`, subject `Export/<key>`, detail =
+> name + period; AC2), and returns the CSV. **Deviation from the
+> original scope sketch:** per `ADR-021`, exports are generated on
+> demand by the Route Handler (`/api/exports/[exportKey]`) and streamed
+> with `no-store` — never written to object storage, so no artifact
+> retention exists and the audit trail is the record. Denied callers get
+> neither a file nor an audit event (AC4, integration-proven). The
+> picker (`/operations/reports/exports`, restricted) makes the
+> disclosure itself the confirmation step: the complete field list and
+> the audit notice precede the download control; the hours export
+> carries `ADR-020`'s provisional note. E2E closes 7.6's deferred
+> journey: the Grant Administrator downloads the shelter roster, reads
+> the CSV's exact allow-listed header, then finds the `report.export`
+> event in Audit review; a coordinator is denied at both the page and
+> the Route Handler.
 
 ### User story
 As a Grant Administrator, I want to export scoped report data, so that I can share required information with funders without exposing restricted details.

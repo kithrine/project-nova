@@ -209,6 +209,12 @@ export const PERMISSIONS = [
   // Administrator (whose compliance duty the trail serves). Never
   // coordinators, shelter roles, participants, or RRS.
   "audit.view",
+  // Named exports (Story 7.5, ADR-021): moving data OUT of the system is
+  // its own privilege — Grant Administrator and Nova Administrator only
+  // in MVP. Every export writes an audit event; exports are ephemeral
+  // (streamed, never stored). Org-scoped shelter exports are a future
+  // grant, not an MVP one.
+  "report.export",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -304,6 +310,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.lock",
     "reporting.view",
     "audit.view",
+    "report.export",
   ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
@@ -350,6 +357,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.lock",
     "reporting.view",
     "audit.view",
+    "report.export",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.

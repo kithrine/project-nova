@@ -241,4 +241,14 @@ describe("permissionsForRoles (deny-by-default)", () => {
       );
     }
   });
+
+  it("restricts named exports to the Grant Administrator and Nova Administrator (7.5)", () => {
+    for (const role of Object.values(Role)) {
+      const expected =
+        role === Role.NOVA_ADMINISTRATOR || role === Role.GRANT_ADMINISTRATOR;
+      expect(permissionsForRoles([role]).has("report.export"), `role ${role}`).toBe(
+        expected,
+      );
+    }
+  });
 });

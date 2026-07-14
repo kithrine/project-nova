@@ -46,6 +46,13 @@ const REPORTS: ReadonlyArray<{
     href: "/operations/reports/outcome-summary",
     available: true,
   },
+  {
+    title: "Exports",
+    description:
+      "Named CSV exports with fixed field sets; every download is audited (restricted).",
+    href: "/operations/reports/exports",
+    available: true,
+  },
 ];
 
 export default async function ReportsPage() {
