@@ -17,6 +17,7 @@ import {
   E2E_GRANT_ADMIN_USER_EMAIL,
   E2E_OPS_USER_EMAIL,
   E2E_OTHER_MANAGER_USER_EMAIL,
+  E2E_HOURS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
   E2E_RRS_USER_EMAIL,
   E2E_SHELTER_MANAGER_USER_EMAIL,
@@ -78,6 +79,12 @@ const FIXTURE_USERS: FixtureUser[] = [
     email: E2E_PARTICIPANT_USER_EMAIL,
     internalId: "e2e_user_participant",
     displayName: "Synthetic E2E Participant",
+    membership: { organizationId: "e2e_org_nova", role: Role.PARTICIPANT },
+  },
+  {
+    email: E2E_HOURS_USER_EMAIL,
+    internalId: "e2e_user_hours",
+    displayName: "Synthetic E2E Hours",
     membership: { organizationId: "e2e_org_nova", role: Role.PARTICIPANT },
   },
   {
@@ -1514,6 +1521,116 @@ try {
   await prisma.placementEvent.create({
     data: {
       placementId: "e2e_placement_convert",
+      fromStatus: "ONBOARDING",
+      toStatus: "ACTIVE",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+
+  // My Hours fixture (Story 6.1): HARPER — the second Clerk participant
+  // login — holds an ACTIVE placement so timesheets are E2E-testable
+  // without disturbing Parker's ONBOARDING fixture. Timesheets reset each
+  // run; the placement is recreated ACTIVE with a start date in the past
+  // so prior-week navigation has room.
+  await prisma.person.upsert({
+    where: { userId: "e2e_user_hours" },
+    update: {},
+    create: {
+      id: "e2e_person_hours",
+      userId: "e2e_user_hours",
+      legalFirstName: "Harper",
+      legalLastName: "Synthetic-Hours",
+      dateOfBirth: new Date("1998-08-08T00:00:00Z"),
+    },
+  });
+  await prisma.application.upsert({
+    where: { id: "e2e_app_hours" },
+    update: {},
+    create: {
+      id: "e2e_app_hours",
+      personId: "e2e_person_hours",
+      applicationNumber: "APP-E2E-HOURS01",
+      status: ApplicationStatus.ACCEPTED,
+      submittedAt: new Date(),
+      decidedAt: new Date(),
+    },
+  });
+  await prisma.participant.upsert({
+    where: { personId: "e2e_person_hours" },
+    update: {},
+    create: { id: "e2e_participant_hours", personId: "e2e_person_hours" },
+  });
+  await prisma.programEnrollment.upsert({
+    where: { applicationId: "e2e_app_hours" },
+    update: { status: "READY_FOR_MATCHING" },
+    create: {
+      id: "e2e_enrollment_hours",
+      participantId: "e2e_participant_hours",
+      programId: "e2e_program_readiness",
+      applicationId: "e2e_app_hours",
+      status: "READY_FOR_MATCHING",
+    },
+  });
+  await prisma.timesheetEvent.deleteMany({
+    where: {
+      timesheet: { placement: { participantId: "e2e_participant_hours" } },
+    },
+  });
+  await prisma.timesheet.deleteMany({
+    where: { placement: { participantId: "e2e_participant_hours" } },
+  });
+  await prisma.placementEvent.deleteMany({
+    where: { placement: { participantId: "e2e_participant_hours" } },
+  });
+  await prisma.placement.deleteMany({
+    where: { participantId: "e2e_participant_hours" },
+  });
+  await prisma.placementMatchEvent.deleteMany({
+    where: { placementMatch: { participantId: "e2e_participant_hours" } },
+  });
+  await prisma.placementMatch.deleteMany({
+    where: { participantId: "e2e_participant_hours" },
+  });
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_hours_src",
+      participantId: "e2e_participant_hours",
+      programEnrollmentId: "e2e_enrollment_hours",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "APPROVED",
+      participantDecision: "ACCEPTED",
+      shelterDecision: "APPROVED",
+      approvedAt: new Date(),
+      approvedByUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placement.create({
+    data: {
+      id: "e2e_placement_hours",
+      placementNumber: "PLC-E2E-HARPER1",
+      participantId: "e2e_participant_hours",
+      programEnrollmentId: "e2e_enrollment_hours",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      sourceMatchId: "e2e_match_hours_src",
+      status: "ACTIVE",
+      supervisorId: "e2e_user_shelter",
+      schedule: "Tue/Thu mornings",
+      startDate: new Date("2026-06-01T00:00:00Z"),
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_hours",
+      fromStatus: null,
+      toStatus: "DRAFT",
+      actorUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.placementEvent.create({
+    data: {
+      placementId: "e2e_placement_hours",
       fromStatus: "ONBOARDING",
       toStatus: "ACTIVE",
       actorUserId: "e2e_user_ops",

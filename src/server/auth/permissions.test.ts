@@ -144,6 +144,15 @@ describe("permissionsForRoles (deny-by-default)", () => {
     }
   });
 
+  it("grants timesheet.create to participants alone — ownership still scopes every use (6.1)", () => {
+    for (const role of Object.values(Role)) {
+      expect(
+        permissionsForRoles([role]).has("timesheet.create"),
+        `timesheet.create for ${role}`,
+      ).toBe(role === Role.PARTICIPANT);
+    }
+  });
+
   it("keeps terminal outcomes to PC and NA — placement.complete and placement.terminate (5.8; ADR-018)", () => {
     for (const role of Object.values(Role)) {
       const granted = permissionsForRoles([role]);

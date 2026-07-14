@@ -7,7 +7,7 @@ Record and approve participant work hours.
 
 | ID | Story | Status |
 |---|---|---|
-| 6.1 | Create weekly timesheet | Ready for Development |
+| 6.1 | Create weekly timesheet | Done |
 | 6.2 | Add work entries | Ready for Development |
 | 6.3 | Calculate hours server-side | Ready for Development |
 | 6.4 | Submit timesheet | Ready for Development |
@@ -22,7 +22,24 @@ Record and approve participant work hours.
 ## Story 6.1 — Create weekly timesheet
 
 ### Status
-Ready for Development
+Done
+
+> Built note: Timesheet + TimesheetEvent landed together (the full
+> status enum with 6.1, the append-only event trail from creation — the
+> house aggregate pattern) with the (placementId, weekStartDate) unique
+> constraint as the idempotency backstop; the double-open race resolves
+> by catching P2002 and refetching the winner. All week math is UTC
+> Monday arithmetic in domain code (mondayOfWeek/parseWeekParam — a
+> non-Monday or malformed ?week= falls back to the current week rather
+> than trusting client input). timesheet.create is the participant
+> tier's first role-granted write, still ownership-resolved through the
+> Person → Participant chain on every call: the service accepts no
+> placement or participant id (AC6 by construction). Existing weeks
+> stay readable after the placement leaves ACTIVE; only NEW creation is
+> gated. totalHours renders via Decimal.toFixed(2) — string-shaped end
+> to end. E2E rides a new second Clerk participant (Harper,
+> e2e_placement_hours, ACTIVE) so Parker's ONBOARDING fixture — which
+> five other specs depend on — stays untouched.
 
 ### User story
 As a participant with an active placement, I want this week's timesheet ready when I go to record my hours, so that I don't have to set anything up myself before I can log my time.

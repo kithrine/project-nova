@@ -165,6 +165,11 @@ export const PERMISSIONS = [
   // incidents or case notes — no termination capability, ever.
   "placement.complete",
   "placement.terminate",
+  // Weekly timesheets (Story 6.1): the participant tier's first true
+  // role grant with a write — always additionally resource-scoped by
+  // the service to the participant's OWN placement (Person ->
+  // Participant chain) and business-gated to an ACTIVE placement.
+  "timesheet.create",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -174,7 +179,7 @@ export type Permission = (typeof PERMISSIONS)[number];
  * is denied. Never derived from client input or Clerk claims (ADR-004).
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  [Role.PARTICIPANT]: ["organization.view"],
+  [Role.PARTICIPANT]: ["organization.view", "timesheet.create"],
   [Role.SHELTER_SUPERVISOR]: [
     "organization.view",
     "placementMatch.view",
