@@ -10,7 +10,7 @@ Provide pilot reporting and safely launch.
 | 7.1 | Active placement summary | Done |
 | 7.2 | Approved hours by funding source | Done |
 | 7.3 | Shelter roster | Done |
-| 7.4 | Outcome summary | Ready for Development |
+| 7.4 | Outcome summary | Done |
 | 7.5 | Scoped exports | Blocked — pending policy validation |
 | 7.6 | Audit review | Ready for Development |
 | 7.7 | Accessibility hardening | Ready for Development |
@@ -241,7 +241,26 @@ Epic 1 (organizations, sites, memberships), Epic 5 (placements for counts), and 
 ## Story 7.4 — Outcome summary
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** `getOutcomeSummary` — one `groupBy` over the
+> four terminal placement statuses plus a certification count, Nova scope
+> only, aggregates only (the query cannot select participant rows; the
+> integration payload sweep and an exact key-shape assertion prove it).
+> Date scoping uses each placement's terminal effective date (`endDate`,
+> written by every 5.8 transition) and `Certification.issuedOn`; the
+> default is **program to date** (`parseOptionalReportRange` — null means
+> unbounded; only a complete valid ordered pair narrows). Zero-filled
+> counts in canonical order come from the pure `buildOutcomeCounts`
+> (a category with no placements shows 0, never disappears). The page
+> (`/operations/reports/outcome-summary`) renders icon-plus-text cards
+> with neutral one-line descriptions ("Participants who chose to step
+> away.", "Placements ended by Nova Operations."), a date form with a
+> program-to-date reset, and the component test asserts no stigmatizing
+> language renders (AC3). E2E: fixtures add Harper's COMPLETED placement
+> (endDate 2026-02-10) and one February credential — a period no journey
+> spec writes into — so the coordinator reads exact counts (Completed 1,
+> Credentials 1, Withdrawn 0).
 
 ### User story
 As a Nova Administrator, I want a summary of participant outcomes, so that I can report program impact to funders and stakeholders.

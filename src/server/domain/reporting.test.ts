@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { TimesheetStatus } from "@/generated/prisma/enums";
+import { PlacementStatus, TimesheetStatus } from "@/generated/prisma/enums";
 
 import {
+  buildOutcomeCounts,
   mergeSiteCounts,
   mondayWithinRange,
+  parseOptionalReportRange,
   parseReportRange,
   rollupHoursByFunding,
 } from "./reporting";
@@ -123,6 +125,53 @@ describe("rollupHoursByFunding (exact Decimal grouping)", () => {
     expect(rollup.groups).toHaveLength(1);
     expect(rollup.groups[0].placementCount).toBe(1);
     expect(rollup.groups[0].lockedHours).toBe("8.00");
+  });
+});
+
+describe("parseOptionalReportRange (Story 7.4 — cumulative default)", () => {
+  it("uses a complete valid range", () => {
+    expect(parseOptionalReportRange({ from: "2026-02-01", to: "2026-02-28" })).toEqual({
+      fromIso: "2026-02-01",
+      toIso: "2026-02-28",
+      fromParams: true,
+    });
+  });
+
+  it("stays cumulative (null) for missing, partial, malformed, or inverted params", () => {
+    for (const params of [
+      {},
+      { from: "2026-02-01" },
+      { to: "2026-02-28" },
+      { from: "bad", to: "2026-02-28" },
+      { from: "2026-02-30", to: "2026-03-05" }, // Feb 30 does not exist
+      { from: "2026-03-05", to: "2026-02-01" }, // inverted
+    ]) {
+      expect(parseOptionalReportRange(params), JSON.stringify(params)).toBeNull();
+    }
+  });
+});
+
+describe("buildOutcomeCounts (Story 7.4)", () => {
+  it("zero-fills all four terminal outcomes in canonical order", () => {
+    const counts = buildOutcomeCounts([
+      { status: PlacementStatus.TERMINATED, count: 2 },
+      { status: PlacementStatus.COMPLETED, count: 5 },
+    ]);
+    expect(counts).toEqual([
+      { status: PlacementStatus.COMPLETED, count: 5 },
+      { status: PlacementStatus.CONVERTED_TO_PERMANENT, count: 0 },
+      { status: PlacementStatus.WITHDRAWN, count: 0 },
+      { status: PlacementStatus.TERMINATED, count: 2 },
+    ]);
+  });
+
+  it("ignores non-terminal statuses by construction", () => {
+    const counts = buildOutcomeCounts([
+      { status: PlacementStatus.ACTIVE, count: 9 },
+      { status: PlacementStatus.DRAFT, count: 3 },
+    ]);
+    expect(counts.every((entry) => entry.count === 0)).toBe(true);
+    expect(counts).toHaveLength(4);
   });
 });
 

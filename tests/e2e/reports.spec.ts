@@ -101,6 +101,39 @@ test("shelter manager's Organization page shows only their own shelter (7.3)", a
   await expect(roster.getByText("E2E Other Shelter (Synthetic)")).toHaveCount(0);
 });
 
+test("coordinator reads exact outcome counts for the fixture period (7.4)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_OPS_USER_EMAIL);
+
+  await page.goto("/operations/reports");
+  await page.getByRole("link", { name: "Outcome summary" }).click();
+  await expect(page.getByRole("heading", { name: "Outcome summary" })).toBeVisible();
+  await expect(page.getByText("Program to date.")).toBeVisible();
+
+  // February 2026 holds exactly one fixture outcome (Harper's COMPLETED
+  // placement, endDate 2026-02-10) and one fixture credential — no
+  // journey spec writes terminal outcomes into that period.
+  const periodForm = page.getByRole("form", { name: "Reporting period" });
+  await periodForm.getByLabel("From").fill("2026-02-01");
+  await periodForm.getByLabel("To").fill("2026-02-28");
+  await page.getByRole("button", { name: "Apply period" }).click();
+  await page.waitForURL(/from=2026-02-01/);
+
+  const cards = page.getByRole("list", { name: "Outcome counts" });
+  await expect(
+    cards.locator("li", { hasText: "Completed" }).getByText("1", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    cards.locator("li", { hasText: "Credentials earned" }).getByText("1", { exact: true }),
+  ).toBeVisible();
+  // Zero-count outcomes render as cards rather than disappearing.
+  await expect(
+    cards.locator("li", { hasText: "Withdrawn" }).getByText("0", { exact: true }),
+  ).toBeVisible();
+});
+
 test("grant administrator sees locked hours under the correct funding source with an exact total (7.2)", async ({
   page,
 }) => {
