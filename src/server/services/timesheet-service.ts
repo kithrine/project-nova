@@ -72,6 +72,12 @@ export interface MyHoursWeekView {
   nextWeekIso: string | null;
   /** The week's seven days with entries, oldest day first (Story 6.2). */
   days: WeekDayView[];
+  /** The Submit control renders (Story 6.4): DRAFT/REJECTED weeks. */
+  viewerCanSubmit: boolean;
+  /** Why Submit is disabled (shown, not hidden), or null when armed. */
+  submitDisabledReason: string | null;
+  /** Plain-language what-happens-next for post-submission statuses. */
+  statusNote: string | null;
 }
 
 export interface MyHoursView {
@@ -172,6 +178,9 @@ export async function getOrCreateOwnTimesheet(
           editable: false,
           blockedReason,
           days: [],
+          viewerCanSubmit: false,
+          submitDisabledReason: null,
+          statusNote: null,
         },
         siteName: placement.organizationSite.name,
         organizationName: placement.organizationSite.organization.name,
@@ -243,6 +252,8 @@ export async function getOrCreateOwnTimesheet(
     });
   }
 
+  const hasEntries = entries.length > 0;
+  const editable = PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status);
   return {
     week: {
       ...base,
@@ -250,13 +261,110 @@ export async function getOrCreateOwnTimesheet(
       statusKey: timesheet.status,
       statusLabel: TIMESHEET_STATUS_LABELS[timesheet.status],
       totalHours: timesheet.totalHours.toFixed(2),
-      editable: PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status),
+      editable,
       blockedReason: null,
       days,
+      viewerCanSubmit: editable,
+      submitDisabledReason:
+        editable && !hasEntries
+          ? "Add at least one work day before submitting."
+          : null,
+      statusNote:
+        timesheet.status === TimesheetStatus.SUBMITTED
+          ? "Your hours were submitted for review — your supervisor will take it from here."
+          : timesheet.status === TimesheetStatus.APPROVED ||
+              timesheet.status === TimesheetStatus.LOCKED
+            ? "Your hours for this week were approved."
+            : timesheet.status === TimesheetStatus.REJECTED
+              ? "Your supervisor asked for a correction — you can edit your entries and resubmit."
+              : null,
     },
     siteName: placement.organizationSite.name,
     organizationName: placement.organizationSite.organization.name,
   };
+}
+
+// --- Submission (Story 6.4) -----------------------------------------------------
+
+/**
+ * Submit the participant's own week for review (AC1/AC3): DRAFT or
+ * REJECTED only — resubmission reuses this same action — with at least
+ * one entry. One transaction: the total is recalculated FRESH from the
+ * current entries (never the last-saved value), the compare-and-set
+ * turns a replayed or racing submit into a clean lifecycle conflict
+ * (AC4), and the lifecycle event + audit event commit with the status
+ * change (AC5). Prior rejection history lives in the append-only event
+ * trail and is never discarded.
+ */
+export async function submitOwnTimesheet(
+  ctx: AuthContext,
+  timesheetId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "timesheet.submit")) {
+    throw new AuthorizationError();
+  }
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: {
+      id: true,
+      status: true,
+      placement: {
+        select: {
+          participant: { select: { person: { select: { userId: true } } } },
+        },
+      },
+    },
+  });
+  if (!timesheet || timesheet.placement.participant.person.userId !== ctx.userId) {
+    throw new NotFoundError();
+  }
+  if (!PARTICIPANT_EDITABLE_TIMESHEET_STATUSES.includes(timesheet.status)) {
+    throw new LifecycleError(
+      "This week was already submitted — your supervisor is reviewing it.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const entries = await tx.workEntry.findMany({
+      where: { timesheetId },
+      select: { hours: true },
+    });
+    if (entries.length === 0) {
+      throw new ValidationError("Add at least one work day before submitting.");
+    }
+    const total = totalHoursString(entries.map((entry) => entry.hours.toFixed(2)));
+
+    const updated = await tx.timesheet.updateMany({
+      where: { id: timesheetId, status: timesheet.status },
+      data: {
+        status: TimesheetStatus.SUBMITTED,
+        submittedAt: new Date(),
+        totalHours: total,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This timesheet changed while you were working. Refresh to see its latest state.",
+      );
+    }
+    await tx.timesheetEvent.create({
+      data: {
+        timesheetId,
+        fromStatus: timesheet.status,
+        toStatus: TimesheetStatus.SUBMITTED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "timesheet.submit",
+        subjectType: "Timesheet",
+        subjectId: timesheetId,
+        detail: `${total} hours`,
+      },
+    });
+  });
 }
 
 // --- Work entries (Story 6.2) ---------------------------------------------------

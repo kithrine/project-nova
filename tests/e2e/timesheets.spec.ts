@@ -109,4 +109,47 @@ test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   await expect(page.getByText("7.75", { exact: true })).toBeVisible({
     timeout: 20_000,
   });
+
+  // Story 6.4 — submission, exercised on the PRIOR week so within-run
+  // retries still find the current week editable. Submission is one-way:
+  // a retry lands on the Submitted state and converges on the same
+  // assertions. Anchor on the server-rendered status line first.
+  await page.getByRole("link", { name: "← Previous week" }).click();
+  // The current week ALSO renders "Status:" — anchor on the prior week's
+  // URL and its unique "Next week" link before branching, or the submit
+  // lands on the wrong week entirely.
+  await page.waitForURL(/\?week=\d{4}-\d{2}-\d{2}/, { timeout: 20_000 });
+  await expect(page.getByRole("link", { name: "Next week →" })).toBeVisible({
+    timeout: 20_000,
+  });
+  if (await page.getByText("Add a work day").isVisible().catch(() => false)) {
+    // Submit is disabled WITH its reason while the week is empty (AC2).
+    if (await page.getByRole("button", { name: "Submit Hours", exact: true }).isVisible().catch(() => false)) {
+      await expect(
+        page.getByText("Add at least one work day before submitting."),
+      ).toBeVisible();
+      await page.getByLabel("Day").selectOption({ index: 1 });
+      await page.getByLabel("Start time").fill("09:00");
+      await page.getByLabel("End time").fill("13:00");
+      await page.getByRole("button", { name: "Add Entry" }).click();
+      await expect(page.getByText("4.00", { exact: true })).toBeVisible({
+        timeout: 20_000,
+      });
+    }
+    await page.getByRole("button", { name: "Submit Hours…" }).click();
+    await expect(
+      page.getByText(/won't be able to edit your hours/),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Yes, Submit Hours" }).click();
+  }
+  await expect(page.getByText("Submitted", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.getByText(/Your hours were submitted for review/),
+  ).toBeVisible();
+  // Frozen for review: no entry editing, no second submission (AC1/AC4).
+  await expect(page.getByText("Add a work day")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Submit Hours/ })).toHaveCount(0);
 });

@@ -7,6 +7,7 @@ import { AppError, AuthenticationError } from "@/server/errors/app-error";
 import {
   addWorkEntry,
   removeWorkEntry,
+  submitOwnTimesheet,
   updateWorkEntry,
   type WorkEntryInput,
 } from "@/server/services/timesheet-service";
@@ -67,6 +68,27 @@ export async function updateWorkEntryAction(
     const ctx = await getOrProvisionAuthContext();
     if (!ctx) throw new AuthenticationError();
     await updateWorkEntry(ctx, entryId, parseEntryInput(formData));
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { status: "error", formError: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/participant/hours");
+  return { status: "saved" };
+}
+
+export async function submitTimesheetAction(
+  timesheetId: string,
+  _prev: TimesheetFormState,
+  _formData: FormData,
+): Promise<TimesheetFormState> {
+  void _formData;
+  try {
+    const ctx = await getOrProvisionAuthContext();
+    if (!ctx) throw new AuthenticationError();
+    await submitOwnTimesheet(ctx, timesheetId);
   } catch (error) {
     if (error instanceof AppError) {
       return { status: "error", formError: error.message };
