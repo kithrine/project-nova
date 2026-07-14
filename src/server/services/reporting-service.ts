@@ -16,9 +16,12 @@ import { prisma } from "@/server/database/prisma";
 import {
   ACTIVE_PLACEMENT_STATUSES,
   PLACEMENT_STATUS_LABELS,
+  TERMINAL_PLACEMENT_STATUSES,
 } from "@/server/domain/placement";
 import {
+  buildOutcomeCounts,
   mergeSiteCounts,
+  parseOptionalReportRange,
   parseReportRange,
   rollupHoursByFunding,
   type HoursRollupInput,
@@ -553,5 +556,85 @@ export async function getShelterRoster(ctx: AuthContext): Promise<ShelterRosterV
         totalCapacity: merged.totalCapacity,
       };
     }),
+  };
+}
+
+// --- Outcome summary (Story 7.4) ----------------------------------------------
+
+export interface OutcomeSummaryView {
+  outcomes: Array<{
+    status: PlacementStatus;
+    label: string;
+    count: number;
+  }>;
+  totalOutcomes: number;
+  certificationsEarned: number;
+  /** Null = program to date (no range narrowing applied). */
+  range: {
+    fromIso: string;
+    toIso: string;
+    fromLabel: string;
+    toLabel: string;
+  } | null;
+}
+
+/**
+ * Outcome summary (Story 7.4): aggregate counts of the four terminal
+ * placement outcomes plus credentials earned (Epic 3) — impact numbers
+ * for funders and stakeholders. Aggregates only; no participant rows are
+ * selected anywhere in this query (AC4). Defaults to the whole program
+ * to date; a valid date range narrows placements by their terminal
+ * effective date (`endDate`, set by every 5.8 transition) and
+ * certifications by `issuedOn`. Nova scope only.
+ */
+export async function getOutcomeSummary(
+  ctx: AuthContext,
+  filters: { from?: string; to?: string } = {},
+): Promise<OutcomeSummaryView> {
+  requirePermission(ctx, "reporting.view");
+  requireNovaScope(ctx);
+
+  const range = parseOptionalReportRange(filters);
+  const dateBounds = range
+    ? {
+        gte: new Date(`${range.fromIso}T00:00:00.000Z`),
+        lte: new Date(`${range.toIso}T00:00:00.000Z`),
+      }
+    : undefined;
+
+  const [outcomeGroups, certificationsEarned] = await Promise.all([
+    prisma.placement.groupBy({
+      by: ["status"],
+      where: {
+        status: { in: [...TERMINAL_PLACEMENT_STATUSES] },
+        ...(dateBounds ? { endDate: dateBounds } : {}),
+      },
+      _count: { _all: true },
+    }),
+    prisma.certification.count({
+      where: dateBounds ? { issuedOn: dateBounds } : {},
+    }),
+  ]);
+
+  const counts = buildOutcomeCounts(
+    outcomeGroups.map((group) => ({ status: group.status, count: group._count._all })),
+  );
+
+  return {
+    outcomes: counts.map((entry) => ({
+      status: entry.status,
+      label: PLACEMENT_STATUS_LABELS[entry.status],
+      count: entry.count,
+    })),
+    totalOutcomes: counts.reduce((sum, entry) => sum + entry.count, 0),
+    certificationsEarned,
+    range: range
+      ? {
+          fromIso: range.fromIso,
+          toIso: range.toIso,
+          fromLabel: formatReportDate(new Date(`${range.fromIso}T00:00:00.000Z`)),
+          toLabel: formatReportDate(new Date(`${range.toIso}T00:00:00.000Z`)),
+        }
+      : null,
   };
 }

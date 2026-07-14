@@ -1648,6 +1648,51 @@ try {
     },
   });
 
+  // Outcome-summary fixtures (Story 7.4): one COMPLETED placement and one
+  // certification for Harper, both dated February 2026 — a period no
+  // journey spec writes terminal outcomes into, so the report's counts
+  // are deterministic. A terminal placement never collides with Harper's
+  // ACTIVE one (the partial unique index covers the in-progress tier
+  // only), and the Harper reset above recreates everything per run.
+  await prisma.placementMatch.create({
+    data: {
+      id: "e2e_match_hours_done",
+      participantId: "e2e_participant_hours",
+      programEnrollmentId: "e2e_enrollment_hours",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      status: "APPROVED",
+      participantDecision: "ACCEPTED",
+      shelterDecision: "APPROVED",
+    },
+  });
+  await prisma.placement.create({
+    data: {
+      id: "e2e_placement_done",
+      placementNumber: "PLC-E2E-HARPER0",
+      participantId: "e2e_participant_hours",
+      programEnrollmentId: "e2e_enrollment_hours",
+      hostOrganizationId: "e2e_org_shelter",
+      organizationSiteId: "e2e_site_shelter",
+      sourceMatchId: "e2e_match_hours_done",
+      status: "COMPLETED",
+      supervisorId: "e2e_user_shelter",
+      startDate: new Date("2025-11-03T00:00:00Z"),
+      endDate: new Date("2026-02-10T00:00:00Z"),
+    },
+  });
+  await prisma.certification.deleteMany({
+    where: { participantId: "e2e_participant_hours" },
+  });
+  await prisma.certification.create({
+    data: {
+      participantId: "e2e_participant_hours",
+      name: "Animal Care Basics (Synthetic)",
+      issuer: "Nova Training",
+      issuedOn: new Date("2026-02-05T00:00:00Z"),
+    },
+  });
+
   // Targeted cleanup of rows created by PREVIOUS funding E2E runs (ADR-006:
   // clean only our own synthetic test rows, never truncate). Sources that
   // gained funding assignments (Story 5.3) are RESTRICT-protected and

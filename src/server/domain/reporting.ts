@@ -1,4 +1,5 @@
-import { TimesheetStatus } from "@/generated/prisma/client";
+import { PlacementStatus, TimesheetStatus } from "@/generated/prisma/client";
+import { TERMINAL_PLACEMENT_STATUSES } from "./placement";
 import { hoursStringFromHundredths, hundredthsFromHoursString } from "./work-hours";
 
 /**
@@ -56,6 +57,23 @@ export function parseReportRange(
  */
 export function mondayWithinRange(weekStartIso: string, range: ReportRange): boolean {
   return weekStartIso >= range.fromIso && weekStartIso <= range.toIso;
+}
+
+/**
+ * Range resolution for cumulative reports (Story 7.4): where the hours
+ * rollup defaults to the current month, an impact summary defaults to
+ * the whole program to date — null means unbounded. Only a complete,
+ * valid, ordered pair narrows the period; anything else stays cumulative.
+ */
+export function parseOptionalReportRange(params: {
+  from?: string;
+  to?: string;
+}): ReportRange | null {
+  const { from, to } = params;
+  if (from && to && isRealIsoDate(from) && isRealIsoDate(to) && from <= to) {
+    return { fromIso: from, toIso: to, fromParams: true };
+  }
+  return null;
 }
 
 export interface HoursRollupInput {
@@ -184,4 +202,27 @@ export function mergeSiteCounts(
     activePlacementCount: withCounts.reduce((sum, s) => sum + s.activePlacementCount, 0),
     totalCapacity: withCounts.reduce((sum, s) => sum + s.capacity, 0),
   };
+}
+
+// --- Outcome summary (Story 7.4) ----------------------------------------------
+
+export interface OutcomeCount {
+  status: PlacementStatus;
+  count: number;
+}
+
+/**
+ * Zero-filled outcome counts in the four terminal statuses' canonical
+ * order (Story 7.4 AC1) — a category with no placements reports 0 rather
+ * than disappearing, and anything non-terminal in the input is ignored
+ * by construction.
+ */
+export function buildOutcomeCounts(
+  groups: ReadonlyArray<{ status: PlacementStatus; count: number }>,
+): OutcomeCount[] {
+  const byStatus = new Map(groups.map((group) => [group.status, group.count]));
+  return TERMINAL_PLACEMENT_STATUSES.map((status) => ({
+    status,
+    count: byStatus.get(status) ?? 0,
+  }));
 }

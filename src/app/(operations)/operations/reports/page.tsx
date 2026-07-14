@@ -39,6 +39,13 @@ const REPORTS: ReadonlyArray<{
     href: "/operations/reports/shelter-roster",
     available: true,
   },
+  {
+    title: "Outcome summary",
+    description:
+      "Aggregate program impact — how placements ended and credentials participants earned.",
+    href: "/operations/reports/outcome-summary",
+    available: true,
+  },
 ];
 
 export default async function ReportsPage() {
