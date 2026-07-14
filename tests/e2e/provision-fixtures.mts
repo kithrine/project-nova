@@ -1572,7 +1572,8 @@ try {
     },
   });
   // Work entries (Story 6.2), then events, then the timesheets — every
-  // child before its RESTRICT-protected parent.
+  // child before its RESTRICT-protected parent. Funding assignments
+  // (Story 7.2's reports fixture below) are RESTRICT-protected too.
   await prisma.workEntry.deleteMany({
     where: {
       timesheet: { placement: { participantId: "e2e_participant_hours" } },
@@ -1584,6 +1585,9 @@ try {
     },
   });
   await prisma.timesheet.deleteMany({
+    where: { placement: { participantId: "e2e_participant_hours" } },
+  });
+  await prisma.fundingAssignment.deleteMany({
     where: { placement: { participantId: "e2e_participant_hours" } },
   });
   await prisma.placementEvent.deleteMany({
@@ -1663,6 +1667,34 @@ try {
       kind: FundingSourceKind.GRANT,
       code: "E2E-GRANT",
       status: ActiveStatus.ACTIVE,
+    },
+  });
+
+  // Reports fixture (Story 7.2): Harper's placement carries the grant
+  // source plus one LOCKED January week, so the hours-by-funding report
+  // has deterministic finalized hours in a period no other spec touches
+  // (the timesheet specs act on current/prior weeks only). Harper's chain
+  // is recreated above each run, so plain creates are safe here.
+  await prisma.fundingAssignment.create({
+    data: {
+      placementId: "e2e_placement_hours",
+      fundingSourceId: "e2e_funding_grant",
+      startDate: new Date("2026-06-01T00:00:00Z"),
+      assignedByUserId: "e2e_user_ops",
+    },
+  });
+  await prisma.timesheet.create({
+    data: {
+      placementId: "e2e_placement_hours",
+      weekStartDate: new Date("2026-01-05T00:00:00Z"),
+      weekEndDate: new Date("2026-01-11T00:00:00Z"),
+      status: "LOCKED",
+      totalHours: "12.34",
+      submittedAt: new Date("2026-01-12T09:00:00Z"),
+      approvedAt: new Date("2026-01-12T15:00:00Z"),
+      approvedByUserId: "e2e_user_shelter",
+      lockedAt: new Date("2026-01-13T10:00:00Z"),
+      lockedByUserId: "e2e_user_ops",
     },
   });
 

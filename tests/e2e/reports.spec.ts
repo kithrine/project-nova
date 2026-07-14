@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { signIn } from "./sign-in";
-import { E2E_OPS_USER_EMAIL, E2E_SHELTER_MANAGER_USER_EMAIL } from "./test-user";
+import {
+  E2E_GRANT_ADMIN_USER_EMAIL,
+  E2E_OPS_USER_EMAIL,
+  E2E_SHELTER_MANAGER_USER_EMAIL,
+} from "./test-user";
 
 /**
  * Story 7.1 — Active placement summary. Read-only journeys: no fixture
@@ -62,4 +66,36 @@ test("a shelter user cannot reach the operations reports area (7.1 organization 
   await expect(
     page.getByRole("heading", { name: "You don't have access to this page" }),
   ).toBeVisible();
+});
+
+test("grant administrator sees locked hours under the correct funding source with an exact total (7.2)", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await signIn(page, E2E_GRANT_ADMIN_USER_EMAIL);
+
+  await page.goto("/operations/reports");
+  await page.getByRole("link", { name: "Approved hours by funding source" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Approved hours by funding source" }),
+  ).toBeVisible();
+
+  // The ADR-020 provisional flag is part of the report, in every state.
+  await expect(page.getByRole("note", { name: "Provisional format notice" })).toBeVisible();
+
+  // Harper's fixture week (2026-01-05, LOCKED, 12.34 hours) sits in a
+  // period no other spec touches, so the figure is deterministic. Scope
+  // to the named form: the bare label "To" also matches the dev overlay's
+  // "Open Next.js Dev Tools" button under strict mode.
+  const periodForm = page.getByRole("form", { name: "Reporting period" });
+  await periodForm.getByLabel("From").fill("2026-01-01");
+  await periodForm.getByLabel("To").fill("2026-01-31");
+  await page.getByRole("button", { name: "Apply period" }).click();
+  await page.waitForURL(/from=2026-01-01/);
+
+  const table = page.getByRole("table");
+  await expect(table).toBeVisible();
+  const grantRow = table.locator("tbody tr", { hasText: "E2E Grant Fund (Synthetic)" });
+  await expect(grantRow).toContainText("E2E-GRANT");
+  await expect(grantRow).toContainText("12.34");
 });

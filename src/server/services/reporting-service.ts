@@ -1,11 +1,25 @@
-import { PlacementStatus } from "@/generated/prisma/client";
-import { hasNovaScope, requirePermission } from "@/server/auth/authorize";
+import {
+  FundingAssignmentStatus,
+  PlacementStatus,
+  TimesheetStatus,
+} from "@/generated/prisma/client";
+import {
+  hasNovaScope,
+  requireNovaScope,
+  requirePermission,
+} from "@/server/auth/authorize";
 import type { AuthContext } from "@/server/auth/context";
 import { prisma } from "@/server/database/prisma";
 import {
   ACTIVE_PLACEMENT_STATUSES,
   PLACEMENT_STATUS_LABELS,
 } from "@/server/domain/placement";
+import {
+  parseReportRange,
+  rollupHoursByFunding,
+  type HoursRollupInput,
+} from "@/server/domain/reporting";
+import { FUNDING_KIND_LABELS } from "@/server/services/funding-source-service";
 
 /**
  * ReportingService (Epic 7; api-service-design.md). Read-only report
@@ -281,4 +295,145 @@ function dedupeOptions(options: ReportFilterOption[]): ReportFilterOption[] {
     if (!byValue.has(option.value)) byValue.set(option.value, option);
   }
   return [...byValue.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+// --- Approved hours by funding source (Story 7.2; ADR-020) -------------------
+
+export interface HoursByFundingGroupView {
+  /** Null identifies the "No funding assigned" bucket. */
+  fundingSourceId: string | null;
+  name: string;
+  kindLabel: string | null;
+  /** The award identifier (`FundingSource.code`) when recorded. */
+  code: string | null;
+  /** Exact Decimal-shaped sums — LOCKED and APPROVED never blend. */
+  lockedHours: string;
+  approvedHours: string;
+  lockedTimesheetCount: number;
+  approvedTimesheetCount: number;
+  placementCount: number;
+}
+
+export interface HoursByFundingView {
+  groups: HoursByFundingGroupView[];
+  totalLockedHours: string;
+  totalApprovedHours: string;
+  range: {
+    fromIso: string;
+    toIso: string;
+    fromLabel: string;
+    toLabel: string;
+    /** False when invalid or missing params fell back to the default month. */
+    fromParams: boolean;
+  };
+}
+
+export const NO_FUNDING_ASSIGNED_LABEL = "No funding assigned";
+
+/**
+ * Approved hours by funding source (Story 7.2) — ADR-020's provisional
+ * pilot format. Finalized (`LOCKED`) hours are the reimbursement-safe
+ * basis; `APPROVED`-but-unlocked totals are reported separately, never
+ * blended (AC3). Weeks attribute to the period containing their Monday.
+ * Each placement's hours belong entirely to its single ACTIVE funding
+ * assignment (ADR-010); placements without one roll up under a flagged
+ * "No funding assigned" bucket rather than disappearing silently.
+ *
+ * Funding reach is Nova-only: `reporting.view` plus Nova scope — an
+ * org-scoped shelter viewer is denied here even though the permission
+ * covers the 7.1/7.3 organization-scoped reports.
+ */
+export async function getApprovedHoursByFundingSource(
+  ctx: AuthContext,
+  filters: { from?: string; to?: string } = {},
+): Promise<HoursByFundingView> {
+  requirePermission(ctx, "reporting.view");
+  requireNovaScope(ctx);
+
+  const range = parseReportRange(filters, new Date());
+
+  const timesheets = await prisma.timesheet.findMany({
+    where: {
+      status: { in: [TimesheetStatus.LOCKED, TimesheetStatus.APPROVED] },
+      weekStartDate: {
+        gte: new Date(`${range.fromIso}T00:00:00.000Z`),
+        lte: new Date(`${range.toIso}T00:00:00.000Z`),
+      },
+    },
+    select: {
+      status: true,
+      totalHours: true,
+      placementId: true,
+      placement: {
+        select: {
+          fundingAssignments: {
+            where: { status: FundingAssignmentStatus.ACTIVE },
+            select: {
+              fundingSource: {
+                select: { id: true, name: true, kind: true, code: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const sourceById = new Map<
+    string,
+    { name: string; kindLabel: string; code: string | null }
+  >();
+  const rows: HoursRollupInput[] = timesheets.map((timesheet) => {
+    // ADR-010 allows at most one ACTIVE assignment (partial unique index).
+    const source = timesheet.placement.fundingAssignments[0]?.fundingSource ?? null;
+    if (source && !sourceById.has(source.id)) {
+      sourceById.set(source.id, {
+        name: source.name,
+        kindLabel: FUNDING_KIND_LABELS[source.kind],
+        code: source.code,
+      });
+    }
+    return {
+      fundingKey: source?.id ?? null,
+      status: timesheet.status,
+      totalHours: timesheet.totalHours.toFixed(2),
+      placementId: timesheet.placementId,
+    };
+  });
+
+  const rollup = rollupHoursByFunding(rows);
+  const groups: HoursByFundingGroupView[] = rollup.groups
+    .map((group) => {
+      const source = group.fundingKey ? sourceById.get(group.fundingKey) : null;
+      return {
+        fundingSourceId: group.fundingKey,
+        name: source?.name ?? NO_FUNDING_ASSIGNED_LABEL,
+        kindLabel: source?.kindLabel ?? null,
+        code: source?.code ?? null,
+        lockedHours: group.lockedHours,
+        approvedHours: group.approvedHours,
+        lockedTimesheetCount: group.lockedTimesheetCount,
+        approvedTimesheetCount: group.approvedTimesheetCount,
+        placementCount: group.placementCount,
+      };
+    })
+    // Named sources alphabetically; the unassigned bucket always last.
+    .sort((a, b) => {
+      if (a.fundingSourceId === null) return 1;
+      if (b.fundingSourceId === null) return -1;
+      return a.name.localeCompare(b.name);
+    });
+
+  return {
+    groups,
+    totalLockedHours: rollup.totalLockedHours,
+    totalApprovedHours: rollup.totalApprovedHours,
+    range: {
+      fromIso: range.fromIso,
+      toIso: range.toIso,
+      fromLabel: formatReportDate(new Date(`${range.fromIso}T00:00:00.000Z`)),
+      toLabel: formatReportDate(new Date(`${range.toIso}T00:00:00.000Z`)),
+      fromParams: range.fromParams,
+    },
+  };
 }

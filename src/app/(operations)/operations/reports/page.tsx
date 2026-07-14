@@ -28,9 +28,9 @@ const REPORTS: ReadonlyArray<{
   {
     title: "Approved hours by funding source",
     description:
-      "Finalized work hours rolled up by each placement's funding source (Story 7.2).",
+      "Finalized work hours rolled up by each placement's funding source — provisional pilot format (ADR-020).",
     href: "/operations/reports/hours-by-funding",
-    available: false,
+    available: true,
   },
   {
     title: "Shelter roster",
