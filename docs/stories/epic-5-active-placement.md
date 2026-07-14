@@ -649,7 +649,7 @@ Employment Outcome detail/follow-up tracking beyond creation and linkage. Re-app
 
 ### Dependencies
 
-`ADR-018` resolves the termination-authority question (open-questions.md #4) as working policy; Washington employment-counsel review of the termination process is a launch-checklist gate, not a build blocker. Also depends on 5.6/5.7 (the placement must be Active or Paused) and the Employment Outcome model (`docs/architecture/domain-model.md`).
+`ADR-018` resolves the termination-authority question (open-questions.md #4) as working policy; Colorado employment-counsel review of the termination process (jurisdiction corrected per `ADR-019`) is a launch-checklist gate, not a build blocker. Also depends on 5.6/5.7 (the placement must be Active or Paused) and the Employment Outcome model (`docs/architecture/domain-model.md`).
 
 ---
 

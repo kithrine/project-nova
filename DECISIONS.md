@@ -20,3 +20,5 @@
 | ADR-016 | Narrow permanent disqualification, 30-day reapplication window, approved decision templates | Accepted (working policy; counsel review gated at launch)    |
 | ADR-017 | Three portable training programs plus a separate host-site competency gate                  | Accepted (host/employer duty allocation validated at launch) |
 | ADR-018 | Placement termination by Nova Operations only, single actor; shelters escalate via incidents | Accepted (working policy; counsel review gated at launch)    |
+| ADR-019 | Program jurisdiction is Colorado — corrects the Washington research assumption; citation map    | Accepted                                                     |
+| ADR-020 | Provisional grant reporting format — hours by funding source, LOCKED vs APPROVED distinguished | Accepted (working format; award validation gated at launch)  |

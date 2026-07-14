@@ -3,6 +3,7 @@
 ## Accepted planning assumptions
 
 - Nova is the employer of record or works through an approved employer-of-record partner.
+- The program operates in Colorado (`ADR-019`; corrects the Washington assumption made during policy research).
 - Shelters are host organizations.
 - One active placement per participant in MVP.
 - One active funding source per placement in MVP.
@@ -13,11 +14,11 @@
 
 ## Needs validation
 
-- ~~Exact legal screening criteria~~ — working policy adopted (`ADR-015`); Washington employment-counsel review outstanding (launch checklist)
+- ~~Exact legal screening criteria~~ — working policy adopted (`ADR-015`); Colorado employment-counsel review outstanding (launch checklist; jurisdiction corrected per `ADR-019`)
 - ~~Whether violent-offense screening is categorical or case-by-case~~ — individualized (case-by-case) per `ADR-015`; counsel review outstanding
 - ~~Permanent disqualification policy wording~~ — working policy adopted (`ADR-016`); counsel review outstanding
 - Payroll and tax workflows
-- Grant-specific data fields
+- ~~Grant-specific data fields~~ — provisional pilot format adopted (`ADR-020`); validation against executed awards outstanding (launch checklist)
 - Document storage provider
 - Record retention periods
 - Participant access to evaluations

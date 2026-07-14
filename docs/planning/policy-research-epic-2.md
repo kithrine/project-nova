@@ -3,9 +3,15 @@
 > **Research, not legal advice.** This document synthesizes legal-landscape and
 > program-design research conducted 2026-07-12 to support the working policies
 > in `ADR-015` and `ADR-016`. It was prepared for a capstone project and has
-> not been reviewed by counsel. Washington employment counsel must review the
+> not been reviewed by counsel. Employment counsel must review the
 > adopted policies before any review workflow runs against real applicants
 > (gated in `docs/ops/launch-checklist.md`).
+
+> **Jurisdiction correction (2026-07-14):** this research assumed Washington
+> State; the program operates in **Colorado**. It is retained unedited as the
+> historical basis for `ADR-015`/`ADR-016`. `ADR-019` maps every Washington
+> citation to its Colorado or federal equivalent and re-points the counsel
+> gates to Colorado employment counsel.
 
 Scope: U.S. federal law plus Washington State (the program's assumed
 jurisdiction), current as of July 2026. Two timing notes shape everything

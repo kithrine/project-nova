@@ -6,6 +6,15 @@ Accepted. Adopted for Story 3.4 on 2026-07-12. The legal allocation of
 employer/host safety duties remains a launch-validation item. Research basis:
 `docs/planning/policy-research-epic-3.md`.
 
+> **Jurisdiction correction (2026-07-14, `ADR-019`)**: researched under an
+> assumed Washington jurisdiction; the program operates in **Colorado**,
+> which has no state OSHA plan — private employers fall under **federal
+> OSHA** (29 CFR 1910 standards; Region 8, Denver), plus Colorado's
+> heat-illness prevention rule (7 CCR 1103-15) for outdoor work. The
+> two-layer training model and every product boundary are unchanged; only
+> the safety-duty citations move (WAC 296-801/WISHA → federal OSHA per
+> `ADR-019`), and open question #13 is re-worded accordingly.
+
 ## Decision
 
 Project Nova uses a **three-program, two-layer training policy** for MVP.
@@ -124,9 +133,11 @@ attempts, append-only events, permissions, and Operations UI. Story 3.6 consumes
 catalog requiredness and completed attempts. Story 5.4 captures the independent
 site gate. Story 3.5 remains the credential system.
 
-Washington counsel or the employer-of-record partner must validate whether and
-how Chapter 296-801 WAC applies to Nova's exact arrangement before pilot launch.
-That may refine contracts or retention, but not this product boundary.
+Colorado counsel or the employer-of-record partner must validate how federal
+OSHA duties (29 CFR 1910; Colorado has no state plan) and the Colorado
+heat-illness rule (7 CCR 1103-15) allocate between Nova and host shelters
+before pilot launch (`ADR-019`). That may refine contracts or retention, but
+not this product boundary.
 
 This decision is binding for MVP. Changes to the three universal programs, the
 two-layer gate, evidence rule, or lifecycle require a superseding ADR.

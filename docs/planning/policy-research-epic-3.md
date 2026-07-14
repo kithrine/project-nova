@@ -2,9 +2,16 @@
 
 > **Research, not legal advice.** This document synthesizes program-design,
 > animal-shelter, occupational-safety, and Washington sources reviewed
-> 2026-07-12. It supports `ADR-017`. Washington counsel and the
+> 2026-07-12. It supports `ADR-017`. Counsel and the
 > employer-of-record partner must validate applicable employer/host duties
 > before pilot launch.
+
+> **Jurisdiction correction (2026-07-14):** this research assumed Washington
+> State; the program operates in **Colorado**, which has no state OSHA plan —
+> federal OSHA (29 CFR 1910) covers private employers, plus Colorado's
+> heat-illness rule (7 CCR 1103-15). Retained unedited as the historical
+> basis for `ADR-017`; `ADR-019` maps the citations, and open question #13 is
+> re-worded to the federal-OSHA framing.
 
 ## Research question
 
