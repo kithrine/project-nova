@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { WorkEntryEditor } from "@/features/timesheets/work-entry-editor";
 import type { MyHoursWeekView } from "@/server/services/timesheet-service";
 
 /**
@@ -64,11 +65,12 @@ export function WeeklyHoursCard({
               Total hours this week:{" "}
               <span className="font-medium tabular-nums">{week.totalHours}</span>
             </p>
-            {week.totalHours === "0.00" && week.editable ? (
-              <p className="rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
-                No hours recorded yet. Your timesheet for this week is ready —
-                adding your work days arrives here next.
-              </p>
+            {week.timesheetId ? (
+              <WorkEntryEditor
+                timesheetId={week.timesheetId}
+                days={week.days}
+                editable={week.editable}
+              />
             ) : null}
           </>
         )}
