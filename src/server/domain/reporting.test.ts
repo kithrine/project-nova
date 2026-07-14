@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { TimesheetStatus } from "@/generated/prisma/enums";
 
 import {
+  mergeSiteCounts,
   mondayWithinRange,
   parseReportRange,
   rollupHoursByFunding,
@@ -122,5 +123,40 @@ describe("rollupHoursByFunding (exact Decimal grouping)", () => {
     expect(rollup.groups).toHaveLength(1);
     expect(rollup.groups[0].placementCount).toBe(1);
     expect(rollup.groups[0].lockedHours).toBe("8.00");
+  });
+});
+
+describe("mergeSiteCounts (Story 7.3 roster aggregation)", () => {
+  it("sums active placements per organization across its sites", () => {
+    const merged = mergeSiteCounts(
+      [
+        { siteId: "s1", name: "Main", capacity: 4 },
+        { siteId: "s2", name: "Annex", capacity: 2 },
+      ],
+      new Map([
+        ["s1", 3],
+        ["s2", 1],
+      ]),
+    );
+    expect(merged.activePlacementCount).toBe(4);
+    expect(merged.totalCapacity).toBe(6);
+    expect(merged.sites.map((s) => s.activePlacementCount)).toEqual([3, 1]);
+  });
+
+  it("reports zero for sites and shelters with no active placements (AC3)", () => {
+    const merged = mergeSiteCounts(
+      [{ siteId: "s1", name: "Main", capacity: 3 }],
+      new Map(),
+    );
+    expect(merged.sites[0].activePlacementCount).toBe(0);
+    expect(merged.activePlacementCount).toBe(0);
+  });
+
+  it("ignores counts for sites outside the organization", () => {
+    const merged = mergeSiteCounts(
+      [{ siteId: "s1", name: "Main", capacity: 3 }],
+      new Map([["other-org-site", 9]]),
+    );
+    expect(merged.activePlacementCount).toBe(0);
   });
 });

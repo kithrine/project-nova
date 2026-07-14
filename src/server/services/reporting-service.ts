@@ -1,6 +1,9 @@
 import {
+  ActiveStatus,
   FundingAssignmentStatus,
+  OrganizationKind,
   PlacementStatus,
+  Role,
   TimesheetStatus,
 } from "@/generated/prisma/client";
 import {
@@ -15,6 +18,7 @@ import {
   PLACEMENT_STATUS_LABELS,
 } from "@/server/domain/placement";
 import {
+  mergeSiteCounts,
   parseReportRange,
   rollupHoursByFunding,
   type HoursRollupInput,
@@ -435,5 +439,119 @@ export async function getApprovedHoursByFundingSource(
       toLabel: formatReportDate(new Date(`${range.toIso}T00:00:00.000Z`)),
       fromParams: range.fromParams,
     },
+  };
+}
+
+// --- Shelter roster (Story 7.3) ----------------------------------------------
+
+export interface RosterStaffView {
+  name: string;
+  email: string;
+}
+
+export interface RosterSiteView {
+  siteId: string;
+  name: string;
+  capacity: number;
+  activePlacementCount: number;
+}
+
+export interface RosterOrganizationView {
+  organizationId: string;
+  name: string;
+  /** Shelter Manager contact(s) — organization-level staff, never participants. */
+  managers: RosterStaffView[];
+  supervisorNames: string[];
+  sites: RosterSiteView[];
+  activePlacementCount: number;
+  totalCapacity: number;
+}
+
+export interface ShelterRosterView {
+  organizations: RosterOrganizationView[];
+  novaScope: boolean;
+}
+
+/**
+ * The Shelter Roster (Story 7.3): every participating host organization
+ * with its sites, configured capacity, ACTIVE-tier placement counts
+ * (Onboarding/Active/Paused), assigned supervisors, and the Shelter
+ * Manager contact. Organization-level data only — no participant fields
+ * are ever selected (AC4). Nova viewers see all shelters, including
+ * those with zero active placements (AC3); a Shelter Manager sees only
+ * their own organization(s) (AC2).
+ */
+export async function getShelterRoster(ctx: AuthContext): Promise<ShelterRosterView> {
+  requirePermission(ctx, "reporting.view");
+
+  const novaScope = hasNovaScope(ctx);
+  const memberOrganizationIds = ctx.memberships.map((m) => m.organizationId);
+
+  const organizations = await prisma.organization.findMany({
+    where: {
+      kind: OrganizationKind.HOST,
+      ...(novaScope ? {} : { id: { in: memberOrganizationIds } }),
+    },
+    select: {
+      id: true,
+      name: true,
+      sites: {
+        select: { id: true, name: true, capacity: true },
+        orderBy: { name: "asc" },
+      },
+      // Staff roles only — a membership query can never pull participants.
+      memberships: {
+        where: {
+          status: ActiveStatus.ACTIVE,
+          role: { in: [Role.SHELTER_MANAGER, Role.SHELTER_SUPERVISOR] },
+        },
+        select: {
+          role: true,
+          user: { select: { displayName: true, email: true } },
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const counts = await prisma.placement.groupBy({
+    by: ["organizationSiteId"],
+    where: {
+      status: { in: [...ACTIVE_PLACEMENT_STATUSES] },
+      hostOrganizationId: { in: organizations.map((o) => o.id) },
+    },
+    _count: { _all: true },
+  });
+  const countBySiteId = new Map(
+    counts.map((row) => [row.organizationSiteId, row._count._all]),
+  );
+
+  return {
+    novaScope,
+    organizations: organizations.map((organization) => {
+      const merged = mergeSiteCounts(
+        organization.sites.map((site) => ({
+          siteId: site.id,
+          name: site.name,
+          capacity: site.capacity,
+        })),
+        countBySiteId,
+      );
+      return {
+        organizationId: organization.id,
+        name: organization.name,
+        managers: organization.memberships
+          .filter((m) => m.role === Role.SHELTER_MANAGER)
+          .map((m) => ({ name: m.user.displayName, email: m.user.email }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        supervisorNames: organization.memberships
+          .filter((m) => m.role === Role.SHELTER_SUPERVISOR)
+          .map((m) => m.user.displayName)
+          .sort((a, b) => a.localeCompare(b)),
+        sites: merged.sites,
+        activePlacementCount: merged.activePlacementCount,
+        totalCapacity: merged.totalCapacity,
+      };
+    }),
   };
 }

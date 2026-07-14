@@ -35,9 +35,9 @@ const REPORTS: ReadonlyArray<{
   {
     title: "Shelter roster",
     description:
-      "Participating shelters with sites, capacity, and active placements (Story 7.3).",
+      "Participating shelters with sites, capacity, active placements, and staff contacts.",
     href: "/operations/reports/shelter-roster",
-    available: false,
+    available: true,
   },
 ];
 

@@ -145,3 +145,43 @@ export function rollupHoursByFunding(rows: readonly HoursRollupInput[]): HoursRo
     totalApprovedHours: hoursStringFromHundredths(totalApproved),
   };
 }
+
+// --- Shelter roster (Story 7.3) ----------------------------------------------
+
+export interface RosterSiteInput {
+  siteId: string;
+  name: string;
+  capacity: number;
+}
+
+export interface RosterSiteWithCount extends RosterSiteInput {
+  activePlacementCount: number;
+}
+
+export interface RosterSiteCounts {
+  sites: RosterSiteWithCount[];
+  /** Sum across the organization's sites. */
+  activePlacementCount: number;
+  totalCapacity: number;
+}
+
+/**
+ * Attach active-placement counts to an organization's sites. A site (or a
+ * whole shelter) with no active placements reports a ZERO count rather
+ * than disappearing (Story 7.3 AC3) — capacity planning needs the empty
+ * rows most of all.
+ */
+export function mergeSiteCounts(
+  sites: readonly RosterSiteInput[],
+  countBySiteId: ReadonlyMap<string, number>,
+): RosterSiteCounts {
+  const withCounts = sites.map((site) => ({
+    ...site,
+    activePlacementCount: countBySiteId.get(site.siteId) ?? 0,
+  }));
+  return {
+    sites: withCounts,
+    activePlacementCount: withCounts.reduce((sum, s) => sum + s.activePlacementCount, 0),
+    totalCapacity: withCounts.reduce((sum, s) => sum + s.capacity, 0),
+  };
+}

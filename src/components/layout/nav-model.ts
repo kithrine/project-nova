@@ -32,7 +32,7 @@ export const SHELTER_NAV: readonly NavItem[] = [
   { label: "Timesheets", href: "/shelter/timesheets", icon: "clock", available: true },
   { label: "Evaluations", href: "/shelter/evaluations", icon: "clipboard", available: false },
   { label: "Incidents", href: "/shelter/incidents", icon: "alert", available: false },
-  { label: "Organization", href: "/shelter/organization", icon: "building", available: false },
+  { label: "Organization", href: "/shelter/organization", icon: "building", available: true },
 ];
 
 export const OPERATIONS_NAV: readonly NavItem[] = [
