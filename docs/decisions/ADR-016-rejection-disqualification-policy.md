@@ -2,9 +2,19 @@
 
 ## Status
 Accepted as working policy. Production enablement of the disqualification
-branch is gated on Washington employment-counsel review
+branch is gated on Colorado employment-counsel review
 (`docs/ops/launch-checklist.md`). Research basis:
 `docs/planning/policy-research-epic-2.md`.
+
+> **Jurisdiction correction (2026-07-14, `ADR-019`)**: researched under an
+> assumed Washington jurisdiction; the program operates in **Colorado**. The
+> three categories, the 30-day window, and the template rule are unchanged.
+> Category 1's citation reads through `ADR-019`: RCW 16.52.200's mandatory
+> possession bans → C.R.S. § 18-9-202, where possession restrictions are
+> generally discretionary — Colorado counsel must confirm how
+> permanent-vs-time-limited restrictions map onto this category. RCW 49.94 in
+> "Decision communication" → C.R.S. § 8-2-130 with the retained FCRA
+> two-touch practice.
 
 ## Decision
 

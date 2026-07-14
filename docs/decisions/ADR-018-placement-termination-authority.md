@@ -2,7 +2,15 @@
 
 ## Status
 
-Accepted as working policy (2026-07-13) — production enablement gated on Washington employment-counsel review (`docs/ops/launch-checklist.md`). Resolves open question #4 (`docs/planning/open-questions.md`); unblocks Story 5.8.
+Accepted as working policy (2026-07-13) — production enablement gated on Colorado employment-counsel review (`docs/ops/launch-checklist.md`). Resolves open question #4 (`docs/planning/open-questions.md`); unblocks Story 5.8.
+
+> **Jurisdiction correction (2026-07-14, `ADR-019`)**: researched under an
+> assumed Washington jurisdiction; the program operates in **Colorado**. The
+> single-actor authority model is unchanged (its basis — the CEO managing-agent
+> model and Nova's own lifecycle pattern — is jurisdiction-neutral). The
+> counsel gate's final-pay citation moves from RCW 49.48 to the Colorado Wage
+> Claim Act, **C.R.S. § 8-4-109** (final wages due immediately on involuntary
+> termination — stricter than Washington), per `ADR-019`.
 
 ## Decision
 
@@ -23,7 +31,7 @@ The **Terminated** outcome — the involuntary end of a placement — is recorde
 ## Consequences
 
 - Story 5.8 is Ready for Development: four terminal transitions under two permissions (`placement.complete` for the three standard outcomes, `placement.terminate` for Terminated), both granted to Program Coordinator and Nova Administrator only.
-- Termination of a subsidized placement may constitute an employment action for a transitional worker. Before real participants are enrolled, Washington employment counsel must review: at-will status of transitional workers, wrongful-termination and discrimination exposure, final-pay timing obligations (RCW 49.48 — payroll workflows are outside this app per `docs/planning/assumptions.md`), and documentation standards for grant compliance (2 CFR 200 record retention). Added to the launch checklist.
+- Termination of a subsidized placement may constitute an employment action for a transitional worker. Before real participants are enrolled, Colorado employment counsel must review: at-will status of transitional workers, wrongful-termination and discrimination exposure, final-pay timing obligations (Colorado Wage Claim Act, C.R.S. § 8-4-109 — final wages due immediately on involuntary termination; payroll workflows are outside this app per `docs/planning/assumptions.md`), and documentation standards for grant compliance (2 CFR 200 record retention). Added to the launch checklist.
 - Participant-facing copy for Withdrawn and Terminated stays respectful and non-punitive per `docs/ux/content-style-guide.md` — the participant's My Placement view states the placement ended and directs them to their coordinator; reason categories and notes are internal.
 - If counsel review or program experience later requires a second approver or a formal shelter request object, that arrives as a new ADR superseding this one; the single-actor mechanics ship now because they are the smallest faithful implementation of the documented authority model.
 

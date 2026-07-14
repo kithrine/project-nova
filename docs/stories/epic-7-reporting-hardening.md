@@ -8,7 +8,7 @@ Provide pilot reporting and safely launch.
 | ID | Story | Status |
 |---|---|---|
 | 7.1 | Active placement summary | Ready for Development |
-| 7.2 | Approved hours by funding source | Blocked — pending policy validation |
+| 7.2 | Approved hours by funding source | Ready for Development |
 | 7.3 | Shelter roster | Ready for Development |
 | 7.4 | Outcome summary | Ready for Development |
 | 7.5 | Scoped exports | Blocked — pending policy validation |
@@ -17,7 +17,7 @@ Provide pilot reporting and safely launch.
 | 7.8 | Security tests | Ready for Development |
 | 7.9 | Production launch checklist | Ready for Development |
 
-> Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 and 7.5 are Blocked pending policy validation — build the mechanisms now, but the exact grant field sets, reporting formats, and retention are deferred; see each story's Dependencies.
+> Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate). 7.5 remains Blocked on retention periods (open question #7) — its export field sets follow `ADR-020`'s allow-list principle when built; see each story's Dependencies.
 
 ---
 
@@ -72,7 +72,7 @@ Epic 5 (placements exist), 1.5 (authorization context), 1.7 (Operations protecte
 ## Story 7.2 — Approved hours by funding source
 
 ### Status
-Blocked — pending policy validation
+Ready for Development — unblocked by `ADR-020` (provisional pilot format; validation against executed awards is a launch-checklist gate)
 
 ### User story
 As a Grant Administrator, I want approved work hours rolled up by funding source, so that I can prepare accurate reimbursement support for each grant.
@@ -80,7 +80,7 @@ As a Grant Administrator, I want approved work hours rolled up by funding source
 ### Scope
 - Roll up finalized work hours as exact `Decimal` totals, grouped by each placement's single active funding source (`docs/decisions/ADR-010-funding.md`), for a selected date range.
 - Prefer `LOCKED` timesheets (finalized, 6.7) as the reimbursement-safe basis; clearly distinguish any `APPROVED`-but-unlocked totals rather than blending them silently.
-- Build the rollup mechanism now. The exact grant field set, reporting format, and reimbursement columns are **pending validation against actual awards** (`docs/ops/grant-operations.md`, "Open requirements") — the final schema is deferred and flagged.
+- Build the rollup mechanism now, rendering the **provisional pilot format** adopted in `ADR-020` (grouped by funding source name/kind/award code; weeks attributed to the period containing their Monday; hours only). The award-validated schema remains deferred (`docs/ops/grant-operations.md`, "Open requirements") and the report is visibly flagged provisional.
 - Read-only; role-shaped view models; no restricted fields.
 
 ### Acceptance criteria
@@ -112,7 +112,7 @@ Grouped, accessible table with per-funding-source subtotals and a grand total; c
 Automated reimbursement packets, blended/cost-category allocation, and a funder portal (all V3, `docs/ops/grant-operations.md`); payroll; exporting this report (7.5).
 
 ### Dependencies
-Epic 6 (locked timesheets, 6.7), Story 5.3 (funding assignment), and Story 1.8 (funding sources must exist). **Blocked on:** exact grant fields and reporting formats must be validated against actual awards (`docs/ops/grant-operations.md`); record-retention periods are undefined pending legal and grant review (`docs/ops/data-governance.md`).
+Epic 6 (locked timesheets, 6.7), Story 5.3 (funding assignment), and Story 1.8 (funding sources must exist). **Unblocked (2026-07-14):** `ADR-020` adopts the provisional pilot format and resolves open question #6 provisionally; validating it against each executed award is a launch-checklist gate. Retention periods (open question #7) concern stored export artifacts (7.5), not this on-screen report.
 
 ---
 
@@ -254,7 +254,7 @@ A named-export picker with a confirmation step; download via the Route Handler; 
 Scheduled report delivery and enhanced file workflows (V2); the final export field schema and retention policy (pending validation).
 
 ### Dependencies
-7.1–7.4 (report data) and 7.6 (audit trail), plus the `report.export` permission. **Blocked on:** approved export field sets tied to exact grant fields (`docs/ops/grant-operations.md`), and export/record-retention periods undefined pending legal and grant review (`docs/ops/data-governance.md`).
+7.1–7.4 (report data) and 7.6 (audit trail), plus the `report.export` permission. **Blocked on:** export/record-retention periods undefined pending legal and grant review (open question #7, `docs/ops/data-governance.md`). The field-set half is provisionally resolved — named-export field sets follow `ADR-020`'s allow-list principle, validated against executed awards at launch.
 
 ---
 

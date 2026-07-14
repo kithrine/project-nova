@@ -2,8 +2,20 @@
 
 ## Status
 Accepted as working policy. Production enablement of the review workflows is
-gated on Washington employment-counsel review (`docs/ops/launch-checklist.md`).
+gated on Colorado employment-counsel review (`docs/ops/launch-checklist.md`).
 Research basis: `docs/planning/policy-research-epic-2.md`.
+
+> **Jurisdiction correction (2026-07-14, `ADR-019`)**: this policy was
+> researched under an assumed Washington jurisdiction; the program operates
+> in **Colorado**. The decision is unchanged — its federal foundations (FCRA,
+> EEOC individualized assessment, 2 CFR 200) are jurisdiction-neutral, and
+> the Washington-derived practices below (otherwise-qualified sequencing, the
+> written six-factor assessment, the 5-business-day hold-open, the 10-year
+> lookback) are retained as program policy exceeding Colorado's legal floor.
+> Washington citations in this body read through the map in `ADR-019`
+> (RCW 49.94 → C.R.S. § 8-2-130; WAC 162-12-140 → program policy;
+> RCW 16.52.200 → C.R.S. § 18-9-202; negligent-hiring exposure →
+> C.R.S. § 8-2-201(2) shield). "Counsel" means Colorado employment counsel.
 
 ## Decision
 

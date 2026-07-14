@@ -5,13 +5,13 @@
 - Employer-of-record agreement confirmed
 - Shelter agreements signed
 - Insurance confirmed
-- Screening policy approved (working policy `ADR-015`; Washington employment-counsel review required before review workflows run against real applicants)
-- Background-check and adverse-action process reviewed by Washington employment counsel (`ADR-015`; includes the "unsupervised access to vulnerable persons" exemption question)
-- Permanent-disqualification criteria and applicant-facing wording reviewed by counsel (`ADR-016`)
-- Employer-of-record/host training responsibilities reviewed against WAC 296-801 and related WISHA rules; shelter agreement and record-confirmation process approved (`ADR-017`)
-- Placement-termination process reviewed by Washington employment counsel (`ADR-018`; at-will status of transitional workers, wrongful-termination exposure, RCW 49.48 final-pay timing in the payroll process, grant documentation standards)
+- Screening policy approved (working policy `ADR-015`; Colorado employment-counsel review required before review workflows run against real applicants — jurisdiction corrected per `ADR-019`, including the C.R.S. § 8-2-130 government-program exception question)
+- Background-check and adverse-action process reviewed by Colorado employment counsel (`ADR-015`/`ADR-019`; includes consumer-report content limits and any local fair-chance ordinances in the service area)
+- Permanent-disqualification criteria and applicant-facing wording reviewed by counsel (`ADR-016`; includes mapping C.R.S. § 18-9-202 possession restrictions onto the permanent-vs-time-limited categories, `ADR-019`)
+- Employer-of-record/host training responsibilities reviewed against federal OSHA duties (29 CFR 1910; Colorado has no state plan) and the Colorado heat-illness rule (7 CCR 1103-15); shelter agreement and record-confirmation process approved (`ADR-017`/`ADR-019`)
+- Placement-termination process reviewed by Colorado employment counsel (`ADR-018`/`ADR-019`; at-will status of transitional workers, wrongful-termination exposure, C.R.S. § 8-4-109 immediate final-pay timing in the payroll process, grant documentation standards)
 - Incident procedures approved
-- Grant requirements mapped
+- Grant requirements mapped (includes validating the provisional reporting format `ADR-020` against each executed award before any reimbursement use)
 - Payroll process confirmed
 
 ## Technical
