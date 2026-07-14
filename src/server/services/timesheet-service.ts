@@ -495,8 +495,12 @@ export interface TimesheetReviewView {
   rejectedAtLabel: string | null;
   rejectedByName: string | null;
   rejectionReason: string | null;
+  lockedAtLabel: string | null;
+  lockedByName: string | null;
   viewerCanApprove: boolean;
   viewerCanReject: boolean;
+  /** Nova finalization (Story 6.7): timesheet.lock on an APPROVED week. */
+  viewerCanLock: boolean;
 }
 
 /**
@@ -559,6 +563,14 @@ export async function getTimesheetReview(
         })
       )?.displayName ?? "Staff")
     : null;
+  const lockedByName = timesheet.lockedByUserId
+    ? ((
+        await prisma.user.findUnique({
+          where: { id: timesheet.lockedByUserId },
+          select: { displayName: true },
+        })
+      )?.displayName ?? "Nova staff")
+    : null;
 
   return {
     timesheetId: timesheet.id,
@@ -591,6 +603,12 @@ export async function getTimesheetReview(
       reviewDenialReason(
         reviewStandingFor(ctx, "timesheet.reject", timesheet),
       ) === null,
+    lockedAtLabel: timesheet.lockedAt ? formatDateTime(timesheet.lockedAt) : null,
+    lockedByName,
+    viewerCanLock:
+      hasPermission(ctx, "timesheet.lock") &&
+      hasNovaScope(ctx) &&
+      timesheet.status === TimesheetStatus.APPROVED,
   };
 }
 
@@ -735,6 +753,68 @@ export async function rejectTimesheet(
         subjectType: "Timesheet",
         subjectId: timesheetId,
         detail: "correction requested",
+      },
+    });
+  });
+}
+
+/**
+ * Finalize an approved week (Story 6.7): APPROVED -> LOCKED, the
+ * terminal state — Nova roles with operational or funding oversight
+ * only, never shelters (AC4). One transaction: compare-and-set on
+ * APPROVED (AC2's lifecycle errors and replays fall out), locker
+ * identity recorded, lifecycle event, and an audit event DISTINCT from
+ * the approval event (AC5) marking the record final for funding and
+ * reporting. No silent-edit path exists on LOCKED (or APPROVED):
+ * every entry mutation gates on DRAFT/REJECTED, submission on
+ * DRAFT/REJECTED, and review on SUBMITTED — proven end to end in the
+ * integration battery (AC3).
+ */
+export async function lockTimesheet(
+  ctx: AuthContext,
+  timesheetId: string,
+): Promise<void> {
+  if (!hasPermission(ctx, "timesheet.lock") || !hasNovaScope(ctx)) {
+    throw new AuthorizationError();
+  }
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: { id: true, status: true, totalHours: true },
+  });
+  if (!timesheet) throw new NotFoundError();
+  if (timesheet.status !== TimesheetStatus.APPROVED) {
+    throw new LifecycleError("Only an approved timesheet can be locked.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.timesheet.updateMany({
+      where: { id: timesheetId, status: TimesheetStatus.APPROVED },
+      data: {
+        status: TimesheetStatus.LOCKED,
+        lockedAt: new Date(),
+        lockedByUserId: ctx.userId,
+      },
+    });
+    if (updated.count === 0) {
+      throw new ConflictError(
+        "This timesheet changed while you were working. Refresh to see its latest state.",
+      );
+    }
+    await tx.timesheetEvent.create({
+      data: {
+        timesheetId,
+        fromStatus: TimesheetStatus.APPROVED,
+        toStatus: TimesheetStatus.LOCKED,
+        actorUserId: ctx.userId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorUserId: ctx.userId,
+        action: "timesheet.lock",
+        subjectType: "Timesheet",
+        subjectId: timesheetId,
+        detail: `final for reporting: ${timesheet.totalHours.toFixed(2)} hours`,
       },
     });
   });

@@ -13,7 +13,7 @@ Record and approve participant work hours.
 | 6.4 | Submit timesheet | Done |
 | 6.5 | Shelter approval | Done |
 | 6.6 | Reject for correction | Done |
-| 6.7 | Lock approved timesheet | Ready for Development |
+| 6.7 | Lock approved timesheet | Done |
 
 > Sequencing note: the epic is numbered 6.1–6.7 for reference, but 6.2 and 6.3 are tightly coupled — the work-entry form in 6.2 depends on 6.3's server-side calculation service to produce the hours it displays and stores, so build 6.3 alongside or before 6.2. Stories 6.5 and 6.6 share the same Submitted-timesheet review surface (the Timesheet Review Card and the shelter Timesheets queue, both built in 6.5), so they are naturally implemented together even though they are specified separately for their distinct outcomes.
 
@@ -411,7 +411,24 @@ Approving (6.5), locking (6.7), limiting the number of reject/resubmit cycles (u
 ## Story 6.7 — Lock approved timesheet
 
 ### Status
-Ready for Development
+Done — closes Epic 6
+
+> Built note: APPROVED → LOCKED behind timesheet.lock (Program
+> Coordinator, Grant Administrator, Nova Administrator — the Grant
+> Administrator also gained timesheet.view so the funding-oversight
+> role can reach the record it finalizes). One transaction: CAS on
+> APPROVED, locker identity, lifecycle event, and an audit event
+> DISTINCT from approval whose detail marks the record final for
+> reporting with its hour total. The no-silent-edit guarantee is a
+> single integration battery: on a LOCKED week, every entry mutation,
+> resubmission, approval, rejection, and re-lock is denied server-side
+> for participant and reviewers alike — LOCKED (and in practice
+> APPROVED) has no write path anywhere, per business-rules.md; the
+> adjustment workflow remains explicitly out of scope. The Review Card
+> shows a padlock-and-text locked indicator (never color alone), and
+> the participant's week renders as read-only history. Locked hours
+> now sit ready for Epic 7's "Approved hours by funding source"
+> rollup via the existing placementId → funding assignment link.
 
 ### User story
 As a Program Coordinator, I want to lock an approved timesheet once it is finalized, so that its hours are permanently protected from change and safe to rely on for funding and reporting.

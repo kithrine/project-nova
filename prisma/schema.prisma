@@ -1063,7 +1063,12 @@ model Timesheet {
   // (archive-then-reset) — history is never lost, the row never stale.
   rejectedByUserId String?
   rejectionReason  String?
-  lockedAt    DateTime?
+  // Finalization (Story 6.7): Nova locks the approved record before
+  // funding/reporting rely on it. LOCKED is terminal — corrections
+  // require a separate adjustment workflow (business-rules.md), which
+  // does not exist in this epic.
+  lockedAt         DateTime?
+  lockedByUserId   String?
 
   entries WorkEntry[]
   events  TimesheetEvent[]

@@ -44,8 +44,11 @@ function review(overrides: Partial<TimesheetReviewView> = {}): TimesheetReviewVi
     rejectedAtLabel: null,
     rejectedByName: null,
     rejectionReason: null,
+    lockedAtLabel: null,
+    lockedByName: null,
     viewerCanApprove: true,
     viewerCanReject: true,
+    viewerCanLock: false,
     ...overrides,
   };
 }
