@@ -1,4 +1,5 @@
 import { ApproveTimesheetPanel } from "@/features/timesheets/approve-timesheet-panel";
+import { LockTimesheetPanel } from "@/features/timesheets/lock-timesheet-panel";
 import { RejectTimesheetPanel } from "@/features/timesheets/reject-timesheet-panel";
 import type { TimesheetReviewView } from "@/server/services/timesheet-service";
 
@@ -33,6 +34,25 @@ export function TimesheetReviewCard({ review }: { review: TimesheetReviewView })
             Correction requested by {review.rejectedByName}
             {review.rejectedAtLabel ? ` · ${review.rejectedAtLabel}` : ""}:{" "}
             {review.rejectionReason}
+          </p>
+        ) : null}
+        {review.lockedAtLabel ? (
+          <p className="flex items-center gap-1.5 text-sm text-base-content/70">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4 shrink-0"
+            >
+              <rect x="5" y="11" width="14" height="9" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            Locked — final for reporting · {review.lockedByName} ·{" "}
+            {review.lockedAtLabel}
           </p>
         ) : null}
       </header>
@@ -76,13 +96,16 @@ export function TimesheetReviewCard({ review }: { review: TimesheetReviewView })
         </p>
       </div>
 
-      {review.viewerCanApprove || review.viewerCanReject ? (
+      {review.viewerCanApprove || review.viewerCanReject || review.viewerCanLock ? (
         <div className="flex flex-col gap-2">
           {review.viewerCanApprove ? (
             <ApproveTimesheetPanel timesheetId={review.timesheetId} />
           ) : null}
           {review.viewerCanReject ? (
             <RejectTimesheetPanel timesheetId={review.timesheetId} />
+          ) : null}
+          {review.viewerCanLock ? (
+            <LockTimesheetPanel timesheetId={review.timesheetId} />
           ) : null}
         </div>
       ) : null}

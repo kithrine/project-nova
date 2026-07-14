@@ -162,9 +162,18 @@ describe("permissionsForRoles (deny-by-default)", () => {
         role === Role.PROGRAM_COORDINATOR ||
         role === Role.NOVA_ADMINISTRATOR;
       const granted = permissionsForRoles([role]);
-      expect(granted.has("timesheet.view"), `view for ${role}`).toBe(expected);
+      expect(granted.has("timesheet.view"), `view for ${role}`).toBe(
+        expected || role === Role.GRANT_ADMINISTRATOR,
+      );
       expect(granted.has("timesheet.approve"), `approve for ${role}`).toBe(expected);
       expect(granted.has("timesheet.reject"), `reject for ${role}`).toBe(expected);
+      // Locking is Nova oversight only (6.7): PC, GA, and NA — never
+      // shelters, never participants.
+      expect(granted.has("timesheet.lock"), `lock for ${role}`).toBe(
+        role === Role.PROGRAM_COORDINATOR ||
+          role === Role.GRANT_ADMINISTRATOR ||
+          role === Role.NOVA_ADMINISTRATOR,
+      );
     }
   });
 

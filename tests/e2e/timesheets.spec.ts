@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   E2E_HOURS_USER_EMAIL,
+  E2E_OPS_USER_EMAIL,
   E2E_OTHER_MANAGER_USER_EMAIL,
   E2E_USER_EMAIL,
 } from "./test-user";
@@ -332,4 +333,45 @@ test("a rejected week is corrected and resubmitted (Story 6.6)", async ({ page }
     await page.goto("/shelter/placements/e2e_placement_hours?tab=hours");
     await expect(page.getByText(/Approved/).first()).toBeVisible({ timeout: 20_000 });
   }
+});
+
+/**
+ * Finalization (Story 6.7): a coordinator locks the approved prior week
+ * from the operations Review Card; the record is final everywhere — no
+ * edit path remains for the participant. One-way, so retries converge.
+ */
+test("a coordinator locks the approved week (Story 6.7)", async ({ page }) => {
+  test.setTimeout(180_000);
+
+  await signIn(page, E2E_OPS_USER_EMAIL);
+  await page.goto("/operations/placements/records/e2e_placement_hours?tab=hours");
+  await expect(page.getByRole("list", { name: "Timesheets" })).toBeVisible({
+    timeout: 20_000,
+  });
+  // The prior week (approved in the first test) is the oldest row.
+  await page.getByRole("link", { name: /Open week: / }).last().click();
+  await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
+  const lock = page.getByRole("button", { name: "Lock Hours…" });
+  if (await lock.isVisible().catch(() => false)) {
+    await lock.click();
+    await expect(
+      page.getByText(/Locked hours are what funding and reporting rely on/),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Yes, Lock Hours" }).click();
+  }
+  await expect(page.getByText(/Status:.*Locked/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Locked — final for reporting/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Lock Hours/ })).toHaveCount(0);
+
+  // The participant's view is read-only history with the locked status.
+  await clerk.signOut({ page });
+  await signIn(page, E2E_HOURS_USER_EMAIL);
+  await page.goto("/participant/hours");
+  await page.getByRole("link", { name: "← Previous week" }).click();
+  await page.waitForURL(/\?week=\d{4}-\d{2}-\d{2}/, { timeout: 20_000 });
+  await expect(page.getByText("Locked", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText("Add a work day")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Submit Hours/ })).toHaveCount(0);
 });

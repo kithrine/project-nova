@@ -193,6 +193,10 @@ export const PERMISSIONS = [
   // standing rule as approval, with a REQUIRED rationale — the other
   // outcome a SUBMITTED week can reach.
   "timesheet.reject",
+  // Finalization (Story 6.7): APPROVED -> LOCKED, Nova roles with
+  // operational or funding oversight only — never shelters, never
+  // participants. Locked hours are what Epic 7 reporting relies on.
+  "timesheet.lock",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -275,12 +279,15 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.view",
     "timesheet.approve",
     "timesheet.reject",
+    "timesheet.lock",
   ],
   [Role.GRANT_ADMINISTRATOR]: [
     "organization.view",
     "funding.manage",
     "placement.view",
     "funding.assign",
+    "timesheet.view",
+    "timesheet.lock",
   ],
   [Role.NOVA_ADMINISTRATOR]: [
     "organization.view",
@@ -324,6 +331,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "timesheet.view",
     "timesheet.approve",
     "timesheet.reject",
+    "timesheet.lock",
   ],
   // The optional restricted role (authorization-rbac.md): the ONLY role
   // that carries backgroundReview.view by default.
