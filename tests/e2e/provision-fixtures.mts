@@ -1743,6 +1743,20 @@ try {
     },
   });
 
+  // Audit-review anchor (Story 7.6): one deterministic audit event shaped
+  // like a real 6.7 lock record, reset per run by its synthetic subject
+  // id, so the review journey always has a known row to find and filter.
+  await prisma.auditEvent.deleteMany({ where: { subjectId: "e2e_audit_anchor" } });
+  await prisma.auditEvent.create({
+    data: {
+      actorUserId: "e2e_user_ops",
+      action: "timesheet.lock",
+      subjectType: "Timesheet",
+      subjectId: "e2e_audit_anchor",
+      detail: "final for reporting: 12.34 hours",
+    },
+  });
+
   console.log(
     `E2E fixtures ready (${FIXTURE_USERS.length + 2} Clerk users, 2 organizations, ` +
       `2 operations applications; applicants reset; ${cleaned.count} prior funding fixtures cleaned).`,

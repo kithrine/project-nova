@@ -19,6 +19,17 @@ export default function AdministrationPage() {
             Manage the grants and contracts that fund placements.
           </p>
         </li>
+        <li>
+          <Link
+            href="/operations/administration/audit"
+            className="text-sm font-medium underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            Audit review
+          </Link>
+          <p className="text-sm text-base-content/70">
+            Review who accessed or performed sensitive actions (restricted).
+          </p>
+        </li>
       </ul>
     </section>
   );

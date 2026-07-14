@@ -231,4 +231,14 @@ describe("permissionsForRoles (deny-by-default)", () => {
       );
     }
   });
+
+  it("restricts audit review to the Nova Administrator and Grant Administrator — not even coordinators (7.6)", () => {
+    for (const role of Object.values(Role)) {
+      const expected =
+        role === Role.NOVA_ADMINISTRATOR || role === Role.GRANT_ADMINISTRATOR;
+      expect(permissionsForRoles([role]).has("audit.view"), `role ${role}`).toBe(
+        expected,
+      );
+    }
+  });
 });
