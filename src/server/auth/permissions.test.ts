@@ -218,4 +218,17 @@ describe("permissionsForRoles (deny-by-default)", () => {
       expect(granted.has("evaluation.view"), `view for ${role}`).toBe(viewExpected);
     }
   });
+
+  it("grants reporting to Nova Operations plus the org-scoped Shelter Manager — never participants, supervisors, or RRS (7.1)", () => {
+    for (const role of Object.values(Role)) {
+      const expected =
+        role === Role.PROGRAM_COORDINATOR ||
+        role === Role.GRANT_ADMINISTRATOR ||
+        role === Role.NOVA_ADMINISTRATOR ||
+        role === Role.SHELTER_MANAGER;
+      expect(permissionsForRoles([role]).has("reporting.view"), `role ${role}`).toBe(
+        expected,
+      );
+    }
+  });
 });

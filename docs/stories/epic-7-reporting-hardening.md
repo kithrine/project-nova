@@ -7,7 +7,7 @@ Provide pilot reporting and safely launch.
 
 | ID | Story | Status |
 |---|---|---|
-| 7.1 | Active placement summary | Ready for Development |
+| 7.1 | Active placement summary | Done |
 | 7.2 | Approved hours by funding source | Ready for Development |
 | 7.3 | Shelter roster | Ready for Development |
 | 7.4 | Outcome summary | Ready for Development |
@@ -24,7 +24,30 @@ Provide pilot reporting and safely launch.
 ## Story 7.1 — Active placement summary
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** `reporting.view` joins the registry — Program
+> Coordinator, Grant Administrator, and Nova Administrator read Nova-wide;
+> the Shelter Manager holds it organization-scoped (this story's service
+> scoping; the shelter-side surface arrives with 7.3's roster). Supervisors,
+> participants, and RRS are never granted it (registry sweep). The new
+> `ReportingService.getActivePlacementSummary` returns only in-progress
+> placements (`Onboarding`/`Active`/`Paused` — `ACTIVE_PLACEMENT_STATUSES`),
+> selects only permitted columns (AC5's query-layer exclusion), scopes
+> shelter viewers to their membership organizations (filters intersect the
+> scope, never widen it), and shapes filter options from the scoped set so
+> organization names never leak. Operations → Reports goes live in the nav
+> (index page lists 7.2/7.3 as disabled entries), with the report at
+> `/operations/reports/active-placements`: GET-form filters (host
+> organization, stage, coordinator) with a live count, sortable
+> participant/organization/stage/start-date headers (`aria-sort`), stage as
+> SVG icon + text, mobile stacked cards enhancing to the md+ table, and
+> distinct empty states for "no in-progress placements" vs "no filter
+> matches". Integration battery: in-progress-only + terminal/pre-onboarding
+> exclusion, filter narrowing with counts, Shelter Manager org scoping with
+> no-widening proof, restricted-field regex sweep, participant/supervisor
+> denial. E2E: coordinator filters the live report; a shelter user is denied
+> at the operations boundary.
 
 ### User story
 As a Program Coordinator, I want a summary of all in-progress placements, so that I can see the state of the pilot at a glance and act on what needs attention.
