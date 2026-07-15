@@ -14,7 +14,7 @@ Provide pilot reporting and safely launch.
 | 7.5 | Scoped exports | Done |
 | 7.6 | Audit review | Done |
 | 7.7 | Accessibility hardening | Done |
-| 7.8 | Security tests | Ready for Development |
+| 7.8 | Security tests | Done |
 | 7.9 | Production launch checklist | Ready for Development |
 
 > Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate), and 7.5 on the same day by `ADR-021` (provisional retention schedule; exports are ephemeral and never stored) — both keep counsel/award validation as launch gates; see each story's Dependencies.
@@ -509,7 +509,30 @@ All feature epics (screens must exist to harden) and 1.6 (CI to host the automat
 ## Story 7.8 — Security tests
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** the consolidated battery lives in
+> `tests/integration/security-boundaries.test.ts` on a two-host-org
+> fixture chain: cross-organization denial across placements (the
+> workspace carries incidents and every tab), timesheets (read AND
+> approve), and applications; raw applications, background surfaces, and
+> case notes unreachable for shelter roles — with the shelter's own
+> workspace payload proven structurally free of case-note/background
+> content, and background denied even to coordinators (RRS-only). AC2's
+> no-client-trusted-claims is proven by construction and by revocation:
+> authorization derives only from server-resolved ACTIVE memberships, so
+> deactivating a manager's membership revokes every read on the next
+> request with nothing client-side to forge or replay (filter-no-widening
+> was proven per-report in 7.1–7.3). AC4's lifecycle gates: a permitted,
+> in-scope supervisor cannot approve a DRAFT week and a coordinator
+> cannot lock a SUBMITTED one — both `LifecycleError`, distinct from
+> authorization. Authorization errors stay generic (no resource contents
+> in messages). `tests/e2e/security.spec.ts` runs the canonical
+> cross-shelter journey by direct URL on every shelter surface, proves
+> shelter DOMs never contain application/background/case-note content,
+> and rejects an unsigned Clerk webhook with a detail-free 400 (AC5).
+> Deny-by-default permission sweeps continue to live in
+> `permissions.test.ts` (one per story since 1.5).
 
 ### User story
 As a Nova engineer, I want a suite of security tests, so that authorization boundaries and sensitive-data protections are verified before launch.

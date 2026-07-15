@@ -45,6 +45,16 @@
 - Shelter approves hours
 - Cross-shelter access is denied
 
+## Security tests (Story 7.8)
+
+The consolidated boundary battery is
+`tests/integration/security-boundaries.test.ts` (cross-organization
+denial, server-resolved-claims revocation, lifecycle gating, structural
+non-exposure) plus `tests/e2e/security.spec.ts` (the cross-shelter
+journey, shelter DOM sweeps, unsigned-webhook rejection). Per-story
+deny-by-default permission sweeps live in
+`src/server/auth/permissions.test.ts`.
+
 ## Coverage policy
 
 Do not chase arbitrary percentages. Cover every critical business rule and high-risk user journey.
