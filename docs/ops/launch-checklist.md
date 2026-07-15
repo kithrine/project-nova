@@ -1,5 +1,9 @@
 # Pilot Launch Checklist
 
+> The ordered, guided execution procedure for every item below is
+> `docs/ops/launch-runbook.md` (Story 7.9) — phases, exact console
+> steps, verification commands, and the first-administrator bootstrap.
+
 ## Legal and operations
 
 - Employer-of-record agreement confirmed

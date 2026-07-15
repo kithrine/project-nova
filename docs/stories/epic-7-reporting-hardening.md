@@ -15,7 +15,7 @@ Provide pilot reporting and safely launch.
 | 7.6 | Audit review | Done |
 | 7.7 | Accessibility hardening | Done |
 | 7.8 | Security tests | Done |
-| 7.9 | Production launch checklist | Ready for Development |
+| 7.9 | Production launch checklist | In progress — runbook and migration automation shipped; guided launch session pending |
 
 > Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate), and 7.5 on the same day by `ADR-021` (provisional retention schedule; exports are ephemeral and never stored) — both keep counsel/award validation as launch gates; see each story's Dependencies.
 
@@ -579,7 +579,21 @@ External penetration testing and automated dependency/secret scanning setup (pos
 ## Story 7.9 — Production launch checklist
 
 ### Status
-Ready for Development
+In progress — runbook and migration automation shipped (2026-07-14); the
+guided launch session with the program owner executes it.
+
+> **Built so far:** `docs/ops/launch-runbook.md` — the ten-phase guided
+> procedure (domain → production Clerk → Neon → Blob → Production env →
+> migrations → first deploy + webhook → verification incl. the
+> first-administrator bootstrap SQL and the synthetic-data-absent check →
+> protection incl. re-enabling Vercel Deployment Protection → the
+> legal/people sign-off table). `.github/workflows/deploy-migrations.yml`
+> applies `prisma migrate deploy` on pushes to `main` and no-ops until
+> `DATABASE_URL_PRODUCTION` exists, so wiring it costs nothing before
+> launch. The launch checklist points at the runbook. Everything that
+> requires the owner's accounts, purchases, or secrets is deliberately
+> left to the guided session — no production credential ever enters the
+> repo or the assistant's hands.
 
 ### User story
 As a Nova Administrator, I want the production launch checklist implemented and verified, so that we go live safely and consistently with our operating model.
