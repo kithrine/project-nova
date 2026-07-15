@@ -1,0 +1,56 @@
+# Production migrations (Story 7.9; docs/ops/launch-runbook.md).
+#
+# Applies committed Prisma migrations to the PRODUCTION database on every
+# push to main, via `prisma migrate deploy` (never `migrate dev`;
+# docs/architecture/ci-cd.md). Before launch the production secrets do
+# not exist and every step no-ops — the workflow goes live the moment
+# DATABASE_URL_PRODUCTION is added (launch runbook, phase 6).
+#
+# Vercel builds the same commit concurrently; Nova's migrations are
+# additive (append-only house style), so a build that briefly precedes
+# its migration serves the previous schema safely. The runbook's
+# verification phase confirms `migrate status` afterward.
+name: Production migrations
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: prisma migrate deploy
+    runs-on: ubuntu-latest
+    env:
+      HAS_PRODUCTION_DB: ${{ secrets.DATABASE_URL_PRODUCTION != '' }}
+    steps:
+      - name: Pre-launch no-op check
+        if: env.HAS_PRODUCTION_DB != 'true'
+        run: echo "DATABASE_URL_PRODUCTION not configured — pre-launch no-op."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_PRODUCTION_DB == 'true'
+
+      - uses: actions/setup-node@v4
+        if: env.HAS_PRODUCTION_DB == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        if: env.HAS_PRODUCTION_DB == 'true'
+        run: npm ci
+
+      - name: Apply migrations to production
+        if: env.HAS_PRODUCTION_DB == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL_PRODUCTION }}
+        run: npx prisma migrate deploy
+
+      - name: Verify no unresolved migration failures
+        if: env.HAS_PRODUCTION_DB == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL_PRODUCTION }}
+        run: npx prisma migrate status
