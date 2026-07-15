@@ -13,7 +13,7 @@ Provide pilot reporting and safely launch.
 | 7.4 | Outcome summary | Done |
 | 7.5 | Scoped exports | Done |
 | 7.6 | Audit review | Done |
-| 7.7 | Accessibility hardening | Ready for Development |
+| 7.7 | Accessibility hardening | Done |
 | 7.8 | Security tests | Ready for Development |
 | 7.9 | Production launch checklist | Ready for Development |
 
@@ -444,7 +444,26 @@ External log shipping / SIEM integration (future) and analytics over audit data.
 ## Story 7.7 — Accessibility hardening
 
 ### Status
-Ready for Development
+Done
+
+> **Built (2026-07-14):** the systematic pass is recorded in
+> `docs/ux/accessibility-review-2026-07.md`. Automated coverage now has
+> two layers: the CI merge gate (public pages + 360px, axe WCAG A/AA —
+> `tests/e2e/a11y.spec.ts`, unchanged as the blocking check) and the new
+> authenticated sweep (`tests/e2e/a11y-authenticated.spec.ts`) scanning
+> ~21 signed-in screens across all four experiences — five fixture roles
+> incl. the placement workspace via click-through — plus a keyboard test
+> (skip link first, lands on `#main-content`, visible focus outline) and
+> a reduced-motion verification. The sweep lives in the full local suite
+> because CI's preview job is deliberately smoke-only (fixed-id fixtures
+> cannot survive concurrent CI runs); ci-cd.md documents the split.
+> Fixes: `prefers-reduced-motion` support added app-wide (none existed),
+> and the one axe finding — 50%-opacity text failing AA contrast —
+> corrected in six places to the `/60` standard. Screen-reader
+> structural equivalents (roles, names, landmarks, `aria-current`,
+> `aria-sort`, `sr-only` annotations) are asserted across the component
+> suites; a live screen-reader spot check with real users stays on the
+> launch checklist's accessibility gate.
 
 ### User story
 As a Nova engineer, I want a full accessibility hardening pass, so that the pilot meets WCAG 2.2 AA and works for every participant, supervisor, and staff member.

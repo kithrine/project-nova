@@ -22,6 +22,14 @@ import { signIn } from "./sign-in";
  */
 test.describe.configure({ mode: "serial" });
 
+// Set when the first journey approves the PRIOR week; the lock journey
+// (Story 6.7) navigates to it directly — the hours tab also lists the
+// current week (approved by 6.6's correction cycle) and the fixture
+// January week (already LOCKED, Story 7.2), so row-position or
+// status-based selection is ambiguous. Serial mode guarantees the first
+// test runs before the lock test, including on group retries.
+let priorWeekTimesheetId: string | null = null;
+
 test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   page,
 }) => {
@@ -204,6 +212,7 @@ test("a participant opens My Hours and the week is ready (Story 6.1)", async ({
   // Cross-shelter access is denied (testing-strategy.md): the other
   // organization's manager sees no Harper week and cannot open the card.
   const approvedUrl = page.url();
+  priorWeekTimesheetId = approvedUrl.match(/\/timesheets\/([^/?#]+)/)?.[1] ?? null;
   await clerk.signOut({ page });
   await signIn(page, E2E_OTHER_MANAGER_USER_EMAIL);
   await page.goto("/shelter/timesheets");
@@ -344,12 +353,11 @@ test("a coordinator locks the approved week (Story 6.7)", async ({ page }) => {
   test.setTimeout(180_000);
 
   await signIn(page, E2E_OPS_USER_EMAIL);
-  await page.goto("/operations/placements/records/e2e_placement_hours?tab=hours");
-  await expect(page.getByRole("list", { name: "Timesheets" })).toBeVisible({
-    timeout: 20_000,
-  });
-  // The prior week (approved in the first test) is the oldest row.
-  await page.getByRole("link", { name: /Open week: / }).last().click();
+  // Straight to the PRIOR week captured by the first journey — the hours
+  // tab now lists three ambiguous rows (current week approved by 6.6,
+  // prior week approved by 6.5, fixture January week already LOCKED).
+  expect(priorWeekTimesheetId, "prior week id captured by the first journey").not.toBeNull();
+  await page.goto(`/operations/timesheets/${priorWeekTimesheetId}`);
   await expect(page.getByText(/Status: /)).toBeVisible({ timeout: 20_000 });
   const lock = page.getByRole("button", { name: "Lock Hours…" });
   if (await lock.isVisible().catch(() => false)) {

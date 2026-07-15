@@ -27,3 +27,9 @@ Target WCAG 2.2 AA where practical.
 - Screen-reader spot checks
 - Contrast review
 - Form-error review
+
+The Story 7.7 hardening pass is recorded in
+`accessibility-review-2026-07.md`: axe scans gate CI on the public
+surface (`tests/e2e/a11y.spec.ts`) and sweep every signed-in experience
+in the pre-ship local suite (`tests/e2e/a11y-authenticated.spec.ts`);
+muted text uses `text-base-content/60` or stronger.

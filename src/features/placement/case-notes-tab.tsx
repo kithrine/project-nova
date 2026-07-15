@@ -103,7 +103,7 @@ function NoteCard({
                     <p className="whitespace-pre-wrap text-base-content/80">
                       {revision.priorBody}
                     </p>
-                    <p className="text-base-content/50">
+                    <p className="text-base-content/60">
                       Replaced by {revision.editorName} · {revision.atLabel}
                     </p>
                   </li>

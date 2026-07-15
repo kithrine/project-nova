@@ -248,7 +248,7 @@ function IncidentCard({ incident }: { incident: IncidentView }) {
           {incident.followUps.map((followUp) => (
             <li key={followUp.id} className="flex flex-col gap-0.5">
               <p className="whitespace-pre-wrap text-sm">{followUp.body}</p>
-              <p className="text-xs text-base-content/50">
+              <p className="text-xs text-base-content/60">
                 {followUp.authorName} · {followUp.atLabel}
               </p>
             </li>
