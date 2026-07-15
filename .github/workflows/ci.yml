@@ -112,4 +112,8 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.deploy.outputs.url }}
           E2E_SMOKE_ONLY: "1"
+          # Deployment Protection is enabled at launch (runbook phase 9);
+          # this bypass header keeps preview smoke tests working. Empty
+          # pre-launch, which sends no header at all.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: npx playwright test tests/e2e/smoke.spec.ts tests/e2e/a11y.spec.ts
