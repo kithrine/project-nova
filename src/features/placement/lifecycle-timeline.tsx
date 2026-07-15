@@ -69,7 +69,7 @@ export function LifecycleTimeline({ stages }: { stages: TimelineStage[] }) {
             stage.state === "current"
               ? "font-semibold"
               : stage.state === "upcoming"
-                ? "text-base-content/50"
+                ? "text-base-content/60"
                 : "text-base-content/80"
           }`}
         >

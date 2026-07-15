@@ -36,7 +36,7 @@ export function WeeklyHoursCard({
             Next week →
           </Link>
         ) : (
-          <span className="px-3 py-1.5 text-sm text-base-content/50">
+          <span className="px-3 py-1.5 text-sm text-base-content/60">
             This is the current week
           </span>
         )}

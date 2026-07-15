@@ -122,7 +122,7 @@ export default async function ApplicationWorkspacePage({
                     ? "rounded-full bg-primary px-2.5 py-0.5 font-medium text-primary-content"
                     : isPast
                       ? "text-base-content/80"
-                      : "text-base-content/50"
+                      : "text-base-content/60"
                 }
               >
                 {OPERATIONS_STATUS_LABELS[status]}
@@ -227,7 +227,7 @@ export default async function ApplicationWorkspacePage({
                         type="button"
                         disabled
                         aria-describedby="actions-note"
-                        className="cursor-not-allowed rounded-md border border-base-300 bg-base-200/60 px-4 py-2 text-sm font-medium text-base-content/50"
+                        className="cursor-not-allowed rounded-md border border-base-300 bg-base-200/60 px-4 py-2 text-sm font-medium text-base-content/60"
                       >
                         {action.label}
                       </button>

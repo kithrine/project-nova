@@ -101,3 +101,18 @@ body {
 .skip-link:focus-visible {
   transform: translateY(0);
 }
+
+/* Reduced motion (Story 7.7; docs/ux/accessibility.md): when the user
+   asks for less motion, suppress every non-essential animation and
+   transition app-wide. Nothing in Nova conveys meaning through motion
+   alone, so a near-zero duration loses no information. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
