@@ -8,6 +8,12 @@ const LOCAL_URL = `http://localhost:${PORT}`;
 // no webServer is started.
 const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 
+// With Vercel Deployment Protection re-enabled at launch (Story 7.9,
+// runbook phase 9), preview URLs are auth-gated; CI authenticates with
+// the project's Protection Bypass for Automation secret. Unset locally
+// and against the public production domain — no header is sent then.
+const protectionBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
@@ -21,6 +27,13 @@ export default defineConfig({
   use: {
     baseURL: externalBaseUrl ?? LOCAL_URL,
     trace: "on-first-retry",
+    ...(protectionBypass
+      ? {
+          extraHTTPHeaders: {
+            "x-vercel-protection-bypass": protectionBypass,
+          },
+        }
+      : {}),
   },
   projects: [
     {

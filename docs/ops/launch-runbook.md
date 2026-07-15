@@ -141,10 +141,12 @@ complete set (mirrors `.env.example`):
       CI could smoke-test previews. Standard Protection gates preview
       URLs and `*.vercel.app`; the custom production domain stays
       public, which is exactly right.
-- [ ] CI note: with protection on, the `preview` job's smoke tests need
-      a Protection Bypass for Automation token — add
-      `VERCEL_AUTOMATION_BYPASS_SECRET` handling if preview E2E starts
-      401ing (follow-up, not a launch blocker).
+- [ ] CI bypass wired (launch day): Playwright sends
+      `x-vercel-protection-bypass` whenever the
+      `VERCEL_AUTOMATION_BYPASS_SECRET` env is set, and the `preview` job
+      passes it from the GitHub secret of the same name — generate the
+      token under Deployment Protection → Protection Bypass for
+      Automation and add it as that GitHub Actions secret.
 
 ## Phase 10 — Legal, operations, and people sign-offs (tracked, not code)
 
