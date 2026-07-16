@@ -12,13 +12,14 @@ const tokensCss = readFileSync(join(process.cwd(), "src/styles/tokens.css"), "ut
 
 describe("nova color theme (globals.css)", () => {
   it.each([
-    ["deep blue primary", "--color-primary: #1d4ed8"],
-    ["muted teal accent", "--color-accent: #0f766e"],
-    ["calm green success", "--color-success: #15803d"],
-    ["amber warning", "--color-warning: #b45309"],
+    ["deep teal primary", "--color-primary: #0f6b5c"],
+    ["electric chartreuse accent", "--color-accent: #d9e021"],
+    ["dark-on-accent content", "--color-accent-content: #1f2a05"],
+    ["calm green success", "--color-success: #147a3a"],
+    ["amber warning", "--color-warning: #a84d08"],
     ["muted red danger", "--color-error: #b91c1c"],
-    ["neutral-first surface", "--color-base-100: #ffffff"],
-    ["neutral text", "--color-base-content: #0f172a"],
+    ["warm cream surface", "--color-base-100: #faf6ec"],
+    ["spruce ink text", "--color-base-content: #0b1712"],
   ])("defines the %s token", (_name, declaration) => {
     expect(globalsCss).toContain(declaration);
   });

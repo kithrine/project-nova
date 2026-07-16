@@ -187,7 +187,7 @@ export default function HowItWorksPage() {
               <li key={step.title} className="relative flex gap-4 sm:gap-6">
                 <div
                   aria-hidden="true"
-                  className={`${styles.stepNumber} z-10 flex size-11 shrink-0 items-center justify-center rounded-full border border-secondary/40 bg-[#faf7f1] text-secondary`}
+                  className={`${styles.stepNumber} z-10 flex size-11 shrink-0 items-center justify-center rounded-full border border-secondary/40 bg-base-100 text-secondary`}
                 >
                   {index + 1}
                 </div>
@@ -275,20 +275,20 @@ export default function HowItWorksPage() {
         {/* ------------------------------------------------------- Closing */}
         <section aria-labelledby="closing-heading" className={styles.closing}>
           <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-5 px-4 py-16 sm:px-6 sm:py-20">
-            <Paw className="size-8 text-teal-300/80" />
+            <Paw className="size-8 text-accent/80" />
             <h2
               id="closing-heading"
               className={`${styles.display} max-w-xl text-3xl font-semibold sm:text-4xl`}
             >
               Ready when you are.
             </h2>
-            <p className="max-w-prose text-base leading-relaxed text-slate-200">
+            <p className="max-w-prose text-base leading-relaxed text-base-100/90">
               Creating your account is the first step — the application itself is plain
               questions, at your pace, saved as you go.
             </p>
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-md border border-teal-200/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-200"
+              className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               Create Your Account
             </Link>
