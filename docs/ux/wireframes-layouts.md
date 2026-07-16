@@ -1,5 +1,14 @@
 # Wireframe Layouts
 
+## Public homepage (brand refresh 2026-07-15)
+
+- Header: compass-star brand, pill nav (real pages only — no dead links), ghost Log In, chartreuse Apply Now
+- Hero split: display headline with script accent word and drawn flourish; mission paragraph; two CTAs (See How It Works, Start Your Application); illustrative dashboard card (decorative, fictional data, `aria-hidden`, documented photo slot)
+- Trust strip: category marks only ("Built for shelters and workforce programs…") — never fictional organizations
+- Value-prop grid: four scroll-revealed cards with circled icons
+- Closing band: organic wave into deep teal, script tagline, no interactive elements
+- Organic decoration (blobs, dot clusters, leaf sprigs) clipped by the page — never horizontal scroll at 360px
+
 ## Operations dashboard
 
 - Left navigation

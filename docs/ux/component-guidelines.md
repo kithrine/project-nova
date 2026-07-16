@@ -48,6 +48,16 @@
 - Case Note Composer
 - Funding Assignment Card
 
+## Public marketing (brand refresh 2026-07-15)
+
+- Nova Logo (compass star — `src/components/layout/nova-logo.tsx`; the brand name is always adjacent text)
+- Script Accent (Caveat word with drawn flourish — decorative styling over plain text)
+- Decorative Motifs (blob, dot cluster, leaf sprig — always `aria-hidden`, never containing focusables)
+- Illustrative Dashboard Card (fictional, terminology-correct data; `aria-hidden`; nothing interactive inside)
+- Trust Strip (category marks, never fictional organizations)
+- Value Prop Card
+- Closing Band (teal; carries no interactive elements — the global focus ring is teal and would vanish)
+
 ## Engineering rules
 
 - Accessible by keyboard
@@ -58,3 +68,5 @@
 - Tailwind, DaisyUI, and native CSS are all approved
 - Never use emojis as icons or status indicators. Use SVGs — from an approved icon set, or purpose-built SVGs — with an accessible label for meaningful icons and hidden from assistive technology when purely decorative
 - Build every component mobile-first, then progressively enhance for larger viewports
+- The chartreuse accent is decorative or dark-text-on-accent only — never a text color on light surfaces (`docs/ux/visual-design-reference.md`)
+- Decorative wrappers (`aria-hidden`) must never contain focusable elements

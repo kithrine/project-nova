@@ -19,6 +19,11 @@ Target WCAG 2.2 AA where practical.
 - No drag-and-drop-only actions
 - Plain language
 - Responsive zoom and reflow
+- Interactive elements never sit on surfaces where the global focus ring
+  loses 3:1 contrast (the teal closing bands carry no links or buttons;
+  any exception must override its ring per-element and prove ≥ 3:1)
+- Decorative art (blobs, motifs, illustrations) is `aria-hidden` and
+  never contains focusable elements
 
 ## Testing
 

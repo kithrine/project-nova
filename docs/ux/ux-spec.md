@@ -4,6 +4,10 @@
 
 Never make the user wonder what to do next.
 
+## Public
+
+A warm, expressive marketing surface (homepage, How It Works) that moves a visitor from understanding to applying. More expressive type and motion than the app — Fraunces display, Caveat script accents, organic decoration — always reduced-motion gated, and honest by rule: no fictional partners, testimonials, or claims.
+
 ## Participant
 
 A guided journey emphasizing current step, next action, waiting states, and progress.
