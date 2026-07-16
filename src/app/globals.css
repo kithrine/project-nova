@@ -7,9 +7,12 @@
 
 /*
  * "nova" theme — the single source of color truth.
- * Palette per docs/ux/visual-design-reference.md: neutral-first, deep blue primary,
- * muted teal accent, calm green success, amber warning, muted red danger.
- * All pairings meet WCAG 2.2 AA contrast on their intended surfaces.
+ * Palette per docs/ux/visual-design-reference.md: warm cream surfaces,
+ * deep teal primary, electric chartreuse accent (decorative or
+ * dark-text-on-accent only — never a text color on light surfaces),
+ * calm green success, amber warning, muted red danger.
+ * All pairings meet WCAG 2.2 AA on their intended surfaces; verified by
+ * scripts/check-contrast.mjs — run it after ANY change to these tokens.
  */
 @plugin "daisyui/theme" {
   name: "nova";
@@ -17,34 +20,38 @@
   prefersdark: false;
   color-scheme: light;
 
-  /* Neutral-first surfaces */
-  --color-base-100: #ffffff;
-  --color-base-200: #f8fafc;
-  --color-base-300: #e2e8f0;
-  --color-base-content: #0f172a;
+  /* Warm cream surfaces */
+  --color-base-100: #faf6ec;
+  --color-base-200: #f4efe2;
+  --color-base-300: #e3dcca;
+  /* Near-black spruce ink — dark enough that text-base-content/60 stays
+     >= 4.5:1 on both cream surfaces (the tightest gate in check-contrast) */
+  --color-base-content: #0b1712;
 
-  /* Deep blue primary */
-  --color-primary: #1d4ed8;
+  /* Deep teal primary */
+  --color-primary: #0f6b5c;
   --color-primary-content: #ffffff;
 
-  /* Muted teal accent */
+  /* Supporting teal secondary */
   --color-secondary: #0f766e;
   --color-secondary-content: #ffffff;
-  --color-accent: #0f766e;
-  --color-accent-content: #ffffff;
 
-  --color-neutral: #334155;
-  --color-neutral-content: #f8fafc;
+  /* Electric chartreuse accent — decorative + dark-text-on-accent only */
+  --color-accent: #d9e021;
+  --color-accent-content: #1f2a05;
+
+  --color-neutral: #33413b;
+  --color-neutral-content: #f4efe2;
 
   --color-info: #1d4ed8;
   --color-info-content: #ffffff;
 
-  /* Calm green success */
-  --color-success: #15803d;
+  /* Calm green success (deepened to clear 4.5:1 on base-200) */
+  --color-success: #147a3a;
   --color-success-content: #ffffff;
 
-  /* Amber warning */
-  --color-warning: #b45309;
+  /* Amber warning (deepened to clear 4.5:1 on base-200) */
+  --color-warning: #a84d08;
   --color-warning-content: #ffffff;
 
   /* Muted red danger */

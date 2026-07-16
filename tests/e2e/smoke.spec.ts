@@ -8,7 +8,9 @@ import { expect, test } from "@playwright/test";
 test("public landing page responds with 200 and renders", async ({ page }) => {
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1, name: "Project Nova" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Stronger futures start with opportunity." }),
+  ).toBeVisible();
 });
 
 test("landing page is mobile-first with no horizontal scroll at 360px", async ({ page }) => {
