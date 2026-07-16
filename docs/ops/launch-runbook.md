@@ -1,5 +1,15 @@
 # Production Launch Runbook — Story 7.9
 
+> **Executed 2026-07-15.** Phases 0–9 completed and verified in the
+> guided session; `https://project-nova.app` is live. Phase 10's
+> sign-off table remains the operational tracker for the counsel and
+> people gates. Session notes: the `www` subdomain was added post-launch
+> with an accidental reverse redirect (apex→www) that would have broken
+> Clerk webhook delivery — caught by probe, corrected to www→apex 308;
+> Google sign-in required custom OAuth credentials (Clerk production
+> instances don't ship shared Google credentials) — wired via Google
+> Auth Platform and verified live.
+
 The ordered, guided procedure that turns `docs/ops/launch-checklist.md`
 into a working production deployment. Roles: **Kit** performs every
 console action, purchase, and secret entry (secrets are never typed by
