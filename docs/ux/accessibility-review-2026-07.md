@@ -1,5 +1,13 @@
 # Accessibility Hardening Review — Story 7.7 (2026-07-14)
 
+> **Addendum (2026-07-15):** the brand refresh replaced the entire color
+> palette after this review (warm cream surfaces, spruce ink, teal
+> primary, chartreuse accent). Both axe suites were re-run green on the
+> new palette in the same change set, and the `text-base-content/60`
+> muted floor below still holds — now guarded permanently by
+> `scripts/check-contrast.mjs`. The findings and fixes recorded here
+> describe the pre-refresh palette and remain a historical record.
+
 The recorded pass over `docs/ux/accessibility.md`'s checklist, covering
 all four experiences (public, participant, shelter, operations). WCAG
 2.2 AA target.

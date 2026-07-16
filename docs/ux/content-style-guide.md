@@ -69,3 +69,20 @@ templates (Story 2.11: never free text shown verbatim). Placeholders in
 Rules: state plainly whether and when reapplication is possible; never use
 "failed," "criminal," "bad candidate," or clinical "rejected" language;
 never name an offense or background detail in applicant-facing copy.
+
+## Public marketing copy (brand refresh 2026-07-15)
+
+The same respectful-language rules apply on the marketing surface (the
+public page suites scan for the banned words), plus one honesty rule:
+**no fictional partners, testimonials, or claims** — the trust strip
+names categories ("Animal Shelters · Workforce Boards · Reentry
+Programs · Community Nonprofits"), never invented organizations, until
+real partners agree to appear.
+
+Approved brand lines (script-accent styling is decorative; screen
+readers hear plain text):
+
+- "Stronger futures start with opportunity." (hero)
+- "Workforce impact. Community change." (eyebrow)
+- "Built for shelters and workforce programs making an impact" (trust strip)
+- "Building pathways. Strengthening communities. Changing lives." (closing band)
