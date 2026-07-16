@@ -15,7 +15,7 @@ Provide pilot reporting and safely launch.
 | 7.6 | Audit review | Done |
 | 7.7 | Accessibility hardening | Done |
 | 7.8 | Security tests | Done |
-| 7.9 | Production launch checklist | In progress — runbook and migration automation shipped; guided launch session pending |
+| 7.9 | Production launch checklist | Done — launched 2026-07-15 at project-nova.app (Phase 10 sign-offs tracked operationally) |
 
 > Sequencing note: 7.1–7.6 are read-only reports built on data from earlier epics — start with 7.1 (simplest, Operations placement data), then 7.3 and 7.4; 7.2 depends on locked timesheets (Epic 6); 7.6 depends on audit events written across Epics 2–6; 7.5 (exports) builds on the reports in 7.1–7.4 and the audit trail in 7.6, so build it after them. 7.7 (accessibility) and 7.8 (security) are hardening passes over the whole app and should run once the feature surfaces exist. 7.9 (launch) is last and depends on 7.7 and 7.8 passing. 7.2 was unblocked on 2026-07-14 by `ADR-020` (provisional pilot format; award validation is a launch gate), and 7.5 on the same day by `ADR-021` (provisional retention schedule; exports are ephemeral and never stored) — both keep counsel/award validation as launch gates; see each story's Dependencies.
 
@@ -579,8 +579,26 @@ External penetration testing and automated dependency/secret scanning setup (pos
 ## Story 7.9 — Production launch checklist
 
 ### Status
-In progress — runbook and migration automation shipped (2026-07-14); the
-guided launch session with the program owner executes it.
+Done — **launched 2026-07-15 at `https://project-nova.app`** via the
+guided runbook session with the program owner.
+
+> **Launched (2026-07-15):** all technical phases (0–9) executed and
+> verified in the guided session — Vercel-purchased domain (`www`
+> 308→apex after a backwards-redirect catch that would have broken
+> webhook delivery), production Clerk (DNS-verified; email code plus
+> custom Google OAuth credentials after the shared-dev-credential
+> `client_id` error surfaced on first Google sign-up), production Neon
+> (38 migrations via the now-live deploy workflow), production Blob,
+> complete Production env, webhook verified (test event 2xx; unsigned
+> 400), production smoke + a11y suites 10/10 against the live domain,
+> first administrator bootstrapped (`org_nova_prod`), synthetic-count
+> 0, branch protection PR-required, and Deployment Protection
+> re-enabled with the CI bypass secret wired (previews 302→SSO; the
+> production `*.vercel.app` alias stays public by Vercel design —
+> harmless, it serves the same public app). Phase 10's legal/people
+> sign-offs remain tracked in the runbook: real applicants wait for the
+> Colorado counsel gates (ADR-015/016), grant formats for award
+> validation (ADR-020), retention for counsel review (ADR-021).
 
 > **Built so far:** `docs/ops/launch-runbook.md` — the ten-phase guided
 > procedure (domain → production Clerk → Neon → Blob → Production env →

@@ -26,20 +26,18 @@
 - Custom domain
 - Protected deployment process
 
-> **Pre-launch status (intentional):** the Vercel Production environment
-> carries NO environment variables until launch (Story 7.9), so the
-> production URL (`project-nova-lake.vercel.app`) returns
-> `500 MIDDLEWARE_INVOCATION_FAILED` — Clerk's middleware cannot
-> initialize without `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` /
-> `CLERK_SECRET_KEY`. This is a known, deliberate condition, not an
-> outage: a production Clerk instance requires the custom domain
-> (Clerk production instances cannot run on `*.vercel.app`), so
-> production configuration is inherently coupled to the 7.9 launch
-> work (domain, production Clerk/Neon/Blob, migrations, deployment
-> protection). Demos and reviews use Vercel **preview deployment
-> URLs**, which run the nonproduction stack above and are reachable
-> because deployment protection is disabled pre-launch (re-enabling it
-> is a launch-checklist item).
+> **Launched (2026-07-15, Story 7.9):** production is live at
+> **`https://project-nova.app`** (`www` 308-redirects to the apex) on
+> its own Clerk production instance (email code + custom Google OAuth),
+> its own Neon database (migrations applied by
+> `.github/workflows/deploy-migrations.yml` on every push to `main`),
+> and its own Blob store. Vercel Deployment Protection is **enabled**:
+> preview URLs require Vercel SSO, and CI's preview smoke tests
+> authenticate with the Protection Bypass for Automation secret
+> (`VERCEL_AUTOMATION_BYPASS_SECRET`). The production database holds
+> real data — fixtures, seeds, and tests must only ever target the
+> shared nonproduction stack above (ADR-006). The guided procedure that
+> produced this state is `docs/ops/launch-runbook.md`.
 
 ## Staging
 
