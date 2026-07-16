@@ -21,9 +21,13 @@ Target WCAG 2.2 AA where practical.
 - Responsive zoom and reflow
 - Interactive elements never sit on surfaces where the global focus ring
   loses 3:1 contrast (the teal closing bands carry no links or buttons;
-  any exception must override its ring per-element and prove ≥ 3:1)
+  any exception must override its ring per-element and prove ≥ 3:1 —
+  the app-shell sidebar nav does exactly this with the accent ring,
+  asserted in `scripts/check-contrast.mjs`)
 - Decorative art (blobs, motifs, illustrations) is `aria-hidden` and
   never contains focusable elements
+- `aria-disabled` text (e.g. "coming soon" nav items) is exempt from the
+  AA text-contrast requirement but held to a self-imposed ≥ 3:1
 
 ## Testing
 

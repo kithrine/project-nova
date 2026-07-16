@@ -1,5 +1,10 @@
 import Link from "next/link";
 
+import { NavIcon } from "@/components/layout/nav-icons";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import {
@@ -10,10 +15,11 @@ import {
 export const metadata = { title: "Operations Dashboard" };
 
 /**
- * Operations dashboard (docs/ux/wireframes-layouts.md). Story 5.5 added
- * the Urgent blockers surface; Story 5.11 adds Urgent incidents — every
- * open Serious/Emergency report, always visible in-app since real-time
- * messaging is V2. Today's Work queues arrive with later stories.
+ * Operations dashboard (docs/ux/wireframes-layouts.md; brand pass
+ * 2026-07-16). Story 5.5 added the Urgent blockers surface; Story 5.11
+ * adds Urgent incidents — every open Serious/Emergency report, always
+ * visible in-app since real-time messaging is V2. The stat row surfaces
+ * the same permission-gated counts at a glance.
  */
 export default async function OperationsDashboardPage() {
   const ctx = await getAuthContext();
@@ -26,13 +32,33 @@ export default async function OperationsDashboardPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Operations workspace</h1>
-        <p className="max-w-prose text-base leading-relaxed text-base-content/80">
-          Today&apos;s Work and application queues will appear here as the
-          case-management workflows are built.
-        </p>
-      </div>
+      <PageHeader
+        title="Operations workspace"
+        description="Everything urgent across the pilot — open incidents and blocked activations — with the queues one click away."
+      />
+
+      {canReviewIncidents || canViewPlacements ? (
+        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+          {canReviewIncidents ? (
+            <StatCard
+              label="Urgent incidents"
+              value={urgentIncidents.length}
+              sublabel="Open Serious or Emergency reports"
+              icon={<NavIcon name="alert" className="size-5" />}
+              tone="error"
+            />
+          ) : null}
+          {canViewPlacements ? (
+            <StatCard
+              label="Urgent blockers"
+              value={urgent.length}
+              sublabel="Placements blocked at activation"
+              icon={<NavIcon name="briefcase" className="size-5" />}
+              tone="warning"
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       {canReviewIncidents ? (
         <div className="flex flex-col gap-3">
@@ -54,19 +80,20 @@ export default async function OperationsDashboardPage() {
             Urgent incidents
           </h2>
           {urgentIncidents.length === 0 ? (
-            <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+            <Card variant="muted" className="max-w-prose text-sm text-base-content/70">
               No open Serious or Emergency incidents.
-            </p>
+            </Card>
           ) : (
             <ul aria-label="Urgent incidents" className="flex max-w-3xl flex-col gap-2">
               {urgentIncidents.map((row) => (
                 <li
                   key={row.incidentId}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-error/40 bg-error/5 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300/70 bg-surface px-4 py-3 shadow-(--shadow-sm)"
                 >
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <p className="text-sm font-medium">
-                      {row.severityLabel} — {row.categoryLabel} · {row.participantName}
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <Badge tone="error">{row.severityLabel}</Badge>
+                      {row.categoryLabel} · {row.participantName}
                     </p>
                     <p className="text-xs text-base-content/60">
                       {row.incidentNumber} · {row.placementNumber} · {row.statusLabel} ·
@@ -106,19 +133,22 @@ export default async function OperationsDashboardPage() {
             Urgent blockers
           </h2>
           {urgent.length === 0 ? (
-            <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
+            <Card variant="muted" className="max-w-prose text-sm text-base-content/70">
               No placements are blocked at the activation gate. Placements in
               onboarding with unmet prerequisites appear here.
-            </p>
+            </Card>
           ) : (
             <ul aria-label="Urgent blockers" className="flex max-w-3xl flex-col gap-2">
               {urgent.map((row) => (
                 <li
                   key={row.placementId}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/5 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300/70 bg-surface px-4 py-3 shadow-(--shadow-sm)"
                 >
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <p className="text-sm font-medium">{row.participantName}</p>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <Badge tone="warning">Blocked</Badge>
+                      {row.participantName}
+                    </p>
                     <p className="text-xs text-base-content/60">
                       {row.placementNumber} · {row.siteName} · Open:{" "}
                       {row.openTitles.join("; ")}

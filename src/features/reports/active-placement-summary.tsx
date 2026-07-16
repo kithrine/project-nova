@@ -199,7 +199,12 @@ export function ActivePlacementSummary({
           </ul>
 
           {/* md and up: the denser data table. */}
-          <div className="hidden overflow-x-auto md:block">
+          <div
+            className="hidden overflow-x-auto md:block"
+            tabIndex={0}
+            role="region"
+            aria-label="Active placements table"
+          >
             <table className="table table-sm w-full">
               <thead>
                 <tr>

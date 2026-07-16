@@ -124,7 +124,14 @@ export function AuditReview({
           </ul>
 
           {/* md and up: the audit table. */}
-          <div className="hidden overflow-x-auto md:block">
+          {/* Focusable, labeled scroll region: keyboard users can scroll a
+              wide table even when no row contains a focusable element. */}
+          <div
+            className="hidden overflow-x-auto md:block"
+            tabIndex={0}
+            role="region"
+            aria-label="Audit events table"
+          >
             <table className="table table-sm w-full">
               <thead>
                 <tr>

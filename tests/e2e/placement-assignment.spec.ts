@@ -356,9 +356,13 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   await page.goto("/operations");
   const urgentIncidents = page.getByRole("list", { name: "Urgent incidents" });
   await expect(urgentIncidents).toBeVisible({ timeout: 20_000 });
-  await expect(
-    urgentIncidents.getByText(/Serious — Safety · Casey Synthetic-Assign/).first(),
-  ).toBeVisible();
+  // Brand pass: severity renders as a Badge chip beside the row text, so
+  // the old contiguous "Serious — Safety · …" string no longer exists.
+  const incidentRow = urgentIncidents
+    .locator("li", { hasText: /Safety · Casey Synthetic-Assign/ })
+    .first();
+  await expect(incidentRow).toBeVisible();
+  await expect(incidentRow.getByText("Serious", { exact: true })).toBeVisible();
   await urgentIncidents
     .getByRole("link", { name: /Open incident: INC-/ })
     .first()

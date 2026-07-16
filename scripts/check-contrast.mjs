@@ -103,6 +103,31 @@ check("base-100 as text on primary", t["base-100"], t["primary"], 4.5);
 check("focus ring: primary vs base-100", t["primary"], t["base-100"], 3);
 check("accent vs primary (on-band ring/decoration)", t["accent"], t["primary"], 3);
 
+// Signed-in surfaces (brand pass 2026-07-16): true-white cards on cream.
+check("base-content on surface", t["base-content"], t["surface"], 4.5);
+check("base-content/60 on surface", composite(t["base-content"], t["surface"], 0.6), t["surface"], 4.5);
+
+// Teal sidebar text tiers: /85 is the muted floor (…/70 fails at 3.77);
+// /60 is disabled-only (aria-disabled, axe-exempt — self-imposed >= 3).
+check("base-100/85 on primary (sidebar muted text)", composite(t["base-100"], t["primary"], 0.85), t["primary"], 4.5);
+check("base-100/60 on primary (disabled nav floor)", composite(t["base-100"], t["primary"], 0.6), t["primary"], 3);
+
+// Active nav pill (chartreuse-to-cream gradient): dark accent text must
+// clear BOTH gradient ends (accent end already asserted above at >= 7).
+check("accent-content on base-100 (active pill, cream end)", t["accent-content"], t["base-100"], 4.5);
+
+// Sidebar quote card: full-opacity cream text on the 10%-cream-tinted
+// teal card (muted /85 fails on this composite — axe-verified 2026-07-16).
+check(
+  "base-100 on base-100-10%-over-primary (sidebar quote card)",
+  t["base-100"],
+  composite(t["base-100"], t["primary"], 0.1),
+  4.5,
+);
+
+// Role chip / eyebrow tint: teal text on an 18% chartreuse wash over cream.
+check("primary on accent-18%-over-base-100 (role chip)", t["primary"], composite(t["accent"], t["base-100"], 0.18), 4.5);
+
 const failures = checks.filter((entry) => entry.actual < entry.min);
 const format = (entry) =>
   `${entry.actual >= entry.min ? "PASS" : "FAIL"}  ${entry.actual.toFixed(2).padStart(6)} (min ${entry.min})  ${entry.label}`;

@@ -16,7 +16,12 @@ export function FundingSourceList({ sources }: { sources: FundingSourceView[] })
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-base-300">
+    <div
+      className="overflow-x-auto rounded-md border border-base-300"
+      tabIndex={0}
+      role="region"
+      aria-label="Funding sources table"
+    >
       <table className="w-full min-w-[36rem] text-left text-sm">
         <thead className="border-b border-base-300 bg-base-200 text-xs uppercase tracking-wide text-base-content/70">
           <tr>
