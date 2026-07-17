@@ -8,6 +8,7 @@ import {
   isDecisionCategory,
   isDisqualifyingCategory,
   OPERATIONS_STATUS_LABELS,
+  OPERATIONS_STATUS_TONES,
   ORDINARY_REJECTION_CATEGORIES,
   QUEUE_VISIBLE_STATUSES,
   resolveQueueFilter,
@@ -35,6 +36,14 @@ describe("queue visibility and filtering (Story 2.7)", () => {
     for (const status of Object.values(S)) {
       expect(OPERATIONS_STATUS_LABELS[status], `missing label for ${status}`).toBeTruthy();
     }
+  });
+
+  it("assigns every status a badge tone, with Rejected recoverable (ADR-016)", () => {
+    for (const status of Object.values(S)) {
+      expect(OPERATIONS_STATUS_TONES[status], `missing tone for ${status}`).toBeTruthy();
+    }
+    expect(OPERATIONS_STATUS_TONES[S.REJECTED]).toBe("warning");
+    expect(OPERATIONS_STATUS_TONES[S.DISQUALIFIED]).toBe("error");
   });
 });
 

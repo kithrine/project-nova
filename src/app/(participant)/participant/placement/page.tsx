@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { ParticipantSteps } from "@/features/placement/participant-steps";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnPlacement } from "@/server/services/placement-service";
@@ -16,7 +17,7 @@ export default async function MyPlacementPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">My Placement</h1>
+      <PageHeader title="My Placement" />
       {placement ? (
         <div className="flex max-w-prose flex-col gap-4">
           <div className="flex flex-col gap-1 rounded-lg border border-primary/30 bg-primary/5 p-5">

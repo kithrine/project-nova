@@ -1,5 +1,6 @@
 import { PlacementStatus } from "@/generated/prisma/client";
 import { LifecycleError } from "@/server/errors/app-error";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Placement transitions (docs/product/placement-lifecycle.md), enacted
@@ -286,6 +287,27 @@ export const PLACEMENT_STATUS_LABELS: Record<PlacementStatus, string> = {
   [PlacementStatus.CONVERTED_TO_PERMANENT]: "Converted to permanent employment",
   [PlacementStatus.WITHDRAWN]: "Withdrawn",
   [PlacementStatus.TERMINATED]: "Terminated",
+};
+
+/**
+ * Badge tones for placement statuses (uniform vocabulary,
+ * docs/ux/component-guidelines.md): in-flight review phases info, working
+ * states and good endings success, Paused warning (needs attention to
+ * resume), Terminated the one adverse ending. Withdrawn is a closed
+ * neutral — a decision, not a failure.
+ */
+export const PLACEMENT_STATUS_TONES: Record<PlacementStatus, BadgeTone> = {
+  [PlacementStatus.DRAFT]: "neutral",
+  [PlacementStatus.PROPOSED]: "info",
+  [PlacementStatus.SHELTER_REVIEW]: "info",
+  [PlacementStatus.APPROVED]: "success",
+  [PlacementStatus.ONBOARDING]: "info",
+  [PlacementStatus.ACTIVE]: "success",
+  [PlacementStatus.PAUSED]: "warning",
+  [PlacementStatus.COMPLETED]: "success",
+  [PlacementStatus.CONVERTED_TO_PERMANENT]: "success",
+  [PlacementStatus.WITHDRAWN]: "neutral",
+  [PlacementStatus.TERMINATED]: "error",
 };
 
 /** The main path a placement walks (docs/product/placement-lifecycle.md). */

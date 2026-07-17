@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { ActivePlacementSummary } from "@/features/reports/active-placement-summary";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -48,11 +49,10 @@ export default async function ActivePlacementsReportPage({
             Reports
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Active placement summary</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Placements currently in progress — onboarding, active, or paused. Terminal
-          placements are excluded.
-        </p>
+        <PageHeader
+          title="Active placement summary"
+          description="Placements currently in progress — onboarding, active, or paused. Terminal placements are excluded."
+        />
       </header>
 
       <ActivePlacementSummary view={view} basePath={BASE_PATH} />

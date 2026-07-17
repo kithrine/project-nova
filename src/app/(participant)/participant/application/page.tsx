@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   saveDraftAction,
   startApplicationAction,
@@ -83,7 +85,7 @@ export default async function MyApplicationPage({
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">My Application</h1>
+      <PageHeader title="My Application" />
 
       {justSubmitted && active ? (
         <div
@@ -229,11 +231,13 @@ export default async function MyApplicationPage({
                 className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-md border border-base-300 bg-base-100 px-4 py-3 text-sm"
               >
                 <span className="font-medium">{application.applicationNumber}</span>
-                <span className="text-base-content/70">
-                  {application.statusLabel}
-                  {application.submittedAtLabel
-                    ? ` · Submitted ${application.submittedAtLabel}`
-                    : ""}
+                <span className="flex flex-wrap items-center gap-2">
+                  <Badge tone={application.statusTone}>{application.statusLabel}</Badge>
+                  {application.submittedAtLabel ? (
+                    <span className="text-base-content/70">
+                      Submitted {application.submittedAtLabel}
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}

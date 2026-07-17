@@ -1,4 +1,5 @@
 import { TimesheetStatus } from "@/generated/prisma/client";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Timesheet week policy (Story 6.1). Weeks run Monday-Sunday — a fixed
@@ -14,6 +15,19 @@ export const TIMESHEET_STATUS_LABELS: Record<TimesheetStatus, string> = {
   [TimesheetStatus.APPROVED]: "Approved",
   [TimesheetStatus.REJECTED]: "Needs correction",
   [TimesheetStatus.LOCKED]: "Locked",
+};
+
+/**
+ * Badge tones for timesheet statuses (uniform vocabulary,
+ * docs/ux/component-guidelines.md): Needs correction is warning — it's the
+ * recoverable ask-the-participant state, never an error.
+ */
+export const TIMESHEET_STATUS_TONES: Record<TimesheetStatus, BadgeTone> = {
+  [TimesheetStatus.DRAFT]: "neutral",
+  [TimesheetStatus.SUBMITTED]: "info",
+  [TimesheetStatus.APPROVED]: "success",
+  [TimesheetStatus.REJECTED]: "warning",
+  [TimesheetStatus.LOCKED]: "success",
 };
 
 /** "Participants may edit draft or rejected timesheets" (business-rules.md). */

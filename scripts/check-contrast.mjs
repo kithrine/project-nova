@@ -128,6 +128,19 @@ check(
 // Role chip / eyebrow tint: teal text on an 18% chartreuse wash over cream.
 check("primary on accent-18%-over-base-100 (role chip)", t["primary"], composite(t["accent"], t["base-100"], 0.18), 4.5);
 
+// Badge chips (brand follow-ups 2026-07-17): tone-as-text on the tone's own
+// 10% tint. Asserted over base-200 — the darkest base a chip sits on (the
+// training list's base-200/50 rows) — so base-100 and surface follow a
+// fortiori. Axe caught success at 4.4 on this composite before the retint.
+for (const name of ["success", "warning", "error", "info"]) {
+  check(
+    `${name} on ${name}-10%-over-base-200 (badge chip)`,
+    t[name],
+    composite(t[name], t["base-200"], 0.1),
+    4.5,
+  );
+}
+
 const failures = checks.filter((entry) => entry.actual < entry.min);
 const format = (entry) =>
   `${entry.actual >= entry.min ? "PASS" : "FAIL"}  ${entry.actual.toFixed(2).padStart(6)} (min ${entry.min})  ${entry.label}`;

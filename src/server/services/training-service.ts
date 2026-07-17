@@ -18,12 +18,21 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/server/errors/app-error";
+import type { BadgeTone } from "@/components/ui/badge";
 
 export const TRAINING_STATUS_LABELS: Record<TrainingEnrollmentStatus, string> = {
   [TrainingEnrollmentStatus.ENROLLED]: "Enrolled",
   [TrainingEnrollmentStatus.IN_PROGRESS]: "In progress",
   [TrainingEnrollmentStatus.COMPLETED]: "Completed",
   [TrainingEnrollmentStatus.WITHDRAWN]: "Withdrawn",
+};
+
+/** Badge tones (uniform vocabulary, docs/ux/component-guidelines.md): withdrawal is a closed neutral, not a failure. */
+export const TRAINING_STATUS_TONES: Record<TrainingEnrollmentStatus, BadgeTone> = {
+  [TrainingEnrollmentStatus.ENROLLED]: "info",
+  [TrainingEnrollmentStatus.IN_PROGRESS]: "info",
+  [TrainingEnrollmentStatus.COMPLETED]: "success",
+  [TrainingEnrollmentStatus.WITHDRAWN]: "neutral",
 };
 
 export const TRAINING_COMPLETION_METHOD_LABELS: Record<TrainingCompletionMethod, string> = {
@@ -211,6 +220,7 @@ export interface TrainingAttemptView {
   id: string;
   status: TrainingEnrollmentStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   enrolledAtLabel: string;
   expectedCompletionDateLabel: string | null;
   startedAtLabel: string | null;
@@ -265,6 +275,7 @@ export async function listTrainingForEnrollment(
       id: attempt.id,
       status: attempt.status,
       statusLabel: TRAINING_STATUS_LABELS[attempt.status],
+      statusTone: TRAINING_STATUS_TONES[attempt.status],
       enrolledAtLabel: formatDate(attempt.enrolledAt)!,
       expectedCompletionDateLabel: formatDate(attempt.expectedCompletionDate),
       startedAtLabel: formatDate(attempt.startedAt),

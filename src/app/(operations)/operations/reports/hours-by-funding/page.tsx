@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { HoursByFundingReport } from "@/features/reports/hours-by-funding";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -40,13 +41,10 @@ export default async function HoursByFundingReportPage({
             Reports
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Approved hours by funding source
-        </h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Finalized (locked) work hours are the reimbursement-safe basis; hours that
-          are approved but not yet finalized are shown separately and never blended.
-        </p>
+        <PageHeader
+          title="Approved hours by funding source"
+          description="Finalized (locked) work hours are the reimbursement-safe basis; hours that are approved but not yet finalized are shown separately and never blended."
+        />
       </header>
 
       <HoursByFundingReport view={view} basePath={BASE_PATH} />

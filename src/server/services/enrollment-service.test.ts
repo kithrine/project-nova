@@ -4,7 +4,9 @@ import { EnrollmentStatus, OnboardingTaskStatus } from "@/generated/prisma/clien
 import {
   DEFAULT_PROGRAM_CODE,
   ENROLLMENT_STATUS_LABELS,
+  ENROLLMENT_STATUS_TONES,
   ONBOARDING_TASK_STATUS_LABELS,
+  ONBOARDING_TASK_STATUS_TONES,
   participantCompletionBlockReason,
   reopenBlockReason,
   staffCompletionBlockReason,
@@ -15,6 +17,18 @@ describe("enrollment service (Story 3.1)", () => {
   it("labels every enrollment status", () => {
     for (const status of Object.values(EnrollmentStatus)) {
       expect(ENROLLMENT_STATUS_LABELS[status], `missing label for ${status}`).toBeTruthy();
+    }
+  });
+
+  it("assigns every enrollment and task status a badge tone", () => {
+    for (const status of Object.values(EnrollmentStatus)) {
+      expect(ENROLLMENT_STATUS_TONES[status], `missing tone for ${status}`).toBeTruthy();
+    }
+    for (const status of Object.values(OnboardingTaskStatus)) {
+      expect(
+        ONBOARDING_TASK_STATUS_TONES[status],
+        `missing tone for ${status}`,
+      ).toBeTruthy();
     }
   });
 

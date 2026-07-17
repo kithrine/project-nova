@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { getAuthContext } from "@/server/auth/context";
 import { listShelterPlacements } from "@/server/services/placement-service";
 
@@ -24,7 +26,7 @@ export default async function ShelterPlacementsPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">Placements</h1>
+      <PageHeader title="Placements" />
       {placements.length === 0 ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">
           No placements at your organization yet. Approved matches become
@@ -40,9 +42,7 @@ export default async function ShelterPlacementsPage() {
               >
                 <span className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium">{placement.participantName}</span>
-                  <span className="text-xs font-medium text-base-content/70">
-                    {placement.statusLabel}
-                  </span>
+                  <Badge tone={placement.statusTone}>{placement.statusLabel}</Badge>
                 </span>
                 <span className="text-xs text-base-content/60">
                   {placement.placementNumber} · {placement.siteName}

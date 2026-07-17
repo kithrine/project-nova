@@ -12,6 +12,7 @@ function view(status: ApplicationStatus, overrides: Partial<ApplicationView> = {
     applicationNumber: "APP-2026-ABC234",
     status,
     statusLabel: "",
+    statusTone: "neutral",
     motivation: "My motivation answer",
     workExperience: "Work answer",
     animalExperience: "Animal answer",

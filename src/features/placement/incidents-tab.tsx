@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useActionState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   addIncidentFollowUpAction,
@@ -226,9 +227,7 @@ function IncidentCard({ incident }: { incident: IncidentView }) {
           severityKey={incident.severityKey}
           severityLabel={incident.severityLabel}
         />
-        <span className="text-xs font-medium text-base-content/70">
-          {incident.statusLabel}
-        </span>
+        <Badge tone={incident.statusTone}>{incident.statusLabel}</Badge>
       </div>
       <p className="whitespace-pre-wrap text-sm">{incident.description}</p>
       {incident.restrictedDetail ? (

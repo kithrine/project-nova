@@ -15,6 +15,7 @@ import {
   TERMINATION_REASON_CATEGORIES,
   terminationReasonLabel,
   PLACEMENT_STATUS_LABELS,
+  PLACEMENT_STATUS_TONES,
   resumeEventDetail,
   scheduleValidationError,
   TERMINAL_PLACEMENT_STATUSES,
@@ -79,6 +80,17 @@ describe("buildPlacementTimeline (Story 5.1)", () => {
     ]) {
       expect(PLACEMENT_STATUS_LABELS[status]).toBeTruthy();
     }
+  });
+
+  it("assigns every stage a badge tone, with Terminated the one adverse ending", () => {
+    for (const status of [
+      ...NON_TERMINAL_PLACEMENT_STATUSES,
+      ...TERMINAL_PLACEMENT_STATUSES,
+    ]) {
+      expect(PLACEMENT_STATUS_TONES[status], `missing tone for ${status}`).toBeTruthy();
+    }
+    expect(PLACEMENT_STATUS_TONES.TERMINATED).toBe("error");
+    expect(PLACEMENT_STATUS_TONES.WITHDRAWN).toBe("neutral");
   });
 });
 

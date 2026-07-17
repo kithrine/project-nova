@@ -206,7 +206,8 @@ export function ActivePlacementSummary({
             aria-label="Active placements table"
           >
             <table className="table table-sm w-full">
-              <thead>
+              {/* Teal header band (docs/ux/component-guidelines.md data-table recipe). */}
+              <thead className="bg-primary text-primary-content">
                 <tr>
                   {SORTABLE_COLUMNS.slice(0, 2).map((column) => (
                     <SortableHeader
@@ -269,15 +270,15 @@ function SortableHeader({
     : undefined;
   return (
     <th scope="col" aria-sort={ariaSort}>
+      {/* Accent focus ring: the global primary ring is invisible on the
+          teal header band (docs/ux/accessibility.md). */}
       <Link
         href={sortHref(view, basePath, column.key)}
-        className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+        className="inline-flex items-center gap-1 underline-offset-2 hover:underline focus-visible:outline-accent"
       >
         {column.label}
         {isActive && (
-          <span aria-hidden className="text-base-content/60">
-            {view.applied.direction === "asc" ? "↑" : "↓"}
-          </span>
+          <span aria-hidden>{view.applied.direction === "asc" ? "↑" : "↓"}</span>
         )}
       </Link>
     </th>

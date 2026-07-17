@@ -22,6 +22,7 @@ function summary(
         participantCompletable: true,
         status: OnboardingTaskStatus.NOT_STARTED,
         statusLabel: "Not started",
+        statusTone: "neutral",
         completedAtLabel: null,
       },
       {
@@ -32,6 +33,7 @@ function summary(
         participantCompletable: false,
         status: OnboardingTaskStatus.NOT_STARTED,
         statusLabel: "Not started",
+        statusTone: "neutral",
         completedAtLabel: null,
       },
       {
@@ -42,6 +44,7 @@ function summary(
         participantCompletable: true,
         status: OnboardingTaskStatus.COMPLETE,
         statusLabel: "Complete",
+        statusTone: "success",
         completedAtLabel: "July 12, 2026",
       },
     ],

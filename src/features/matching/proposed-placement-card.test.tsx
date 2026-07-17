@@ -166,6 +166,7 @@ describe("ShelterApprovalCard (Stories 4.4/4.6)", () => {
     endDateLabel: "December 4, 2026",
     respondByLabel: "July 27, 2026",
     statusLabel: "Proposed",
+    statusTone: "info" as const,
     shelterDecision: "PENDING" as const,
     shelterDecisionLabel: "Pending",
     viewerCanDecide: true,

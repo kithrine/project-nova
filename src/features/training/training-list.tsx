@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrainingCompletionMethod, TrainingEnrollmentStatus } from "@/generated/prisma/enums";
 import type { TrainingProgramView } from "@/server/services/training-service";
@@ -272,7 +273,9 @@ export function TrainingList({
                     <div className="flex items-start gap-2">
                       <StatusIcon status={attempt.status} />
                       <div>
-                        <p className="font-medium">{attempt.statusLabel}</p>
+                        <p>
+                          <Badge tone={attempt.statusTone}>{attempt.statusLabel}</Badge>
+                        </p>
                         <p className="text-sm text-base-content/70">
                           Enrolled {attempt.enrolledAtLabel}
                           {attempt.providerName ? ` · ${attempt.providerName}` : ""}
