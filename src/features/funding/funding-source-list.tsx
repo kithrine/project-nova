@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import type { FundingSourceView } from "@/server/services/funding-source-service";
 
 /**
@@ -23,7 +24,8 @@ export function FundingSourceList({ sources }: { sources: FundingSourceView[] })
       aria-label="Funding sources table"
     >
       <table className="w-full min-w-[36rem] text-left text-sm">
-        <thead className="border-b border-base-300 bg-base-200 text-xs uppercase tracking-wide text-base-content/70">
+        {/* Teal header band (docs/ux/component-guidelines.md data-table recipe). */}
+        <thead className="bg-primary text-xs font-semibold uppercase tracking-wide text-primary-content">
           <tr>
             <th scope="col" className="px-4 py-2">
               Name
@@ -55,7 +57,9 @@ export function FundingSourceList({ sources }: { sources: FundingSourceView[] })
               </td>
               <td className="px-4 py-2">{source.kindLabel}</td>
               <td className="px-4 py-2">{source.code ?? "—"}</td>
-              <td className="px-4 py-2">{source.statusLabel}</td>
+              <td className="px-4 py-2">
+                <Badge tone={source.statusTone}>{source.statusLabel}</Badge>
+              </td>
               <td className="px-4 py-2 text-base-content/70">
                 {source.startDate ?? "—"} to {source.endDate ?? "—"}
               </td>

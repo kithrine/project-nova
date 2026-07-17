@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { getAuthContext } from "@/server/auth/context";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { listShelterTimesheetQueue } from "@/server/services/timesheet-service";
@@ -26,12 +27,10 @@ export default async function ShelterTimesheetsPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Timesheets</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Submitted weeks awaiting review, oldest first.
-        </p>
-      </header>
+      <PageHeader
+        title="Timesheets"
+        description="Submitted weeks awaiting review, oldest first."
+      />
 
       {rows.length === 0 ? (
         <p className="max-w-prose rounded-md border border-base-300 bg-base-200/50 px-4 py-3 text-sm text-base-content/70">

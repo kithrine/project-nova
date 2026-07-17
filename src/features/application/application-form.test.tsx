@@ -11,6 +11,7 @@ const application: ApplicationView = {
   applicationNumber: "APP-2026-XYZ789",
   status: ApplicationStatus.DRAFT,
   statusLabel: "In progress",
+  statusTone: "neutral",
   motivation: "A steady job that matters.",
   workExperience: null,
   animalExperience: null,

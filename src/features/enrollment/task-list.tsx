@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   reopenTaskAction,
@@ -89,8 +90,8 @@ function OpsTaskRow({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-sm font-medium">{task.title}</p>
         <p className="text-sm text-base-content/70">{task.description}</p>
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/60">
-          <span className="font-medium">{task.statusLabel}</span>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60">
+          <Badge tone={task.statusTone}>{task.statusLabel}</Badge>
           <span>{task.required ? "Required" : "Optional"}</span>
           <span>
             {task.participantCompletable
@@ -181,8 +182,8 @@ export function TaskList({
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">{task.title}</p>
               <p className="text-sm text-base-content/70">{task.description}</p>
-              <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/60">
-                <span className="font-medium">{task.statusLabel}</span>
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60">
+                <Badge tone={task.statusTone}>{task.statusLabel}</Badge>
                 <span>{task.required ? "Required" : "Optional"}</span>
                 <span>
                   {task.participantCompletable

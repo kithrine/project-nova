@@ -49,12 +49,14 @@
   --color-info: #1e5a8a;
   --color-info-content: #ffffff;
 
-  /* Calm green success (deepened to clear 4.5:1 on base-200) */
-  --color-success: #147a3a;
+  /* Calm green success (re-deepened 2026-07-17: badge chips tint the page
+     with success/10, and text-success must clear 4.5:1 on that composite —
+     axe caught the old value at 4.4) */
+  --color-success: #0f6a32;
   --color-success-content: #ffffff;
 
-  /* Amber warning (deepened to clear 4.5:1 on base-200) */
-  --color-warning: #a84d08;
+  /* Amber warning (re-deepened 2026-07-17 for the same badge-chip composite) */
+  --color-warning: #9a4507;
   --color-warning-content: #ffffff;
 
   /* Muted red danger */

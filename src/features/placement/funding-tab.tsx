@@ -24,7 +24,7 @@ function AssignmentCard({
 }: {
   assignment: FundingTabView["history"][number];
 }) {
-  const active = assignment.statusLabel === "Active";
+  const active = assignment.active;
   return (
     <li className="flex flex-col gap-2 rounded-md border border-base-300 bg-base-100 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">

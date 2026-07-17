@@ -13,6 +13,7 @@ import {
 import { DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from "@/lib/documents";
 import { APPLICATION_PROMPTS } from "@/features/application/prompts";
 import type { DraftInput } from "@/features/application/validation";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Application service (Stories 2.3, 2.5). Applicant-tier authorization per
@@ -44,6 +45,23 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   [ApplicationStatus.DISQUALIFIED]: "Closed",
 };
 
+/**
+ * Participant-safe badge tones. Like the labels above, these deliberately
+ * soften: closed outcomes stay neutral — the text carries the meaning, and
+ * a red chip on a participant's own surface reads as a reprimand
+ * (docs/ux/content-style-guide.md's trauma-informed voice).
+ */
+export const APPLICATION_STATUS_TONES: Record<ApplicationStatus, BadgeTone> = {
+  [ApplicationStatus.DRAFT]: "neutral",
+  [ApplicationStatus.SUBMITTED]: "info",
+  [ApplicationStatus.ELIGIBILITY_REVIEW]: "info",
+  [ApplicationStatus.INTERVIEW]: "info",
+  [ApplicationStatus.BACKGROUND_REVIEW]: "info",
+  [ApplicationStatus.ACCEPTED]: "success",
+  [ApplicationStatus.REJECTED]: "neutral",
+  [ApplicationStatus.DISQUALIFIED]: "neutral",
+};
+
 /** Reapplication waiting period after an ordinary rejection (ADR-016). */
 export const REAPPLY_WAITING_DAYS = 30;
 
@@ -71,6 +89,7 @@ export interface ApplicationView {
   applicationNumber: string;
   status: ApplicationStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   motivation: string | null;
   workExperience: string | null;
   animalExperience: string | null;
@@ -149,6 +168,7 @@ export function toApplicationView(application: Application): ApplicationView {
     applicationNumber: application.applicationNumber,
     status: application.status,
     statusLabel: APPLICATION_STATUS_LABELS[application.status],
+    statusTone: APPLICATION_STATUS_TONES[application.status],
     motivation: application.motivation,
     workExperience: application.workExperience,
     animalExperience: application.animalExperience,

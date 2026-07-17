@@ -27,6 +27,7 @@ import {
   pauseEventDetail,
   pauseReasonLabel,
   PLACEMENT_STATUS_LABELS,
+  PLACEMENT_STATUS_TONES,
   resumeEventDetail,
   scheduleValidationError,
   TERMINAL_OUTCOMES,
@@ -54,7 +55,9 @@ import {
   INCIDENT_CATEGORY_LABELS,
   INCIDENT_REPORTABLE_STATUSES,
   INCIDENT_SEVERITY_LABELS,
+  INCIDENT_SEVERITY_TONES,
   INCIDENT_STATUS_LABELS,
+  INCIDENT_STATUS_TONES,
   incidentValidationError,
   URGENT_INCIDENT_SEVERITIES,
   type IncidentInput,
@@ -72,6 +75,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/server/errors/app-error";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Placement workspace reads (Story 5.1). One underlying Placement, three
@@ -303,6 +307,7 @@ export interface IncidentView {
   severityLabel: string;
   statusKey: IncidentStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   occurredOnLabel: string;
   reportedByName: string;
   reportedAtLabel: string;
@@ -404,6 +409,8 @@ export interface PlacementOnboardingView {
 export interface FundingAssignmentView {
   id: string;
   fundingSourceName: string;
+  /** The one live assignment (ADR-010) — the UI keys icon and emphasis off this, never off the label text. */
+  active: boolean;
   statusLabel: "Active" | "Ended";
   startDateLabel: string;
   endDateLabel: string | null;
@@ -1022,6 +1029,7 @@ async function buildIncidentsTab(
       severityLabel: INCIDENT_SEVERITY_LABELS[incident.severity],
       statusKey: incident.status,
       statusLabel: INCIDENT_STATUS_LABELS[incident.status],
+      statusTone: INCIDENT_STATUS_TONES[incident.status],
       occurredOnLabel: formatDate(incident.occurredOn) ?? "",
       reportedByName: nameById.get(incident.reporterUserId) ?? "Unknown user",
       reportedAtLabel: formatDateTime(incident.createdAt),
@@ -1283,6 +1291,7 @@ export interface UrgentIncidentRow {
   placementNumber: string;
   participantName: string;
   severityLabel: string;
+  severityTone: BadgeTone;
   categoryLabel: string;
   statusLabel: string;
   reportedAtLabel: string;
@@ -1327,6 +1336,7 @@ export async function listUrgentIncidents(
     placementNumber: incident.placement.placementNumber,
     participantName: `${incident.placement.participant.person.legalFirstName} ${incident.placement.participant.person.legalLastName}`,
     severityLabel: INCIDENT_SEVERITY_LABELS[incident.severity],
+    severityTone: INCIDENT_SEVERITY_TONES[incident.severity],
     categoryLabel: INCIDENT_CATEGORY_LABELS[incident.category],
     statusLabel: INCIDENT_STATUS_LABELS[incident.status],
     reportedAtLabel: formatDateTime(incident.createdAt),
@@ -1889,6 +1899,7 @@ function toFundingAssignmentView(assignment: {
   return {
     id: assignment.id,
     fundingSourceName: assignment.fundingSource.name,
+    active: assignment.status === FundingAssignmentStatus.ACTIVE,
     statusLabel: assignment.status === FundingAssignmentStatus.ACTIVE ? "Active" : "Ended",
     startDateLabel: formatDate(assignment.startDate) ?? "",
     endDateLabel: formatDate(assignment.endDate),
@@ -1974,6 +1985,7 @@ export interface PlacementRecordRow {
   organizationName: string;
   siteName: string;
   statusLabel: string;
+  statusTone: BadgeTone;
 }
 
 /** The Operations placement-records list — the workspace entry point. */
@@ -2024,6 +2036,7 @@ async function listPlacementRows(where: {
     organizationName: placement.organizationSite.organization.name,
     siteName: placement.organizationSite.name,
     statusLabel: PLACEMENT_STATUS_LABELS[placement.status],
+    statusTone: PLACEMENT_STATUS_TONES[placement.status],
   }));
 }
 

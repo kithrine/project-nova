@@ -92,7 +92,7 @@ export default async function OperationsDashboardPage() {
                 >
                   <div className="flex min-w-0 flex-col gap-1">
                     <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                      <Badge tone="error">{row.severityLabel}</Badge>
+                      <Badge tone={row.severityTone}>{row.severityLabel}</Badge>
                       {row.categoryLabel} · {row.participantName}
                     </p>
                     <p className="text-xs text-base-content/60">

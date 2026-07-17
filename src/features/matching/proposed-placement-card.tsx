@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { ParticipantDecisionControls } from "@/features/matching/participant-decision-controls";
 import { ShelterDecisionControls } from "@/features/matching/shelter-decision-controls";
 import type {
@@ -156,7 +157,7 @@ export function ShelterApprovalCard({ match }: { match: ShelterApprovalView }) {
     <li className="flex flex-col gap-2 rounded-md border border-base-300 bg-base-100 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{match.participantName}</p>
-        <p className="text-xs font-medium text-base-content/70">{match.statusLabel}</p>
+        <Badge tone={match.statusTone}>{match.statusLabel}</Badge>
       </div>
       <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/60">
         <span>{match.siteName}</span>

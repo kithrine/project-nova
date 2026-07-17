@@ -1,12 +1,14 @@
 import Link from "next/link";
 
+import { PageHeader } from "@/components/ui/page-header";
+
 export const metadata = { title: "Administration" };
 
 /** Operations administration index (Story 1.8). */
 export default function AdministrationPage() {
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Administration</h1>
+      <PageHeader title="Administration" />
       <ul className="flex flex-col gap-2">
         <li>
           <Link

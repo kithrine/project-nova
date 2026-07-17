@@ -12,10 +12,11 @@
 - Checkbox
 - Date/Time Input
 - File Upload
-- Badge — implemented (`src/components/ui/badge.tsx`): tones accent/success/warning/error/info/neutral, **caller-assigned** (status→tone mapping is business semantics and lives with the status vocabulary, never inside the component; rollout across the status rails is a queued follow-up)
+- Badge — implemented (`src/components/ui/badge.tsx`): tones accent/success/warning/error/info/neutral, **caller-assigned** (status→tone mapping is business semantics and lives with the status vocabulary, never inside the component). Rolled out across the status rails (brand follow-ups 2026-07-17): each `*_STATUS_LABELS` constant now has a sibling `*_STATUS_TONES` map, and service views carry `statusTone` alongside `statusLabel` so client components never import server modules. Uniform tone vocabulary: draft/closed-neutral states → `neutral`; submitted/under-review/proposed/in-flight → `info` (the deep-denim tone's first real use); approved/active/complete/ready → `success`; needs-attention (paused, blocked, change requested, needs correction, open incident) → `warning`; adverse endings (terminated, disqualified, serious/emergency severity) → `error`. Participant-facing application tones deliberately stay neutral on closed outcomes (trauma-informed voice, `docs/ux/content-style-guide.md`). Badges appear on queue/rail/list statuses only — never spliced into prose lines like "Status: X" (they split the text for assistive tech and for E2E anchors)
 - Card — implemented (`src/components/ui/card.tsx`): `surface` (white on cream), `emphasis` (teal tint), `muted` (empty states)
 - Stat Card — implemented (`src/components/ui/stat-card.tsx`): dashboard KPI tile with filled tone icon circle; values always come from data the page already holds
-- Page Header — implemented (`src/components/ui/page-header.tsx`): h1 + description + decorative slot; the role chip lives once in the shell
+- Page Header — implemented (`src/components/ui/page-header.tsx`): h1 + description + decorative slot; the role chip lives once in the shell. Adopted on every top-level signed-in page (brand follow-ups 2026-07-17) with h1 text kept byte-identical — E2E specs pin those strings
+- Date Square — implemented (`src/components/ui/date-square.tsx`): teal month-over-day tile from the dashboard mockup. Services supply structured `DateParts` (month/day/year/full) next to the formatted label — the tile never re-derives dates client-side. The glyphs are `aria-hidden`; the full date is exposed once via `role="img"` + `aria-label`. First use: the applications queue's Submitted column
 - Alert
 - Toast
 - Modal
@@ -74,4 +75,4 @@
 - The chartreuse accent is decorative or dark-text-on-accent only — never a text color on light surfaces (`docs/ux/visual-design-reference.md`)
 - Decorative wrappers (`aria-hidden`) must never contain focusable elements
 - On teal (`primary`) surfaces the focus ring is `accent`, never `primary` — the global ring is invisible there
-- Activity-table header recipe (documented for the rails pass, not yet applied): `thead` rows `bg-primary text-primary-content` with semibold cells
+- Activity-table header recipe (applied 2026-07-17): `thead` `bg-primary text-primary-content` with semibold cells — live on the applications queue, funding sources, audit review, hours by funding, and active placement summary tables. Interactive elements inside a teal `thead` (e.g. the summary's sort links) take `focus-visible:outline-accent` and keep `aria-sort`

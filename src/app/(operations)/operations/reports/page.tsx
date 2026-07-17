@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 
@@ -63,12 +64,10 @@ export default async function ReportsPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Read-only views over the pilot&apos;s placements, hours, and partners.
-        </p>
-      </header>
+      <PageHeader
+        title="Reports"
+        description="Read-only views over the pilot's placements, hours, and partners."
+      />
 
       <ul aria-label="Available reports" className="flex max-w-2xl flex-col gap-2">
         {REPORTS.map((report) => (

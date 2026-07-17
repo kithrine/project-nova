@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { OutcomeSummaryReport } from "@/features/reports/outcome-summary";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -36,11 +37,10 @@ export default async function OutcomeSummaryPage({
             Reports
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Outcome summary</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          How placements have ended and what participants have earned — aggregate
-          counts for program impact reporting.
-        </p>
+        <PageHeader
+          title="Outcome summary"
+          description="How placements have ended and what participants have earned — aggregate counts for program impact reporting."
+        />
       </header>
 
       <OutcomeSummaryReport view={view} basePath={BASE_PATH} />

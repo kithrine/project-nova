@@ -8,6 +8,7 @@ import type { AuthContext } from "@/server/auth/context";
 import { hasPermission, requireNovaScope } from "@/server/auth/authorize";
 import { prisma } from "@/server/database/prisma";
 import { AuthorizationError, LifecycleError, NotFoundError } from "@/server/errors/app-error";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Enrollment service (Story 3.1). Participant + ProgramEnrollment are
@@ -23,6 +24,12 @@ export const DEFAULT_PROGRAM_CODE = "NOVA-TE";
 export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
   [EnrollmentStatus.ONBOARDING]: "Onboarding",
   [EnrollmentStatus.READY_FOR_MATCHING]: "Ready for matching",
+};
+
+/** Badge tones (uniform vocabulary, docs/ux/component-guidelines.md). */
+export const ENROLLMENT_STATUS_TONES: Record<EnrollmentStatus, BadgeTone> = {
+  [EnrollmentStatus.ONBOARDING]: "info",
+  [EnrollmentStatus.READY_FOR_MATCHING]: "success",
 };
 
 /**
@@ -145,6 +152,12 @@ export const ONBOARDING_TASK_STATUS_LABELS: Record<OnboardingTaskStatus, string>
   [OnboardingTaskStatus.COMPLETE]: "Complete",
 };
 
+/** Badge tones (uniform vocabulary, docs/ux/component-guidelines.md). */
+export const ONBOARDING_TASK_STATUS_TONES: Record<OnboardingTaskStatus, BadgeTone> = {
+  [OnboardingTaskStatus.NOT_STARTED]: "neutral",
+  [OnboardingTaskStatus.COMPLETE]: "success",
+};
+
 export interface OnboardingTaskView {
   id: string;
   title: string;
@@ -153,6 +166,7 @@ export interface OnboardingTaskView {
   participantCompletable: boolean;
   status: OnboardingTaskStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   completedAtLabel: string | null;
   /** Ops list only — who recorded the completion. */
   completedByName: string | null;
@@ -194,6 +208,7 @@ export async function listOnboardingTasks(
     participantCompletable: task.participantCompletable,
     status: task.status,
     statusLabel: ONBOARDING_TASK_STATUS_LABELS[task.status],
+    statusTone: ONBOARDING_TASK_STATUS_TONES[task.status],
     completedAtLabel: task.completedAt
       ? task.completedAt.toLocaleDateString("en-US", {
           month: "long",
@@ -400,6 +415,7 @@ export interface ParticipantTaskView {
   participantCompletable: boolean;
   status: OnboardingTaskStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   completedAtLabel: string | null;
 }
 
@@ -449,6 +465,7 @@ export async function getOwnOnboardingSummary(
     participantCompletable: task.participantCompletable,
     status: task.status,
     statusLabel: ONBOARDING_TASK_STATUS_LABELS[task.status],
+    statusTone: ONBOARDING_TASK_STATUS_TONES[task.status],
     completedAtLabel: task.completedAt
       ? task.completedAt.toLocaleDateString("en-US", {
           month: "long",

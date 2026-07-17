@@ -17,6 +17,7 @@ const programs: TrainingProgramView[] = [
         id: "attempt_1",
         status: TrainingEnrollmentStatus.IN_PROGRESS,
         statusLabel: "In progress",
+        statusTone: "info",
         enrolledAtLabel: "Jul 1, 2026",
         expectedCompletionDateLabel: "Jul 10, 2026",
         startedAtLabel: "Jul 2, 2026",

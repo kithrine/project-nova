@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { ShelterRoster } from "@/features/reports/shelter-roster";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -33,11 +34,10 @@ export default async function ShelterRosterReportPage() {
             Reports
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Shelter roster</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Participating shelters with their sites, configured capacity, current
-          active placements, and staff contacts.
-        </p>
+        <PageHeader
+          title="Shelter roster"
+          description="Participating shelters with their sites, configured capacity, current active placements, and staff contacts."
+        />
       </header>
 
       <ShelterRoster view={view} />

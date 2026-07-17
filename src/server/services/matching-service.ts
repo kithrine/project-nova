@@ -38,6 +38,7 @@ import {
   shelterDecisionRequiresNote,
 } from "@/server/domain/placement-match";
 import { NON_TERMINAL_PLACEMENT_STATUSES } from "@/server/domain/placement";
+import type { BadgeTone } from "@/components/ui/badge";
 import {
   AuthorizationError,
   ConflictError,
@@ -357,6 +358,22 @@ export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
   [MatchStatus.DECLINED]: "Declined",
   [MatchStatus.WITHDRAWN]: "Withdrawn",
   [MatchStatus.EXPIRED]: "Expired",
+};
+
+/**
+ * Badge tones for match statuses (uniform vocabulary,
+ * docs/ux/component-guidelines.md): Change requested is the one
+ * needs-action state; Declined/Withdrawn/Expired are closed neutrals —
+ * declining a match is a legitimate decision, not a failure.
+ */
+export const MATCH_STATUS_TONES: Record<MatchStatus, BadgeTone> = {
+  [MatchStatus.DRAFT]: "neutral",
+  [MatchStatus.PROPOSED]: "info",
+  [MatchStatus.APPROVED]: "success",
+  [MatchStatus.CHANGE_REQUESTED]: "warning",
+  [MatchStatus.DECLINED]: "neutral",
+  [MatchStatus.WITHDRAWN]: "neutral",
+  [MatchStatus.EXPIRED]: "neutral",
 };
 
 export const PARTICIPANT_DECISION_LABELS: Record<ParticipantMatchDecision, string> = {
@@ -955,6 +972,7 @@ export interface MatchWorklistRow {
   siteName: string;
   status: MatchStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
 }
 
 /** Non-terminal matches — the coordinator in-progress worklist. */
@@ -978,6 +996,7 @@ export async function listMatchWorklist(ctx: AuthContext): Promise<MatchWorklist
     siteName: match.organizationSite.name,
     status: match.status,
     statusLabel: MATCH_STATUS_LABELS[match.status],
+    statusTone: MATCH_STATUS_TONES[match.status],
   }));
 }
 
@@ -1205,6 +1224,7 @@ export interface ShelterApprovalView {
   endDateLabel: string | null;
   respondByLabel: string | null;
   statusLabel: string;
+  statusTone: BadgeTone;
   shelterDecision: ShelterMatchDecision;
   shelterDecisionLabel: string;
   /**
@@ -1282,6 +1302,7 @@ export async function listShelterApprovals(
     endDateLabel: formatWindowDate(match.proposedEndDate),
     respondByLabel: formatWindowDate(match.decisionWindowEndsAt),
     statusLabel: MATCH_STATUS_LABELS[match.status],
+    statusTone: MATCH_STATUS_TONES[match.status],
     shelterDecision: match.shelterDecision,
     shelterDecisionLabel: SHELTER_DECISION_LABELS[match.shelterDecision],
     viewerCanDecide: managerOrgIds.has(match.hostOrganizationId),

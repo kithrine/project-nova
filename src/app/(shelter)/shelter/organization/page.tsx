@@ -1,4 +1,5 @@
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { ShelterRoster } from "@/features/reports/shelter-roster";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -27,13 +28,10 @@ export default async function ShelterOrganizationPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Organization</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Your organization&apos;s sites, capacity, current active placements, and
-          staff.
-        </p>
-      </header>
+      <PageHeader
+        title="Organization"
+        description="Your organization's sites, capacity, current active placements, and staff."
+      />
 
       <ShelterRoster view={view} />
     </section>

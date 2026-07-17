@@ -1,4 +1,6 @@
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { QueueCandidates, QueueHosts } from "@/features/matching/queue-lists";
 import { getAuthContext } from "@/server/auth/context";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
@@ -35,13 +37,10 @@ export default async function PlacementsQueuePage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Matching queue</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Participants ready for matching, longest waiting first, alongside shelters
-          with capacity. Reviewing a pairing opens its compatibility read.
-        </p>
-      </div>
+      <PageHeader
+        title="Matching queue"
+        description="Participants ready for matching, longest waiting first, alongside shelters with capacity. Reviewing a pairing opens its compatibility read."
+      />
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Awaiting match</h2>
@@ -62,11 +61,13 @@ export default async function PlacementsQueuePage() {
                 key={row.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-4 py-3"
               >
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <p className="text-sm font-medium">{row.participantName}</p>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {row.participantName}
+                    <Badge tone={row.statusTone}>{row.statusLabel}</Badge>
+                  </p>
                   <p className="text-xs text-base-content/60">
-                    {row.organizationName} — {row.siteName} ·{" "}
-                    <span className="font-medium">{row.statusLabel}</span>
+                    {row.organizationName} — {row.siteName}
                   </p>
                 </div>
                 <Link
@@ -95,12 +96,14 @@ export default async function PlacementsQueuePage() {
                 key={record.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-base-300 bg-base-100 px-4 py-3"
               >
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <p className="text-sm font-medium">{record.participantName}</p>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {record.participantName}
+                    <Badge tone={record.statusTone}>{record.statusLabel}</Badge>
+                  </p>
                   <p className="text-xs text-base-content/60">
                     {record.placementNumber} · {record.organizationName} —{" "}
-                    {record.siteName} ·{" "}
-                    <span className="font-medium">{record.statusLabel}</span>
+                    {record.siteName}
                   </p>
                 </div>
                 <Link

@@ -5,6 +5,7 @@ import { requireLifecycleState, requireNovaScope, requirePermission } from "@/se
 import { prisma } from "@/server/database/prisma";
 import { NotFoundError } from "@/server/errors/app-error";
 import type { FundingSourceInput } from "@/features/funding/validation";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Funding-source reference data (Story 1.8). Nova-owned; guarded by
@@ -28,6 +29,7 @@ export interface FundingSourceView {
   code: string | null;
   status: ActiveStatus;
   statusLabel: "Active" | "Inactive";
+  statusTone: BadgeTone;
   startDate: string | null; // YYYY-MM-DD
   endDate: string | null;
   notes: string | null;
@@ -47,6 +49,7 @@ export function toFundingSourceView(source: FundingSource): FundingSourceView {
     code: source.code,
     status: source.status,
     statusLabel: source.status === ActiveStatus.ACTIVE ? "Active" : "Inactive",
+    statusTone: source.status === ActiveStatus.ACTIVE ? "success" : "neutral",
     startDate: toDateOnly(source.startDate),
     endDate: toDateOnly(source.endDate),
     notes: source.notes,

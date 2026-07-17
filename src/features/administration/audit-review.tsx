@@ -133,7 +133,8 @@ export function AuditReview({
             aria-label="Audit events table"
           >
             <table className="table table-sm w-full">
-              <thead>
+              {/* Teal header band (docs/ux/component-guidelines.md data-table recipe). */}
+              <thead className="bg-primary text-primary-content">
                 <tr>
                   <th scope="col">When</th>
                   <th scope="col">Actor</th>

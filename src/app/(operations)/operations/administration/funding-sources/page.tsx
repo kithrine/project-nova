@@ -1,4 +1,5 @@
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { createFundingSourceAction } from "@/features/funding/actions";
 import { FundingSourceForm } from "@/features/funding/funding-source-form";
 import { FundingSourceList } from "@/features/funding/funding-source-list";
@@ -23,14 +24,10 @@ export default async function FundingSourcesPage() {
 
   return (
     <section className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Funding sources</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          The grants and contracts that fund placements. Each placement carries exactly one
-          active funding assignment (ADR-010). Deactivated sources are preserved for history
-          and reporting.
-        </p>
-      </div>
+      <PageHeader
+        title="Funding sources"
+        description="The grants and contracts that fund placements. Each placement carries exactly one active funding assignment (ADR-010). Deactivated sources are preserved for history and reporting."
+      />
 
       <FundingSourceList sources={sources} />
 

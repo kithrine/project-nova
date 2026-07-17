@@ -123,7 +123,8 @@ export function HoursByFundingReport({
             aria-label="Hours by funding source table"
           >
             <table className="table table-sm w-full">
-              <thead>
+              {/* Teal header band (docs/ux/component-guidelines.md data-table recipe). */}
+              <thead className="bg-primary text-primary-content">
                 <tr>
                   <th scope="col">Funding source</th>
                   <th scope="col">Award code</th>

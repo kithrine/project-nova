@@ -74,6 +74,7 @@ describe("FundingSourceForm", () => {
           code: "WF-42",
           status: "ACTIVE",
           statusLabel: "Active",
+          statusTone: "success",
           startDate: "2026-01-01",
           endDate: null,
           notes: null,

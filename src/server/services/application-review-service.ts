@@ -26,6 +26,8 @@ import {
 import { recordAuditEvent } from "@/server/services/audit-service";
 import { createEnrollmentForAcceptedApplication } from "@/server/services/enrollment-service";
 import { APPLICATION_PROMPTS } from "@/features/application/prompts";
+import type { BadgeTone } from "@/components/ui/badge";
+import type { DateParts } from "@/components/ui/date-square";
 
 /**
  * Operations-side application review surface (Story 2.7). Everything here is
@@ -48,6 +50,22 @@ export const OPERATIONS_STATUS_LABELS: Record<ApplicationStatus, string> = {
   [ApplicationStatus.ACCEPTED]: "Accepted",
   [ApplicationStatus.REJECTED]: "Rejected",
   [ApplicationStatus.DISQUALIFIED]: "Disqualified",
+};
+
+/**
+ * Staff-facing badge tones (uniform vocabulary, docs/ux/component-guidelines.md):
+ * in-flight review phases are info; Rejected is warning because ADR-016 makes it
+ * recoverable (30-day reapply window); Disqualified is the permanent close.
+ */
+export const OPERATIONS_STATUS_TONES: Record<ApplicationStatus, BadgeTone> = {
+  [ApplicationStatus.DRAFT]: "neutral",
+  [ApplicationStatus.SUBMITTED]: "info",
+  [ApplicationStatus.ELIGIBILITY_REVIEW]: "info",
+  [ApplicationStatus.INTERVIEW]: "info",
+  [ApplicationStatus.BACKGROUND_REVIEW]: "info",
+  [ApplicationStatus.ACCEPTED]: "success",
+  [ApplicationStatus.REJECTED]: "warning",
+  [ApplicationStatus.DISQUALIFIED]: "error",
 };
 
 /** Statuses Operations may see — never DRAFT (2.3's privacy rule). */
@@ -92,7 +110,10 @@ export interface QueueEntry {
   applicantName: string;
   status: ApplicationStatus;
   statusLabel: string;
+  statusTone: BadgeTone;
   submittedAtLabel: string | null;
+  /** Structured month/day/full parts for the queue's date square. */
+  submittedAtParts: DateParts | null;
   /** ISO sort key — oldest submission waits longest, so it comes first. */
   submittedAtIso: string | null;
 }
@@ -111,6 +132,21 @@ function formatDate(date: Date | null): string | null {
   return date
     ? date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : null;
+}
+
+/** Month/day/full parts for the queue's date square — same locale rules as formatDate above, so the square never disagrees with the text label. */
+function toDateParts(date: Date | null): DateParts | null {
+  if (!date) return null;
+  return {
+    month: date.toLocaleDateString("en-US", { month: "short" }),
+    day: date.toLocaleDateString("en-US", { day: "numeric" }),
+    year: date.toLocaleDateString("en-US", { year: "numeric" }),
+    full: date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+  };
 }
 
 function requireOperationsAccess(ctx: AuthContext): void {
@@ -139,7 +175,9 @@ export async function listApplicationsForOperations(
       applicantName: `${application.person.legalFirstName} ${application.person.legalLastName}`,
       status: application.status,
       statusLabel: OPERATIONS_STATUS_LABELS[application.status],
+      statusTone: OPERATIONS_STATUS_TONES[application.status],
       submittedAtLabel: formatDate(application.submittedAt),
+      submittedAtParts: toDateParts(application.submittedAt),
       submittedAtIso: application.submittedAt?.toISOString() ?? null,
     }))
     .sort(compareQueueEntries);

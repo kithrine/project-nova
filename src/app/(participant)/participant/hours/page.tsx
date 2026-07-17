@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { WeeklyHoursCard } from "@/features/timesheets/weekly-hours-card";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOrCreateOwnTimesheet } from "@/server/services/timesheet-service";
@@ -20,7 +21,7 @@ export default async function MyHoursPage({
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">My Hours</h1>
+      <PageHeader title="My Hours" />
       {view?.week ? (
         <WeeklyHoursCard week={view.week} siteName={view.siteName} />
       ) : (

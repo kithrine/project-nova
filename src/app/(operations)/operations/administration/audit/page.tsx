@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { AuditReview } from "@/features/administration/audit-review";
 import { AuthorizationError } from "@/server/errors/app-error";
 import { getAuthContext } from "@/server/auth/context";
@@ -55,12 +56,10 @@ export default async function AuditReviewPage({
             Administration
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Audit review</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Who accessed or performed sensitive actions, when, and on what. The
-          trail is append-only; entries reference records without exposing their
-          contents.
-        </p>
+        <PageHeader
+          title="Audit review"
+          description="Who accessed or performed sensitive actions, when, and on what. The trail is append-only; entries reference records without exposing their contents."
+        />
       </header>
 
       <AuditReview view={view} basePath={BASE_PATH} />

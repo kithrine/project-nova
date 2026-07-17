@@ -5,6 +5,7 @@ import {
   PlacementStatus,
 } from "@/generated/prisma/client";
 import { LifecycleError } from "@/server/errors/app-error";
+import type { BadgeTone } from "@/components/ui/badge";
 
 /**
  * Incident policy (Story 5.11). Categories, severities, and ownership
@@ -53,6 +54,25 @@ export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   [IncidentStatus.OPEN]: "Open",
   [IncidentStatus.UNDER_REVIEW]: "Under review",
   [IncidentStatus.CLOSED]: "Closed",
+};
+
+/**
+ * Badge tones (uniform vocabulary, docs/ux/component-guidelines.md): an
+ * Open incident is the needs-attention state; severity has its own scale
+ * below and colors independently of status.
+ */
+export const INCIDENT_STATUS_TONES: Record<IncidentStatus, BadgeTone> = {
+  [IncidentStatus.OPEN]: "warning",
+  [IncidentStatus.UNDER_REVIEW]: "info",
+  [IncidentStatus.CLOSED]: "neutral",
+};
+
+/** Serious and Emergency are the alerting severities (URGENT_INCIDENT_SEVERITIES). */
+export const INCIDENT_SEVERITY_TONES: Record<IncidentSeverity, BadgeTone> = {
+  [IncidentSeverity.MINOR]: "neutral",
+  [IncidentSeverity.MODERATE]: "warning",
+  [IncidentSeverity.SERIOUS]: "error",
+  [IncidentSeverity.EMERGENCY]: "error",
 };
 
 /**

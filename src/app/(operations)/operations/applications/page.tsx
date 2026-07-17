@@ -1,6 +1,9 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { Badge } from "@/components/ui/badge";
+import { DateSquare } from "@/components/ui/date-square";
+import { PageHeader } from "@/components/ui/page-header";
 import { hasPermission, hasNovaScope } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
 import {
@@ -43,14 +46,10 @@ export default async function ApplicationsQueuePage({
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Applications</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Submitted and in-review applications first, longest-waiting at the top.
-          Drafts are never shown — an application appears here once its applicant
-          submits it.
-        </p>
-      </div>
+      <PageHeader
+        title="Applications"
+        description="Submitted and in-review applications first, longest-waiting at the top. Drafts are never shown — an application appears here once its applicant submits it."
+      />
 
       <nav aria-label="Filter by status" className="flex flex-wrap gap-2">
         {filters.map((item) => (
@@ -83,8 +82,9 @@ export default async function ApplicationsQueuePage({
           aria-label="Applications queue table"
         >
           <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-base-300 bg-base-200/60 text-left">
+            {/* Teal header band (docs/ux/component-guidelines.md data-table recipe). */}
+            <thead className="bg-primary text-left text-primary-content">
+              <tr>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Application</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Applicant</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Status</th>
@@ -103,9 +103,20 @@ export default async function ApplicationsQueuePage({
                     </Link>
                   </td>
                   <td className="px-4 py-2.5">{entry.applicantName}</td>
-                  <td className="px-4 py-2.5">{entry.statusLabel}</td>
+                  <td className="px-4 py-2.5">
+                    <Badge tone={entry.statusTone}>{entry.statusLabel}</Badge>
+                  </td>
                   <td className="px-4 py-2.5 text-base-content/70">
-                    {entry.submittedAtLabel ?? "—"}
+                    {entry.submittedAtParts ? (
+                      <span className="flex items-center gap-2">
+                        <DateSquare parts={entry.submittedAtParts} />
+                        <span aria-hidden="true" className="whitespace-nowrap text-xs">
+                          {entry.submittedAtParts.year}
+                        </span>
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               ))}

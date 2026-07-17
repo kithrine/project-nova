@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PermissionDenied } from "@/components/feedback/permission-denied";
+import { PageHeader } from "@/components/ui/page-header";
 import { ExportPicker } from "@/features/reports/export-picker";
 import { hasNovaScope, hasPermission } from "@/server/auth/authorize";
 import { getAuthContext } from "@/server/auth/context";
@@ -28,12 +29,10 @@ export default async function ExportsPage() {
             Reports
           </Link>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Exports</h1>
-        <p className="max-w-prose text-sm text-base-content/70">
-          Named exports with fixed, approved field sets. Every download is
-          recorded in the audit trail; files are generated on demand and never
-          stored (ADR-021).
-        </p>
+        <PageHeader
+          title="Exports"
+          description="Named exports with fixed, approved field sets. Every download is recorded in the audit trail; files are generated on demand and never stored (ADR-021)."
+        />
       </header>
 
       <ExportPicker definitions={EXPORT_DEFINITIONS} />

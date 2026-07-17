@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/ui/page-header";
 import { OwnCertifications } from "@/features/certifications/own-certifications";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnCertifications } from "@/server/services/certification-service";
@@ -20,13 +21,10 @@ export default async function CertificationsPage() {
 
   return (
     <section className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Certifications</h1>
-        <p className="max-w-prose text-base leading-relaxed text-base-content/80">
-          Credentials Nova has on record for you. If something looks wrong or is
-          missing, tell your coordinator — they can fix it.
-        </p>
-      </div>
+      <PageHeader
+        title="Certifications"
+        description="Credentials Nova has on record for you. If something looks wrong or is missing, tell your coordinator — they can fix it."
+      />
       <OwnCertifications certifications={certifications} />
     </section>
   );
