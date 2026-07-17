@@ -43,7 +43,10 @@
   --color-neutral: #33413b;
   --color-neutral-content: #f4efe2;
 
-  --color-info: #1d4ed8;
+  /* Deep denim info — retinted from royal blue (brand pass 2026-07-16)
+     to sit inside the cream/spruce/teal family; currently unused by any
+     utility class, reserved for informational statuses. */
+  --color-info: #1e5a8a;
   --color-info-content: #ffffff;
 
   /* Calm green success (deepened to clear 4.5:1 on base-200) */
@@ -67,6 +70,13 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+@theme {
+  /* True-white card surface for the signed-in app (brand pass 2026-07-16):
+     white cards float on the cream base without bypassing the token system.
+     Checked by scripts/check-contrast.mjs like every other color token. */
+  --color-surface: #ffffff;
 }
 
 @theme inline {

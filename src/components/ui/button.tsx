@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "danger";
+type ButtonVariant = "primary" | "secondary" | "accent" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
@@ -18,6 +18,9 @@ const baseClasses =
 const variantClasses: Record<ButtonVariant, string> = {
   primary: "bg-primary text-primary-content hover:bg-primary/90",
   secondary: "border border-base-300 bg-base-100 text-base-content hover:bg-base-200",
+  // Chartreuse CTA (brand pass): always dark accent-content text — the
+  // accent is never a text color itself (docs/ux/visual-design-reference.md).
+  accent: "bg-accent text-accent-content hover:bg-accent/85",
   danger: "bg-error text-error-content hover:bg-error/90",
 };
 
@@ -26,6 +29,17 @@ const sizeClasses: Record<ButtonSize, string> = {
   md: "px-4 py-2 text-sm",
   lg: "px-5 py-2.5 text-base",
 };
+
+/**
+ * Compose the button classes for non-<button> call sites (Link CTAs) so
+ * anchors and buttons share one visual vocabulary.
+ */
+export function buttonClassName(
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
+): string {
+  return [baseClasses, variantClasses[variant], sizeClasses[size]].join(" ");
+}
 
 /**
  * Base button primitive. Semantic <button>, keyboard-accessible, visible focus,
@@ -39,9 +53,7 @@ export function Button({
   className,
   ...props
 }: ButtonProps) {
-  const classes = [baseClasses, variantClasses[variant], sizeClasses[size], className]
-    .filter(Boolean)
-    .join(" ");
+  const classes = [buttonClassName(variant, size), className].filter(Boolean).join(" ");
 
   return <button type={type} className={classes} {...props} />;
 }

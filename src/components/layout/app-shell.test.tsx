@@ -5,6 +5,11 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => <button type="button">Account</button>,
 }));
 
+// The nav subcomponent reads the pathname for aria-current (brand pass).
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/shelter",
+}));
+
 import { AppShell } from "./app-shell";
 
 describe("AppShell", () => {
@@ -79,5 +84,24 @@ describe("AppShell", () => {
     const details = container.querySelector("details");
     expect(details).not.toBeNull();
     expect(details?.querySelector("summary")?.textContent).toContain("Menu");
+  });
+
+  it("marks the current route with aria-current and nothing else (brand pass)", () => {
+    render(
+      <AppShell experience="shelter" userLabel="Casey">
+        <p>content</p>
+      </AppShell>,
+    );
+
+    // usePathname is mocked to "/shelter" — the Dashboard link in BOTH
+    // landmarks is current; no other item is.
+    const currentLinks = screen
+      .getAllByRole("link", { name: "Dashboard" })
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(currentLinks.length).toBeGreaterThan(0);
+
+    for (const link of screen.getAllByRole("link", { name: /timesheets/i })) {
+      expect(link).not.toHaveAttribute("aria-current");
+    }
   });
 });

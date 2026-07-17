@@ -12,7 +12,10 @@
 - Checkbox
 - Date/Time Input
 - File Upload
-- Badge
+- Badge — implemented (`src/components/ui/badge.tsx`): tones accent/success/warning/error/info/neutral, **caller-assigned** (status→tone mapping is business semantics and lives with the status vocabulary, never inside the component; rollout across the status rails is a queued follow-up)
+- Card — implemented (`src/components/ui/card.tsx`): `surface` (white on cream), `emphasis` (teal tint), `muted` (empty states)
+- Stat Card — implemented (`src/components/ui/stat-card.tsx`): dashboard KPI tile with filled tone icon circle; values always come from data the page already holds
+- Page Header — implemented (`src/components/ui/page-header.tsx`): h1 + description + decorative slot; the role chip lives once in the shell
 - Alert
 - Toast
 - Modal
@@ -70,3 +73,5 @@
 - Build every component mobile-first, then progressively enhance for larger viewports
 - The chartreuse accent is decorative or dark-text-on-accent only — never a text color on light surfaces (`docs/ux/visual-design-reference.md`)
 - Decorative wrappers (`aria-hidden`) must never contain focusable elements
+- On teal (`primary`) surfaces the focus ring is `accent`, never `primary` — the global ring is invisible there
+- Activity-table header recipe (documented for the rails pass, not yet applied): `thead` rows `bg-primary text-primary-content` with semibold cells

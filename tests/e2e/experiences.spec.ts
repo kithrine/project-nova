@@ -66,7 +66,7 @@ test("a participant lands on the participant shell and is denied operations", as
   await page.goto("/dashboard");
   await page.waitForURL(/\/participant/, { timeout: 15_000 });
   await expect(
-    page.getByRole("heading", { level: 1, name: "Welcome to Project Nova" }),
+    page.getByRole("heading", { level: 1, name: /welcome/i }),
   ).toBeVisible();
 
   await page.goto("/operations");

@@ -116,7 +116,12 @@ export function HoursByFundingReport({
           </ul>
 
           {/* md and up: the grouped table with a grand-total footer. */}
-          <div className="hidden overflow-x-auto md:block">
+          <div
+            className="hidden overflow-x-auto md:block"
+            tabIndex={0}
+            role="region"
+            aria-label="Hours by funding source table"
+          >
             <table className="table table-sm w-full">
               <thead>
                 <tr>

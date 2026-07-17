@@ -9,13 +9,18 @@
 - Closing band: organic wave into deep teal, script tagline, no interactive elements
 - Organic decoration (blobs, dot clusters, leaf sprigs) clipped by the page — never horizontal scroll at 360px
 
+## App shell (brand pass 2026-07-16)
+
+- Full-height deep-teal sidebar from `md` up: compass-star brand, nav with chartreuse active pill (`aria-current`), decorative sprigs, static mission quote card
+- Topbar on cream: role chip (once), user label, account menu; mobile nav stays the native details/summary disclosure
+- Focus ring on teal surfaces is accent (the primary ring would vanish)
+
 ## Operations dashboard
 
-- Left navigation
-- Search and user utilities
-- Today’s Work cards
-- Urgent blockers
-- Upcoming deadlines
+- Page header with description
+- Stat row (permission-gated): urgent incidents, urgent blockers
+- Urgent incidents (white cards, severity badge)
+- Urgent blockers (white cards, Blocked badge)
 
 ## Application workspace
 
@@ -43,15 +48,16 @@
 
 ## Participant dashboard
 
-- Welcome
-- Journey timeline
-- Next Step card
-- Required tasks
-- Upcoming events
+- Welcome header with first name and decorative spark
+- Stat row: onboarding tasks, readiness items, program
+- Proposed placement / declined notice (when present)
+- Required tasks and readiness cards
+- Encouragement callout (chartreuse tint, static)
 
 ## Shelter dashboard
 
+- Page header with description
+- Stat row: placement approvals, package reviews, timesheets awaiting (links to the queue)
 - Placement approvals
+- Placement package reviews (Awaiting review badges)
 - Timesheets awaiting review
-- Evaluations due
-- Active participants

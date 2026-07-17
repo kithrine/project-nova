@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { NovaLogo } from "@/components/layout/nova-logo";
+
 import styles from "./how-it-works.module.css";
 import { Reveal } from "./reveal";
 
@@ -19,6 +21,25 @@ function Paw({ className }: { className?: string }) {
       <ellipse cx="4.9" cy="9.6" rx="1.8" ry="2.3" transform="rotate(-20 4.9 9.6)" />
       <ellipse cx="19.1" cy="9.6" rx="1.8" ry="2.3" transform="rotate(20 19.1 9.6)" />
       <path d="M12 10.2c2.6 0 5.4 2.1 5.4 4.9 0 2.3-1.7 3.7-3.4 3.7-.8 0-1.4-.3-2-.3s-1.2.3-2 .3c-1.7 0-3.4-1.4-3.4-3.7 0-2.8 2.8-4.9 5.4-4.9z" />
+    </svg>
+  );
+}
+
+/** Hand-drawn underline flourish for the script accent (decorative;
+ *  duplicated from the homepage per the house local-helper pattern). */
+function UnderlineFlourish({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 220 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3.5"
+      strokeLinecap="round"
+      preserveAspectRatio="none"
+      className={className}
+    >
+      <path d="M4 9c38-5 74-6 112-4 34 2 66 3 100 1" />
     </svg>
   );
 }
@@ -57,12 +78,17 @@ export default function HowItWorksPage() {
         {/* ---------------------------------------------------------- Hero */}
         <section className="mx-auto w-full max-w-5xl px-4 pt-14 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
           <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
-            <p className="text-sm font-semibold tracking-wide text-secondary uppercase">
+            <p className={styles.eyebrow}>
+              <NovaLogo className="size-3.5" />
               Paid transitional work at animal shelters
             </p>
             <h1 className={`${styles.display} ${styles.heroTitle}`}>
               Good work, real pay,{" "}
-              <span className={styles.heroTitleAccent}>and a team that shows up</span> for you.
+              <span className={styles.scriptWord}>
+                and a team that shows up
+                <UnderlineFlourish className={styles.scriptUnderline} />
+              </span>{" "}
+              for you.
             </h1>
             <p className="max-w-prose text-lg leading-relaxed text-base-content/80">
               Project Nova helps people returning from incarceration step into paid,
@@ -101,15 +127,17 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          {/* The walked path: draws itself, paws appear along the way */}
+          {/* The walked path: the line draws once, then the pawprints walk
+              it forever — each print lands ahead as the oldest fades behind
+              (brand pass 2026-07-16). Reduced motion: a static faded trail. */}
           <svg
             aria-hidden="true"
             viewBox="0 0 560 190"
             fill="none"
-            className="mt-4 hidden w-full max-w-3xl text-secondary sm:block"
+            className="mt-4 hidden w-full max-w-3xl sm:block"
           >
             <path
-              className={styles.trailPath}
+              className={`${styles.trailPath} text-secondary`}
               pathLength="1"
               d="M8 170 C 120 150, 150 60, 265 78 S 470 140, 552 34"
               stroke="currentColor"
@@ -118,16 +146,28 @@ export default function HowItWorksPage() {
               strokeLinecap="round"
               strokeDasharray="0.5 2"
             />
-            <g className={styles.trailPaw} transform="translate(96 128) rotate(24) scale(0.9)">
+            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(52 152) rotate(28) scale(0.85)">
               <Paw className="size-5" />
             </g>
-            <g className={styles.trailPaw} transform="translate(250 62) rotate(8)">
+            <g className={`${styles.trailPaw} text-accent`} transform="translate(118 128) rotate(22) scale(0.9)">
               <Paw className="size-5" />
             </g>
-            <g className={styles.trailPaw} transform="translate(400 108) rotate(-14) scale(1.1)">
+            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(182 92) rotate(10) scale(0.9)">
+              <Paw className="size-5" />
+            </g>
+            <g className={`${styles.trailPaw} text-accent`} transform="translate(248 68) rotate(4) scale(0.95)">
+              <Paw className="size-5" />
+            </g>
+            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(318 82) rotate(-6)">
+              <Paw className="size-5" />
+            </g>
+            <g className={`${styles.trailPaw} text-accent`} transform="translate(388 104) rotate(-10) scale(1.05)">
               <Paw className="size-6" />
             </g>
-            <g className={styles.trailPaw} transform="translate(520 30) rotate(-30) scale(1.2)">
+            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(458 96) rotate(-20) scale(1.1)">
+              <Paw className="size-6" />
+            </g>
+            <g className={`${styles.trailPaw} text-accent`} transform="translate(524 42) rotate(-30) scale(1.15)">
               <Paw className="size-6" />
             </g>
           </svg>
@@ -156,8 +196,10 @@ export default function HowItWorksPage() {
               },
             ].map((card, index) => (
               <Reveal key={card.title} className={styles.reveal} delayMs={index * 120}>
-                <div className={`${styles.stepCard} flex h-full flex-col gap-2 rounded-lg p-6`}>
-                  <Paw className="size-6 text-secondary/70" />
+                <div className={`${styles.stepCard} flex h-full flex-col gap-3 rounded-lg p-6`}>
+                  <div className={styles.cardIcon}>
+                    <Paw className="size-5" />
+                  </div>
                   <h3 className="text-lg font-semibold">{card.title}</h3>
                   <p className="text-sm leading-relaxed text-base-content/75">{card.body}</p>
                 </div>

@@ -76,7 +76,12 @@ export default async function ApplicationsQueuePage({
           submits.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-base-300">
+        <div
+          className="overflow-x-auto rounded-md border border-base-300"
+          tabIndex={0}
+          role="region"
+          aria-label="Applications queue table"
+        >
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-base-300 bg-base-200/60 text-left">

@@ -31,7 +31,7 @@ test("the dashboard shows onboarding progress and completing an own task updates
   await page.goto("/participant");
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Welcome to Project Nova" }),
+    page.getByRole("heading", { level: 1, name: /welcome/i }),
   ).toBeVisible();
 
   // The staff-only task reads as pending with respectful copy — and never
