@@ -1,7 +1,8 @@
 /*
  * Homepage (brand refresh 2026-07-15) — native CSS as a first-class tool
  * (ADR-007). Follows the how-it-works module's conventions: warm paper
- * atmosphere, Fraunces display, every animation gated behind
+ * atmosphere, Lora display (swapped from Fraunces 2026-07-18), every
+ * animation gated behind
  * prefers-reduced-motion, decoration clipped by overflow-x so 360px
  * viewports never scroll sideways. New here: the Caveat script accent
  * (--font-script) and the chartreuse accent, used decoratively or with
@@ -51,8 +52,7 @@
 .heroTitle {
   font-size: clamp(2.7rem, 7vw, 4.4rem);
   line-height: 1.05;
-  font-weight: 620;
-  font-variation-settings: "SOFT" 60;
+  font-weight: 600;
 }
 
 /* The pen-drawn accent word, with its chartreuse flourish underneath */
@@ -60,7 +60,7 @@
   font-family: var(--font-script), "Segoe Script", cursive;
   color: var(--color-primary);
   font-size: 1.14em;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
   position: relative;
   display: inline-block;
@@ -231,7 +231,7 @@
 
 /* --- Photographic hero (2026-07-18) -------------------------------------
    The CSS dashboard mockup below is commented out in page.tsx; this is
-   its replacement. The shadow is byte-identical to .dashCard's. */
+   its replacement. */
 
 .heroPhoto {
   position: relative;
@@ -242,13 +242,13 @@
   width: 100%;
   height: auto;
   border-radius: 1rem;
-  /* Same playful tilt as the mockup card; the shadow is deliberately
-     deeper than .dashCard's — the mockup's soft values read against a
-     white card, but disappear under a photo's darker edge. */
+  /* Same playful tilt as the mockup card. The shadow is a soft diffuse
+     veil matched to the mockup reference — wide blur, low alpha, never
+     a hard dark under-edge. */
   transform: rotate(2deg);
   box-shadow:
-    0 24px 48px -12px rgb(11 23 18 / 0.38),
-    0 6px 16px -6px rgb(11 23 18 / 0.25);
+    0 25px 70px -10px rgb(11 23 18 / 0.28),
+    0 10px 30px -6px rgb(11 23 18 / 0.14);
 }
 
 @media (max-width: 40rem) {

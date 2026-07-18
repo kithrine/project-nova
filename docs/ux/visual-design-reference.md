@@ -25,8 +25,8 @@
 ## Typography
 
 - **Inter** — the app-wide body face (highly readable sans-serif), loaded in the root layout.
-- **Fraunces** — the display serif for public pages (`--font-display`), with its SOFT/WONK variable axes used for warm, slightly wonky accents.
-- **Caveat** — the pen-drawn script (`--font-script`), public pages only, for single accent words and short taglines — never body copy, never in the signed-in app.
+- **Lora** — the display serif for public pages (`--font-display`), normal + italic (swapped from Fraunces 2026-07-18 — its wonky f/j letterforms read wrong at display sizes). The How It Works accent phrase is Lora italic in secondary teal.
+- **Caveat** — the pen-drawn script (`--font-script`), homepage only (the How It Works accent reverted to italic serif 2026-07-18), for single accent words and short taglines — never body copy, never in the signed-in app.
 
 ## Iconography
 
@@ -40,7 +40,7 @@ The Journey Timeline is Project Nova's defining visual motif.
 
 ## Motion
 
-Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works pawprint trail loops continuously (public-pages expressive motion) — opacity-only keyframes inside the `no-preference` block, with a static faded trail as the reduced-motion state.
+Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works hero closes with the ball chase (visual pass 2026-07-18): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and small paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state.
 
 Since the visual pass (2026-07-18):
 

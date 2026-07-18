@@ -25,24 +25,18 @@ function Paw({ className }: { className?: string }) {
   );
 }
 
-/** Hand-drawn underline flourish for the script accent (decorative;
- *  duplicated from the homepage per the house local-helper pattern). */
-function UnderlineFlourish({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 220 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3.5"
-      strokeLinecap="round"
-      preserveAspectRatio="none"
-      className={className}
-    >
-      <path d="M4 9c38-5 74-6 112-4 34 2 66 3 100 1" />
-    </svg>
-  );
-}
+/** Ground trot for the ball chase. Positions/rotations are static inline
+ *  styles — only opacity animates, so they can never conflict. */
+const CHASE_PAWS = [
+  { left: "4%", bottom: 34, size: 17, rotate: 84, color: "var(--color-secondary)" },
+  { left: "14%", bottom: 20, size: 18, rotate: 98, color: "rgb(168 77 8 / 0.85)" },
+  { left: "24%", bottom: 33, size: 17, rotate: 80, color: "var(--color-secondary)" },
+  { left: "34%", bottom: 21, size: 19, rotate: 100, color: "rgb(168 77 8 / 0.85)" },
+  { left: "44%", bottom: 34, size: 18, rotate: 84, color: "var(--color-secondary)" },
+  { left: "54%", bottom: 20, size: 19, rotate: 96, color: "rgb(168 77 8 / 0.85)" },
+  { left: "64%", bottom: 33, size: 18, rotate: 82, color: "var(--color-secondary)" },
+  { left: "74%", bottom: 21, size: 20, rotate: 98, color: "rgb(168 77 8 / 0.85)" },
+];
 
 const JOURNEY_STEPS = [
   {
@@ -84,10 +78,7 @@ export default function HowItWorksPage() {
             </p>
             <h1 className={`${styles.display} ${styles.heroTitle}`}>
               Good work, real pay,{" "}
-              <span className={styles.scriptWord}>
-                and a team that shows up
-                <UnderlineFlourish className={styles.scriptUnderline} />
-              </span>{" "}
+              <span className={styles.heroTitleAccent}>and a team that shows up</span>{" "}
               for you.
             </h1>
             <p className="max-w-prose text-lg leading-relaxed text-base-content/80">
@@ -127,50 +118,40 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          {/* The walked path: the line draws once, then the pawprints walk
-              it forever — each print lands ahead as the oldest fades behind
-              (brand pass 2026-07-16). Reduced motion: a static faded trail. */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 560 190"
-            fill="none"
-            className="mt-4 hidden w-full max-w-3xl sm:block"
-          >
-            <path
-              className={`${styles.trailPath} text-secondary`}
-              pathLength="1"
-              d="M8 170 C 120 150, 150 60, 265 78 S 470 140, 552 34"
-              stroke="currentColor"
-              strokeOpacity="0.5"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeDasharray="0.5 2"
-            />
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(52 152) rotate(28) scale(0.85)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(118 128) rotate(22) scale(0.9)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(182 92) rotate(10) scale(0.9)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(248 68) rotate(4) scale(0.95)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(318 82) rotate(-6)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(388 104) rotate(-10) scale(1.05)">
-              <Paw className="size-6" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(458 96) rotate(-20) scale(1.1)">
-              <Paw className="size-6" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(524 42) rotate(-30) scale(1.15)">
-              <Paw className="size-6" />
-            </g>
-          </svg>
+          {/* The ball chase (visual pass 2026-07-18): a red toy ball
+              bounces in from the left and settles at the right; small paw
+              prints trot after it before the scene clears and loops. One
+              master 9s cycle — every element animates at the same
+              duration, paw offsets via animation-delay, so phases can
+              never drift. Paws are HTML-positioned spans, NOT nested in
+              one big SVG viewBox (Tailwind sizing cannot constrain an
+              inner SVG's coordinate system — the bug that broke the old
+              trail). Reduced motion: ball at rest with its contact shadow
+              and a faded complete trail. */}
+          <div aria-hidden="true" className={`${styles.chase} mt-4 hidden w-full max-w-3xl sm:block`}>
+            <div className={styles.ballTrack}>
+              <div className={styles.ballBounce}>
+                <div className={styles.ball} />
+              </div>
+              <div className={styles.ballShadow} />
+            </div>
+            {CHASE_PAWS.map((paw) => (
+              <span
+                key={paw.left}
+                className={styles.chasePaw}
+                style={{
+                  left: paw.left,
+                  bottom: paw.bottom,
+                  width: paw.size,
+                  height: paw.size,
+                  color: paw.color,
+                  transform: `rotate(${paw.rotate}deg)`,
+                }}
+              >
+                <Paw className={styles.chasePawIcon} />
+              </span>
+            ))}
+          </div>
         </section>
 
         {/* ------------------------------------------------- What this is */}
