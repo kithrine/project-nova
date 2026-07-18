@@ -19,8 +19,13 @@ export default defineConfig({
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   // Clerk dev instances rate-limit (429s); too much concurrency makes the
-  // suite flaky. Three workers keeps FAPI traffic under the limit locally.
-  workers: process.env.CI ? 2 : 3,
+  // suite flaky. Three workers still burst past the limit: beyond sign-ins,
+  // every open context refreshes its session token via FAPI (~every 50s),
+  // and a throttled refresh kills the session mid-journey — the browser
+  // lands back on /sign-in with no server-side auth redirect in the logs.
+  // Two workers (the CI value) keeps sign-in plus refresh traffic under
+  // the limit.
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? "github" : "list",
