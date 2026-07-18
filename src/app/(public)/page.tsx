@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { BreathingDots } from "@/components/decor/breathing-dots";
@@ -91,12 +92,13 @@ function Wave({ className }: { className?: string }) {
   );
 }
 
-/**
+/*
  * Illustrative product card — a stylized, fictional glimpse of the
  * coordinator dashboard (pure CSS/HTML, aria-hidden, nothing focusable).
- * A photographic hero via next/image can replace this column later
- * without touching the surrounding layout.
- */
+ * COMMENTED OUT 2026-07-18: swapped for the photographic hero image
+ * (public/images/nova-homepage-hero.png) at Kit's request — kept intact
+ * here (with its .dash* styles in home.module.css) for potential return.
+ *
 function DashboardIllustration() {
   return (
     <div className={`${styles.heroArt} ${styles.heroArtRise}`} aria-hidden="true">
@@ -165,6 +167,7 @@ function DashboardIllustration() {
     </div>
   );
 }
+*/
 
 const VALUE_PROPS = [
   {
@@ -258,7 +261,20 @@ export default function HomePage() {
               </div>
             </div>
 
-            <DashboardIllustration />
+            {/* Photographic hero (2026-07-18) — replaces <DashboardIllustration />,
+                which is commented out above for potential return. Decorative:
+                empty alt + aria-hidden wrapper, same stance as the mockup. */}
+            <div className={`${styles.heroPhoto} ${styles.heroArtRise}`} aria-hidden="true">
+              <Image
+                src="/images/nova-homepage-hero.png"
+                alt=""
+                width={1535}
+                height={1024}
+                priority
+                sizes="(min-width: 1024px) 560px, 100vw"
+                className={styles.heroImage}
+              />
+            </div>
           </div>
         </section>
 

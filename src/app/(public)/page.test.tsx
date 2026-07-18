@@ -86,6 +86,8 @@ describe("HomePage", () => {
     }
   });
 
+  /* COMMENTED OUT 2026-07-18 alongside the DashboardIllustration mockup it
+     pins (swapped for the photographic hero; both kept for potential return).
   it("keeps the decorative dashboard illustration out of the accessibility tree", () => {
     const { container } = renderHomePage();
     // The fictional coordinator vignette renders but is aria-hidden with
@@ -94,6 +96,14 @@ describe("HomePage", () => {
     const dashboard = hidden.find((node) => node.textContent?.includes("Jordan"));
     expect(dashboard).toBeDefined();
     expect(dashboard?.querySelectorAll("a, button, input, select, textarea")).toHaveLength(0);
+  });
+  */
+
+  it("renders the photographic hero as decorative (empty alt)", () => {
+    const { container } = renderHomePage();
+    const hero = container.querySelector('img[alt=""]');
+    expect(hero).not.toBeNull();
+    expect(hero?.getAttribute("src")).toContain("nova-homepage-hero");
   });
 
   it("uses respectful, person-first language everywhere", () => {

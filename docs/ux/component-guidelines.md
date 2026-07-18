@@ -57,7 +57,7 @@
 - Nova Logo (compass star — `src/components/layout/nova-logo.tsx`; the brand name is always adjacent text)
 - Script Accent (Caveat word with drawn flourish — decorative styling over plain text)
 - Decorative Motifs (blob, leaf sprig, breathing dot field — always `aria-hidden`, never containing focusables). The breathing dot field (`src/components/decor/breathing-dots.tsx`) is the corner-anchored ambient motif (visual pass 2026-07-18): masked dot grids densest at the anchor corner, counter-phased opacity/scale breathing, `pointer-events: none`, reduced-motion shows the static field. The static dot-cluster rectangles are retired.
-- Illustrative Dashboard Card (fictional, terminology-correct data; `aria-hidden`; nothing interactive inside)
+- Photographic Hero Image (2026-07-18: `public/images/nova-homepage-hero.png`, rounded 1rem with the card shadow, decorative — empty alt + `aria-hidden` wrapper). The Illustrative Dashboard Card (fictional, terminology-correct data; `aria-hidden`; nothing interactive inside) it replaced is commented out in `page.tsx` for potential return
 - Trust Strip (category marks, never fictional organizations)
 - Value Prop Card
 - Closing Band (teal; carries no interactive elements — the global focus ring is teal and would vanish)
