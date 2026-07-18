@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "src/generated/**",
     // Project-local tooling/session directories — not application code:
     ".remember/**",
+    ".claude/**",
     "test-results/**",
     "playwright-report/**",
   ]),

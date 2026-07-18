@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 // next/font requires the Next build pipeline; return a plain stand-in.
 vi.mock("next/font/google", () => ({
-  Fraunces: () => ({ variable: "--font-display", className: "font-display" }),
+  Lora: () => ({ variable: "--font-display", className: "font-display" }),
   Caveat: () => ({ variable: "--font-script", className: "font-script" }),
 }));
 

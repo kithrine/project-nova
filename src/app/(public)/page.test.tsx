@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/font/google", () => ({
-  Fraunces: () => ({ variable: "--font-display", className: "font-display" }),
+  Lora: () => ({ variable: "--font-display", className: "font-display" }),
   Caveat: () => ({ variable: "--font-script", className: "font-script" }),
 }));
 
