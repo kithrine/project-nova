@@ -242,7 +242,19 @@
   width: 100%;
   height: auto;
   border-radius: 1rem;
-  box-shadow: 0 18px 40px -18px rgb(11 23 18 / 0.28);
+  /* Same playful tilt as the mockup card; the shadow is deliberately
+     deeper than .dashCard's — the mockup's soft values read against a
+     white card, but disappear under a photo's darker edge. */
+  transform: rotate(2deg);
+  box-shadow:
+    0 24px 48px -12px rgb(11 23 18 / 0.38),
+    0 6px 16px -6px rgb(11 23 18 / 0.25);
+}
+
+@media (max-width: 40rem) {
+  .heroImage {
+    transform: rotate(1deg);
+  }
 }
 
 /* --- The illustrative dashboard card (pure CSS, decorative) -------------
