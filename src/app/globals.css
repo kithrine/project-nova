@@ -88,10 +88,14 @@
 /* Semantic base — mobile-first, accessible defaults */
 html {
   font-family: var(--font-sans);
+  /* The cream backdrop lives on the ROOT so it paints as the canvas.
+     body must NOT paint its own background: an in-flow body background
+     covers fixed negative-z layers (the shell's breathing dots) —
+     found the hard way, visual pass 2026-07-18. */
+  background-color: var(--color-base-100);
 }
 
 body {
-  background-color: var(--color-base-100);
   color: var(--color-base-content);
   -webkit-font-smoothing: antialiased;
 }
