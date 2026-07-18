@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BreathingDots } from "@/components/decor/breathing-dots";
 import { NavIcon } from "@/components/layout/nav-icons";
 import { NovaLogo } from "@/components/layout/nova-logo";
 
@@ -19,23 +20,6 @@ function Blob({ className }: { className?: string }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 200 200" fill="currentColor" className={className}>
       <path d="M165 41c18 21 26 51 18 76s-32 45-59 53-57 4-77-13S17 111 22 84 46 33 71 22s76-2 94 19Z" />
-    </svg>
-  );
-}
-
-/** Cluster of confetti dots — decorative only. */
-function DotCluster({ className }: { className?: string }) {
-  const positions: Array<[number, number]> = [];
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 6; col += 1) {
-      positions.push([6 + col * 14, 6 + row * 14]);
-    }
-  }
-  return (
-    <svg aria-hidden="true" viewBox="0 0 90 40" fill="currentColor" className={className}>
-      {positions.map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="2.2" />
-      ))}
     </svg>
   );
 }
@@ -224,10 +208,10 @@ const TRUST_CATEGORIES = [
 export default function HomePage() {
   return (
     <main id="main-content" className={`${styles.page} flex flex-1 flex-col`}>
+      <BreathingDots anchor="top-right" className={styles.heroDots} />
       <div className={styles.content}>
         {/* --- Hero ------------------------------------------------------ */}
         <section className="relative mx-auto w-full max-w-6xl px-4 pt-14 pb-16 sm:px-6 lg:pt-20 lg:pb-24">
-          <DotCluster className={`${styles.dotCluster} ${styles.dotClusterHero}`} />
           <div className={styles.heroGrid}>
             <div className={`${styles.heroReveal} flex flex-col items-start gap-6`}>
               <p className={styles.eyebrow}>

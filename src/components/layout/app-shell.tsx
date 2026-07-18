@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 
+import { BreathingDots } from "@/components/decor/breathing-dots";
 import { AppShellNav } from "@/components/layout/app-shell-nav";
 import { NavIcon } from "@/components/layout/nav-icons";
 import { NovaLogo } from "@/components/layout/nova-logo";
@@ -15,7 +16,10 @@ import type { Experience } from "@/server/auth/experience";
  * render as Disabled entries, not dead links. The sidebar carries no
  * interactive elements outside the nav (the same focus-ring rule as the
  * public closing bands: the global primary ring is invisible on teal, so
- * nav links override to the accent ring in AppShellNav).
+ * nav links override to the accent ring in AppShellNav). A breathing dot
+ * field sits fixed in the viewport's bottom-right corner behind all
+ * content (visual pass 2026-07-18) — every signed-in page gets it via
+ * this one mount.
  */
 
 /** Decorative leaf sprig for the sidebar's quiet space (aria-hidden). */
@@ -34,19 +38,6 @@ function LeafSprig({ className }: { className?: string }) {
       <path d="M24 18C17 16 11 10 10 3c7 1 13 7 14 15Z" fill="currentColor" stroke="none" />
       <path d="M24 34c7-2 13-8 14-15-7 1-13 7-14 15Z" fill="currentColor" stroke="none" />
       <path d="M24 48c-7-2-13-8-14-15 7 1 13 7 14 15Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-/** Decorative dot cluster (aria-hidden). */
-function DotCluster({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 60 36" fill="currentColor" className={className}>
-      {[0, 1, 2].map((row) =>
-        [0, 1, 2, 3, 4].map((col) => (
-          <circle key={`${row}-${col}`} cx={6 + col * 12} cy={6 + row * 12} r="2" />
-        )),
-      )}
     </svg>
   );
 }
@@ -82,6 +73,13 @@ export function AppShell({
 
   return (
     <div className="flex min-h-full flex-1 flex-col md:flex-row">
+      {/* Ambient corner decoration: fixed to the viewport, painted in the
+          negative z band — above the cream canvas, below every element
+          background, so dots show only through transparent areas. */}
+      <BreathingDots
+        anchor="bottom-right"
+        className="fixed right-0 bottom-0 -z-10 h-[min(26rem,55vh)] w-[min(44rem,70vw)]"
+      />
       {/* Desktop: the full-height deep-teal sidebar */}
       <aside className="hidden shrink-0 flex-col bg-primary text-base-100 md:flex md:w-64">
         <div className="flex items-center gap-2.5 px-5 pt-5 pb-2">
@@ -96,7 +94,6 @@ export function AppShell({
         <div className="mx-5 border-t border-base-100/15" />
         <div className="relative flex-1 overflow-hidden">
           <LeafSprig className="absolute bottom-2 left-4 h-16 w-12 text-base-100/20" />
-          <DotCluster className="absolute right-4 bottom-6 h-9 w-15 text-base-100/15" />
         </div>
         {/* Non-interactive by rule: the primary focus ring vanishes on teal.
             Full-opacity cream text: the card tint lightens the backdrop, so
