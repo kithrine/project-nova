@@ -20,7 +20,9 @@
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 
-  /* Motion — subtle in-app transitions; expressive motion is public-pages only */
+  /* Motion — subtle in-app transitions; expressive motion on public pages,
+     plus the ambient breathing-dots corner app-wide. Everything is gated
+     behind prefers-reduced-motion. */
   --duration-fast: 150ms;
   --duration-medium: 250ms;
 }

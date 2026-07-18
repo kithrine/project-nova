@@ -120,12 +120,20 @@
       transition:
         opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
         transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-      transition-delay: var(--reveal-delay, 0ms);
+    }
+
+    /* Reveals replay in both scroll directions (visual pass 2026-07-18).
+       The hidden offset must point AWAY from the viewport — content that
+       exited through the top hides upward, or the observer oscillates. */
+    .reveal[data-exit="top"] {
+      transform: translateY(-22px);
     }
 
     .reveal[data-visible="true"] {
       opacity: 1;
       transform: none;
+      /* Stagger entrances only; exits start immediately. */
+      transition-delay: var(--reveal-delay, 0ms);
     }
   }
 }
@@ -190,16 +198,15 @@
   left: -6rem;
 }
 
-.dotCluster {
+/* Breathing dot field: anchored to the page's top-right corner, behind
+   .content (z-index 1) and under the noise grain (.page::after), which
+   unifies the dots with the paper texture. */
+.heroDots {
   position: absolute;
-  pointer-events: none;
-  color: rgb(15 107 92 / 0.35);
-  width: 6.5rem;
-}
-
-.dotClusterHero {
-  top: 1.5rem;
-  right: 12%;
+  top: 0;
+  right: 0;
+  width: min(54rem, 82vw);
+  height: min(32rem, 70vh);
 }
 
 .leafSprig {
@@ -217,7 +224,6 @@
 
 @media (max-width: 40rem) {
   .blobTeal,
-  .dotClusterHero,
   .leafSprigBottom {
     display: none;
   }
@@ -230,16 +236,24 @@
   padding: 1.5rem 0.5rem 2rem;
 }
 
+/* Bottom bleeds trimmed (visual pass 2026-07-18) so the illustration
+   stays clear of the trust band below the hero. Explicit width/height:
+   the blob is an SVG (replaced element) — with inset shorthand, CSS
+   ignores the bottom offset and sizes it square by intrinsic ratio,
+   which was the overlap all along. */
 .dashBlob {
   position: absolute;
-  inset: -8% -10% -4% -6%;
+  top: -8%;
+  left: -6%;
+  width: 116%;
+  height: 109%;
   color: rgb(217 224 33 / 0.28);
   pointer-events: none;
 }
 
 .dashCardBack {
   position: absolute;
-  inset: 12% -3% -4% 8%;
+  inset: 12% -3% 0 8%;
   transform: rotate(-2deg);
   border-radius: 1rem;
   background: rgb(15 107 92 / 0.12);
@@ -328,7 +342,7 @@
 .dashFloatChip {
   position: absolute;
   right: -0.5rem;
-  bottom: 0.25rem;
+  bottom: 0.75rem;
   transform: rotate(-2deg);
   display: flex;
   align-items: center;

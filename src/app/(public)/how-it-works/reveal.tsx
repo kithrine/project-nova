@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
- * Scroll-reveal wrapper (Story 2.1). Adds data-visible when the element
- * enters the viewport; the CSS module decides what that means, and
- * prefers-reduced-motion users simply see content immediately (the reveal
- * styles only exist inside a no-preference media query).
+ * Scroll-reveal wrapper (Story 2.1; reversible since the visual pass
+ * 2026-07-18). Toggles data-visible as the element enters and leaves the
+ * viewport, so reveals replay in BOTH scroll directions; the CSS module
+ * decides what that means, and prefers-reduced-motion users simply see
+ * content immediately (the reveal styles only exist inside a
+ * no-preference media query).
  */
 export function Reveal({
   children,
@@ -22,6 +24,11 @@ export function Reveal({
   // mismatch). The CSS only hides reveal content when JS is running
   // (html.js), so no-JS visitors always see everything.
   const [visible, setVisible] = useState(false);
+  // Which viewport edge the element last exited through. The hidden
+  // transform must always push AWAY from the viewport — re-hiding a
+  // top-exited element at +22px would move it back toward the boundary
+  // and oscillate the observer.
+  const [exitEdge, setExitEdge] = useState<"top" | "bottom">("bottom");
 
   useEffect(() => {
     const element = ref.current;
@@ -36,7 +43,13 @@ export function Reveal({
         for (const entry of entries) {
           if (entry.isIntersecting) {
             setVisible(true);
-            observer.disconnect();
+          } else {
+            setExitEdge(
+              entry.boundingClientRect.top < (entry.rootBounds?.top ?? 0)
+                ? "top"
+                : "bottom",
+            );
+            setVisible(false);
           }
         }
       },
@@ -46,12 +59,12 @@ export function Reveal({
     return () => observer.disconnect();
   }, []);
 
-
   return (
     <div
       ref={ref}
       className={className}
       data-visible={visible || undefined}
+      data-exit={exitEdge}
       style={delayMs ? ({ "--reveal-delay": `${delayMs}ms` } as React.CSSProperties) : undefined}
     >
       {children}

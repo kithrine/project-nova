@@ -16,7 +16,7 @@
 - Calm green success
 - Amber warning
 - Muted red danger
-- Organic decoration (blobs, dot clusters, leaf sprigs, drawn flourishes) on public pages only, always `aria-hidden`
+- Organic decoration (blobs, breathing dot fields, leaf sprigs, drawn flourishes) on public pages and as quiet ambient corners of the signed-in shell — always `aria-hidden`, never containing focusables
 - Strong whitespace
 - Minimal shadows
 - Moderate radii
@@ -40,7 +40,12 @@ The Journey Timeline is Project Nova's defining visual motif.
 
 ## Motion
 
-Motion communicates state. Use subtle transitions in the application and more expressive effects only on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works pawprint trail loops continuously (public-pages expressive motion) — opacity-only keyframes inside the `no-preference` block, with a static faded trail as the reduced-motion state.
+Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works pawprint trail loops continuously (public-pages expressive motion) — opacity-only keyframes inside the `no-preference` block, with a static faded trail as the reduced-motion state.
+
+Since the visual pass (2026-07-18):
+
+- **Scroll reveals are reversible** — the `Reveal` helper toggles on both enter and leave, so content replays in either scroll direction. Exits drift toward the edge they left through (`data-exit`), which keeps the IntersectionObserver from oscillating at the boundary; stagger delays apply to entrances only.
+- **The breathing dot field** is the ambient motif: masked teal dot grids densest at an anchor corner (homepage top-right, signed-in shell bottom-right), fading across the page, breathing on counter-phased 9s/13s opacity/scale loops (compositor-only). Reduced motion shows the static mid-opacity field.
 
 ## Dark mode
 
@@ -55,7 +60,7 @@ Tokens are implemented as CSS variables (Story 1.1; brand refresh 2026-07-15). C
 - Deep teal primary `#0f6b5c`; supporting teal secondary `#0f766e`
 - Electric chartreuse accent `#d9e021` with dark content `#1f2a05` (≥ 7:1) — decorative or dark-text-on-accent only
 - Calm green success `#0f6a32` and amber warning `#9a4507` (re-deepened 2026-07-17: Badge chips tint their background with the tone at 10%, and the tone-as-text must clear 4.5:1 on that composite — the contrast gate now asserts it)
-- Muted red danger `#b91c1c`; deep denim info `#1e5a8a` (retinted from royal blue in the 2026-07-16 brand pass — reserved for informational statuses, currently unused)
+- Muted red danger `#b91c1c`; deep denim info `#1e5a8a` (retinted from royal blue in the 2026-07-16 brand pass — carries in-flight status badges since the 2026-07-17 follow-ups)
 - True-white surface `#ffffff` (`--color-surface`, brand pass 2026-07-16) — the signed-in app's card color, floating on the cream base
 
 Non-color tokens (radii, shadows, focus ring, motion durations with reduced-motion support) live in `src/styles/tokens.css`.
@@ -68,6 +73,7 @@ Non-color tokens (radii, shadows, focus ring, motion durations with reduced-moti
 - Muted text on teal uses `base-100/85` or stronger (`/70` fails AA — computed); disabled nav items are `base-100/60`, `aria-disabled` (axe-exempt), held to a self-imposed ≥ 3:1.
 - The sidebar carries no interactive elements outside the nav (the bottom quote card is static).
 - Dashboards: white `surface` stat cards with filled tone icon circles; the role chip renders once, in the topbar.
+- A breathing dot field sits fixed in the viewport's bottom-right corner behind all content (visual pass 2026-07-18) — negative z-index, visible only through transparent cream areas; the sidebar's static dot cluster is retired.
 
 ## Status color and data tables (brand follow-ups 2026-07-17)
 

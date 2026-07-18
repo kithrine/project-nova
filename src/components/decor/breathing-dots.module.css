@@ -1,0 +1,98 @@
+/*
+ * Breathing dot field (visual pass 2026-07-18). Two offset dot grids
+ * (::before / ::after), densest at an anchor corner and fading across the
+ * page via a corner-anchored mask. They breathe on counter-phased 9s/13s
+ * opacity + scale loops — compositor-only properties, no will-change, and
+ * never the mask or background-position (those repaint every frame). The
+ * differing periods drift against each other so the field never repeats
+ * mechanically. Static mid-opacity resting state lives OUTSIDE the
+ * media query (the .trailPaw precedent) so reduced-motion users get the
+ * faded field, not a blank corner; globals.css remains the backstop.
+ */
+
+.dots {
+  pointer-events: none;
+}
+
+.dots::before,
+.dots::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    var(--dots-color) var(--dots-r),
+    transparent calc(var(--dots-r) + 0.5px)
+  );
+  background-size: var(--dots-cell) var(--dots-cell);
+  transform-origin: var(--dots-origin);
+  mask-image: radial-gradient(
+    115% 115% at var(--dots-origin),
+    rgb(0 0 0 / 0.95) 0%,
+    rgb(0 0 0 / 0.6) 30%,
+    rgb(0 0 0 / 0.22) 60%,
+    transparent 88%
+  );
+  /* Resting state — doubles as the reduced-motion state. */
+  opacity: 0.75;
+}
+
+/* Half-cell offset grid: the shimmer layer. */
+.dots::after {
+  background-position: calc(var(--dots-cell) / 2) calc(var(--dots-cell) / 2);
+  opacity: 0.45;
+}
+
+.topRight {
+  --dots-origin: 100% 0%;
+  --dots-color: rgb(15 107 92 / 0.4);
+  --dots-cell: 26px;
+  --dots-r: 1.6px;
+}
+
+.bottomRight {
+  --dots-origin: 100% 100%;
+  --dots-color: rgb(15 107 92 / 0.32);
+  --dots-cell: 24px;
+  --dots-r: 1.4px;
+}
+
+/* No mask support -> no dots at all (an unmasked grid would be loud). */
+@supports not (mask-image: radial-gradient(#000, transparent)) {
+  .dots {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dots::before {
+    animation: breatheA 9s ease-in-out infinite alternate;
+  }
+
+  .dots::after {
+    animation: breatheB 13s ease-in-out infinite alternate;
+  }
+}
+
+/* Counter-phased: A brightens while B dims, so total density stays gentle. */
+@keyframes breatheA {
+  from {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0.9;
+    transform: scale(1.045);
+  }
+}
+
+@keyframes breatheB {
+  from {
+    opacity: 0.7;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+}
