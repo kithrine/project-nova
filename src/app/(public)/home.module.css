@@ -136,6 +136,17 @@
       transform: translateY(-22px);
     }
 
+    /* Horizontal variants (styling round 3). Must sit AFTER the data-exit
+       rule: equal specificity, so source order makes left/right reveals
+       hide toward their own side whichever edge they exited through. */
+    .reveal[data-from="left"] {
+      transform: translateX(-30px);
+    }
+
+    .reveal[data-from="right"] {
+      transform: translateX(30px);
+    }
+
     .reveal[data-visible="true"] {
       opacity: 1;
       transform: none;
@@ -448,6 +459,10 @@
   }
 }
 
+/* Layout only — every circle carries an explicit tone class below.
+   (Replaced the old .valueCard:nth-child(even) alternation, which never
+   matched: each card is the only child of its Reveal wrapper, so it was
+   always :nth-child(1). Explicit classes survive wrapper changes.) */
 .valueIcon {
   display: flex;
   align-items: center;
@@ -455,14 +470,34 @@
   width: 3rem;
   height: 3rem;
   border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+/* The tone quartet (styling round 3): one palette voice per card. All
+   icon inks are the contrast-vetted deep tokens; chartreuse appears only
+   as a background tint, never an ink (visual-design-reference.md). */
+.valueIconTeal {
   background: rgb(15 107 92 / 0.1);
-  border: 1px solid rgb(15 107 92 / 0.25);
+  border-color: rgb(15 107 92 / 0.25);
   color: var(--color-primary);
 }
 
-.valueCard:nth-child(even) .valueIcon {
-  background: rgb(217 224 33 / 0.25);
+.valueIconChartreuse {
+  background: rgb(217 224 33 / 0.28);
   border-color: rgb(15 107 92 / 0.2);
+  color: var(--color-primary);
+}
+
+.valueIconInfo {
+  background: rgb(30 90 138 / 0.1);
+  border-color: rgb(30 90 138 / 0.3);
+  color: var(--color-info);
+}
+
+.valueIconAmber {
+  background: rgb(154 69 7 / 0.1);
+  border-color: rgb(154 69 7 / 0.3);
+  color: var(--color-warning);
 }
 
 /* --- Closing band ---------------------------------------------------------- */

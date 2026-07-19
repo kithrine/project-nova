@@ -14,10 +14,19 @@ export function Reveal({
   children,
   className,
   delayMs = 0,
+  from = "up",
 }: {
   children: ReactNode;
   className?: string;
   delayMs?: number;
+  /**
+   * Axis the hidden element sits on before revealing (styling round 3).
+   * "up" keeps the classic rise; "left"/"right" slide in horizontally and
+   * ignore the exit edge — a horizontal element re-hides toward its own
+   * side, which can never oscillate the observer the way a wrong-way
+   * vertical transform can.
+   */
+  from?: "up" | "left" | "right";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // Starts false on server AND client (identical SSR markup — no hydration
@@ -65,6 +74,7 @@ export function Reveal({
       className={className}
       data-visible={visible || undefined}
       data-exit={exitEdge}
+      data-from={from}
       style={delayMs ? ({ "--reveal-delay": `${delayMs}ms` } as React.CSSProperties) : undefined}
     >
       {children}
