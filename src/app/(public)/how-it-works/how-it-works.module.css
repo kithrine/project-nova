@@ -59,6 +59,79 @@
   font-style: italic;
 }
 
+/* --- Full-bleed photo hero (styling round 2, 2026-07-18) ---------------
+   The image spans the viewport behind a left-weighted spruce scrim; the
+   hero copy flips to cream. Chartreuse italic is permitted here — dark
+   surface, decorative-large text (docs/ux/visual-design-reference.md). */
+
+.heroBand {
+  position: relative;
+  overflow: hidden;
+}
+
+.heroBandImage {
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgb(11 23 18 / 0.72) 0%,
+    rgb(11 23 18 / 0.55) 42%,
+    rgb(11 23 18 / 0.12) 78%,
+    transparent 100%
+  );
+}
+
+/* The eyebrow chip's translucent chartreuse tint is unreadable over the
+   photo — on-image it goes dark glass with cream text. Compound selector:
+   must beat .eyebrow regardless of source order. */
+.eyebrow.eyebrowOnImage {
+  background: rgb(11 23 18 / 0.55);
+  border-color: rgb(250 246 236 / 0.35);
+  color: var(--color-base-100);
+  backdrop-filter: blur(2px);
+}
+
+.heroBandTitle {
+  color: var(--color-base-100);
+  text-shadow: 0 2px 18px rgb(11 23 18 / 0.45);
+}
+
+.heroBandAccent {
+  color: var(--color-accent);
+  font-style: italic;
+}
+
+.heroBandText {
+  color: rgb(250 246 236 / 0.88);
+  text-shadow: 0 1px 10px rgb(11 23 18 / 0.4);
+}
+
+.heroBandFaint {
+  color: rgb(250 246 236 / 0.72);
+  text-shadow: 0 1px 10px rgb(11 23 18 / 0.4);
+}
+
+/* --- Journey band: the half-circle dot arc (styling round 2) ----------- */
+
+.journeyBand {
+  position: relative;
+}
+
+.journeyDots {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(24rem, 34vw);
+  height: min(44rem, 92%);
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -114,15 +187,15 @@
   /* Full strip width: translateX(100%) = one strip-width, so calc()
      places the ball without any JS measurement. */
   inset: 0;
-  transform: translateX(calc(100% - 64px)); /* resting: right end */
+  transform: translateX(calc(100% - 52px)); /* resting: right end */
 }
 
 .ballBounce {
   position: absolute;
   left: 0;
   bottom: 22px; /* the ground line */
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
 }
 
 .ball {
@@ -142,10 +215,10 @@
 
 .ballShadow {
   position: absolute;
-  left: 5px;
+  left: 4px;
   bottom: 12px;
-  width: 38px;
-  height: 9px;
+  width: 30px;
+  height: 8px;
   border-radius: 50%;
   background: rgb(11 23 18 / 0.45);
   filter: blur(4px); /* static blur — never animated */
@@ -273,22 +346,22 @@
    clear when the cycle restarts. */
 @keyframes chaseBallX {
   0% {
-    transform: translateX(-72px);
+    transform: translateX(-60px);
     opacity: 0;
   }
   2% {
-    transform: translateX(-72px);
+    transform: translateX(-60px);
     opacity: 1;
     animation-timing-function: cubic-bezier(0.25, 0.2, 0.45, 1);
   }
   40%,
   90% {
-    transform: translateX(calc(100% - 64px));
+    transform: translateX(calc(100% - 52px));
     opacity: 1;
   }
   97%,
   100% {
-    transform: translateX(calc(100% - 64px));
+    transform: translateX(calc(100% - 52px));
     opacity: 0;
   }
 }

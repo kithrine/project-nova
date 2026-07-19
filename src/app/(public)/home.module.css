@@ -85,32 +85,39 @@
   font-weight: 600;
 }
 
+/* The full brand lockup centered above the band tagline (styling round 2). */
+.bandLogo {
+  width: min(11rem, 44vw);
+  height: auto;
+}
+
 /* --- Motion (all inside no-preference; globals.css is the backstop) ---- */
 
 @media (prefers-reduced-motion: no-preference) {
+  /* Slowed (styling round 2): a calmer, more deliberate entrance. */
   .heroReveal > * {
     opacity: 0;
     transform: translateY(18px);
-    animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   .heroReveal > *:nth-child(2) {
-    animation-delay: 0.1s;
+    animation-delay: 0.15s;
   }
   .heroReveal > *:nth-child(3) {
-    animation-delay: 0.2s;
-  }
-  .heroReveal > *:nth-child(4) {
     animation-delay: 0.3s;
   }
+  .heroReveal > *:nth-child(4) {
+    animation-delay: 0.45s;
+  }
   .heroReveal > *:nth-child(5) {
-    animation-delay: 0.4s;
+    animation-delay: 0.6s;
   }
 
   .heroArtRise {
     opacity: 0;
-    transform: translateY(24px) ;
-    animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards;
+    transform: translateY(24px);
+    animation: rise 1.25s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
   }
 
   @media (scripting: enabled) {
@@ -156,7 +163,8 @@
 
 @media (min-width: 64rem) {
   .heroGrid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+    /* Image column widened (styling round 2) — the photo leads. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
     gap: 2.5rem;
   }
 }

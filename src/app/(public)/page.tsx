@@ -271,7 +271,7 @@ export default function HomePage() {
                 width={1535}
                 height={1024}
                 priority
-                sizes="(min-width: 1024px) 560px, 100vw"
+                sizes="(min-width: 1024px) 640px, 100vw"
                 className={styles.heroImage}
               />
             </div>
@@ -335,7 +335,15 @@ export default function HomePage() {
         </div>
         <section aria-label="Our mission" className={styles.band}>
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-4 pt-6 pb-16 text-center sm:px-6">
-            <NovaLogo className="size-8 text-accent/80" />
+            {/* The full brand lockup (styling round 2) — transparent PNG,
+                decorative; the tagline below carries the words. */}
+            <Image
+              src="/images/nova-logo.png"
+              alt=""
+              width={1254}
+              height={1254}
+              className={styles.bandLogo}
+            />
             <p className={styles.bandScript}>
               Building pathways. Strengthening communities. Changing lives.
             </p>

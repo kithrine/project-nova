@@ -32,7 +32,7 @@
 
 Never use emojis in the interface. Use SVG icons — from an approved icon set or purpose-built, hand-authored SVGs — so every icon is crisp at any size, themeable through design tokens, and accessible. Give meaningful icons an accessible label; mark decorative icons as hidden from assistive technology. Never convey status by color or icon alone; always pair it with text.
 
-The brand mark is the compass star (`src/components/layout/nova-logo.tsx`); the paw remains the shelter-work decorative motif.
+The brand mark at lockups (public header/footer, signed-in sidebar and topbar) is the official compass-star raster (`public/images/logo-official.png`, transparent PNG, rendered decorative with the brand name as adjacent text) — rolled out styling round 2, 2026-07-18. The favicon (`src/app/icon.png` + `favicon.ico`) is generated from the same mark. The hand-drawn compass-star SVG (`src/components/layout/nova-logo.tsx`) remains for eyebrow chips and small decoration; the paw remains the shelter-work decorative motif. The full lockup art (`public/images/nova-logo.png`) appears once, centered in the homepage closing band.
 
 ## Signature component
 
@@ -40,7 +40,7 @@ The Journey Timeline is Project Nova's defining visual motif.
 
 ## Motion
 
-Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works hero closes with the ball chase (visual pass 2026-07-18): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and small paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state.
+Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. Below the How It Works hero runs the ball chase (visual pass 2026-07-18; widened full-bleed with larger chartreuse/teal paws in styling round 2): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state. The How It Works hero itself is a full-bleed photo under a left-weighted spruce scrim with cream text (chartreuse italic accent — dark-surface use); the How It Works journey stepper carries a left-edge half-circle breathing dot arc; the homepage hero entrance is deliberately slow (1.1s staggered).
 
 Since the visual pass (2026-07-18):
 

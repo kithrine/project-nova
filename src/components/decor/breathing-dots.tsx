@@ -8,19 +8,23 @@ import styles from "./breathing-dots.module.css";
  * and sizes the host — it MUST be positioned, because the dot layers are
  * absolutely-inset pseudo-elements.
  */
+const ANCHOR_CLASS = {
+  "top-right": styles.topRight,
+  "bottom-right": styles.bottomRight,
+  "left-center": styles.leftCenter,
+} as const;
+
 export function BreathingDots({
   anchor,
   className,
 }: {
-  anchor: "top-right" | "bottom-right";
+  anchor: keyof typeof ANCHOR_CLASS;
   className?: string;
 }) {
   return (
     <div
       aria-hidden="true"
-      className={`${styles.dots} ${
-        anchor === "top-right" ? styles.topRight : styles.bottomRight
-      }${className ? ` ${className}` : ""}`}
+      className={`${styles.dots} ${ANCHOR_CLASS[anchor]}${className ? ` ${className}` : ""}`}
     />
   );
 }

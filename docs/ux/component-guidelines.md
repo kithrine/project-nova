@@ -54,7 +54,8 @@
 
 ## Public marketing (brand refresh 2026-07-15)
 
-- Nova Logo (compass star — `src/components/layout/nova-logo.tsx`; the brand name is always adjacent text)
+- Nova Logo — the official raster mark (`public/images/logo-official.png`) at brand lockups (header, footer, shell sidebar/topbar), favicon derived from it; the hand-drawn compass-star SVG (`src/components/layout/nova-logo.tsx`) stays for eyebrow chips. The brand name is always adjacent text
+- Photographic Hero (How It Works, styling round 2) — full-bleed image under a left-weighted scrim; hero copy flips to cream with a chartreuse italic accent (dark-surface use); text unchanged so all pins hold
 - Script Accent (Caveat word with drawn flourish — decorative styling over plain text)
 - Decorative Motifs (blob, leaf sprig, breathing dot field — always `aria-hidden`, never containing focusables). The breathing dot field (`src/components/decor/breathing-dots.tsx`) is the corner-anchored ambient motif (visual pass 2026-07-18): masked dot grids densest at the anchor corner, counter-phased opacity/scale breathing, `pointer-events: none`, reduced-motion shows the static field. The static dot-cluster rectangles are retired.
 - Photographic Hero Image (2026-07-18: `public/images/nova-homepage-hero.png`, rounded 1rem with the card shadow, decorative — empty alt + `aria-hidden` wrapper). The Illustrative Dashboard Card (fictional, terminology-correct data; `aria-hidden`; nothing interactive inside) it replaced is commented out in `page.tsx` for potential return

@@ -1,9 +1,9 @@
 import { UserButton } from "@clerk/nextjs";
+import Image from "next/image";
 
 import { BreathingDots } from "@/components/decor/breathing-dots";
 import { AppShellNav } from "@/components/layout/app-shell-nav";
 import { NavIcon } from "@/components/layout/nav-icons";
-import { NovaLogo } from "@/components/layout/nova-logo";
 import { EXPERIENCE_LABELS, NAV_BY_EXPERIENCE } from "@/components/layout/nav-model";
 import { Badge } from "@/components/ui/badge";
 import type { Experience } from "@/server/auth/experience";
@@ -83,7 +83,16 @@ export function AppShell({
       {/* Desktop: the full-height deep-teal sidebar */}
       <aside className="hidden shrink-0 flex-col bg-primary text-base-100 md:flex md:w-64">
         <div className="flex items-center gap-2.5 px-5 pt-5 pb-2">
-          <NovaLogo className="size-8 shrink-0 text-base-100" />
+          {/* Official brand mark (styling round 2) — transparent PNG, its
+              chartreuse points pop on the teal rail; decorative (the brand
+              name is the adjacent text). */}
+          <Image
+            src="/images/logo-official.png"
+            alt=""
+            width={1069}
+            height={1074}
+            className="h-9 w-9 shrink-0 object-contain"
+          />
           <span className="text-sm font-semibold tracking-[0.14em] uppercase">
             Project Nova
           </span>
@@ -112,7 +121,13 @@ export function AppShell({
             <div className="flex items-center gap-3">
               {/* The sidebar owns the brand from md up. */}
               <span className="flex items-center gap-2 md:hidden">
-                <NovaLogo className="size-6 text-primary" />
+                <Image
+                  src="/images/logo-official.png"
+                  alt=""
+                  width={1069}
+                  height={1074}
+                  className="h-7 w-7 object-contain"
+                />
                 <span className="text-base font-semibold">Project Nova</span>
               </span>
               <Badge tone="accent">{EXPERIENCE_LABELS[experience]}</Badge>
