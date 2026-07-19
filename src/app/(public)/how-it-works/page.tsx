@@ -120,12 +120,19 @@ function LifeBuoy({ className }: { className?: string }) {
 }
 
 /** Ground trot for the ball chase. Positions/rotations are static inline
- *  styles — only opacity animates, so they can never conflict. Trail paws
- *  are %-positioned (they spread with the viewport); the final THREE are
- *  pixel-anchored from the right, like the ball's resting spot, so the
- *  trot reaches the ball at every viewport width (round 5 — the gap Kit
- *  saw on a 32" monitor grew with width because % vs px anchoring).
+ *  styles — only opacity animates, so they can never conflict.
+ *
+ *  Width-adaptive stride (round 5 follow-up): paw i sits at
+ *  calc(4% + (96% − 100px) × i/9) — an even arithmetic walk from the
+ *  left margin to the final paw, whose left resolves to 100% − 100px
+ *  (right: 58 + its 42px glyph), i.e. right beside the ball's
+ *  px-anchored resting spot. Mixing % and px in ONE calc per paw means
+ *  the stride interpolates smoothly at every viewport width — pure
+ *  %-positions left a growing dead zone before the px-anchored finale
+ *  on wide monitors (the corner-cluster Kit saw on a 32" screen).
  *  mobileHidden thins the trot on phones so ~6 paws never crowd. */
+const pawLeft = (i: number) => `calc(4% + (96% - 100px) * ${i} / 9)`;
+
 const CHASE_PAWS: ReadonlyArray<{
   left?: string;
   right?: number;
@@ -135,15 +142,15 @@ const CHASE_PAWS: ReadonlyArray<{
   color: string;
   mobileHidden?: boolean;
 }> = [
-  { left: "4%", bottom: 36, size: 36, rotate: 84, color: "var(--color-secondary)" },
-  { left: "13%", bottom: 20, size: 37, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
-  { left: "22%", bottom: 35, size: 36, rotate: 80, color: "var(--color-secondary)" },
-  { left: "31%", bottom: 21, size: 38, rotate: 100, color: "var(--color-accent)", mobileHidden: true },
-  { left: "40%", bottom: 36, size: 37, rotate: 84, color: "var(--color-secondary)" },
-  { left: "50%", bottom: 20, size: 39, rotate: 96, color: "var(--color-accent)", mobileHidden: true },
-  { left: "60%", bottom: 35, size: 38, rotate: 82, color: "var(--color-secondary)" },
-  { right: 190, bottom: 21, size: 40, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
-  { right: 122, bottom: 35, size: 40, rotate: 84, color: "var(--color-secondary)" },
+  { left: pawLeft(0), bottom: 36, size: 36, rotate: 84, color: "var(--color-secondary)" },
+  { left: pawLeft(1), bottom: 20, size: 37, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(2), bottom: 35, size: 36, rotate: 80, color: "var(--color-secondary)" },
+  { left: pawLeft(3), bottom: 21, size: 38, rotate: 100, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(4), bottom: 36, size: 37, rotate: 84, color: "var(--color-secondary)" },
+  { left: pawLeft(5), bottom: 20, size: 39, rotate: 96, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(6), bottom: 35, size: 38, rotate: 82, color: "var(--color-secondary)" },
+  { left: pawLeft(7), bottom: 21, size: 40, rotate: 98, color: "var(--color-accent)" },
+  { left: pawLeft(8), bottom: 35, size: 40, rotate: 84, color: "var(--color-secondary)", mobileHidden: true },
   { right: 58, bottom: 20, size: 42, rotate: 96, color: "var(--color-accent)" },
 ];
 
