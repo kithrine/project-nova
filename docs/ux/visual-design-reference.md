@@ -16,7 +16,7 @@
 - Calm green success
 - Amber warning
 - Muted red danger
-- Organic decoration (blobs, breathing dot fields, leaf sprigs, drawn flourishes) on public pages and as quiet ambient corners of the signed-in shell — always `aria-hidden`, never containing focusables
+- Organic decoration (blobs, breathing dot fields, photographic leaf line-art, drawn flourishes) on public pages and as quiet ambient corners of the signed-in shell — always `aria-hidden`, never containing focusables
 - Strong whitespace
 - Minimal shadows
 - Moderate radii
@@ -34,7 +34,9 @@ Never use emojis in the interface. Use SVG icons — from an approved icon set o
 
 The brand mark at lockups (public header/footer, signed-in sidebar and topbar) is the official compass-star raster (`public/images/logo-official.png`, transparent PNG, rendered decorative with the brand name as adjacent text) — rolled out styling round 2, 2026-07-18. The favicon (`src/app/icon.png` + `favicon.ico`) is generated from the same mark. The hand-drawn compass-star SVG (`src/components/layout/nova-logo.tsx`) remains for eyebrow chips and small decoration; the paw remains the shelter-work decorative motif. The full lockup art (`public/images/nova-logo.png`) appears once, centered in the homepage closing band.
 
-The homepage value cards carry a custom glyph quartet (styling round 3, 2026-07-18) — four hand-authored SVGs in the LeafSprig/DrawnHeart stroke idiom (person-with-sparkle, paw-in-heart, clipboard-with-flow, rising-bars-with-star), each inside its own tone circle: teal, chartreuse tint, deep denim info, and amber. Every icon ink is a contrast-vetted deep token; chartreuse appears only as a background tint, never an ink. Tones are explicit per-card classes (`.valueIcon*` in `home.module.css`), not structural selectors — a `:nth-child` alternation silently dies when a wrapper (like `Reveal`) makes each card an only child.
+The homepage value cards carry a Lucide-derived icon quartet (styling round 4, 2026-07-19; ISC-licensed paths inlined as local components): hand-heart, paw-print, workflow, and chart-line. Each card owns one palette voice — bright teal `#0d9488`, chartreuse, dark teal (primary), golden yellow `#ca8a04` — applied as the icon ink plus a super-low-opacity wash of the same color across the whole card and (stronger) its icon circle. The washes layer over a white base so cards keep their lift off the cream page. Chartreuse ink is deepened to olive `#7a840f` on light surfaces (raw `#d9e021` is invisible there and is never an ink); the card wash keeps the true chartreuse. Tones are CSS-var tone classes on the card (`.valueCard*` in `home.module.css`), never structural selectors — a `:nth-child` alternation silently dies when a wrapper (like `Reveal`) makes each card an only child.
+
+Photographic leaf line-art (styling round 4) supersedes the hand-drawn LeafSprig at two spots: `public/images/teal-leaves.png` anchors to the value section's bottom-right behind the cards (~0.2 opacity), and `public/images/white-leaves-navbar.png` anchors to the signed-in sidebar's bottom-left behind the quote card (~0.25 opacity). Both are decorative (empty alt + aria-hidden), transparent-background line work, pointer-events none.
 
 ## Signature component
 
@@ -42,7 +44,7 @@ The Journey Timeline is Project Nova's defining visual motif.
 
 ## Motion
 
-Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. Below the How It Works hero runs the ball chase (visual pass 2026-07-18; widened full-bleed with larger chartreuse/teal paws in styling round 2, grown again to 31–36px in round 3): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state. The How It Works hero itself is a full-bleed photo under a left-weighted spruce scrim with cream text (chartreuse italic accent — dark-surface use); its copy sits in a `max-w-7xl` container (round 3) so the text hugs the left and the image's center-right focal point stays clear. The How It Works journey stepper carries a left-edge half-circle breathing dot arc; the homepage hero entrance is deliberately slow (1.1s staggered).
+Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. Below the How It Works hero runs the ball chase (visual pass 2026-07-18; widened full-bleed with larger chartreuse/teal paws in styling round 2, grown again to 31–36px in round 3): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state. The How It Works hero itself is a full-bleed photo under a left-weighted spruce scrim with cream text (chartreuse italic accent — dark-surface use); its copy sits in a `max-w-7xl` container (round 3) so the text hugs the left and the image's center-right focal point stays clear. The How It Works journey stepper carries a left-edge half-circle breathing dot arc; the homepage hero entrance is deliberately slow (1.1s staggered), after which the hero photo floats gently forever (round 4: 6.5s ease-in-out alternate, −8px, transform-only, reduced-motion gated).
 
 Buttons and button-styled CTA links carry a hover micro-interaction (styling round 3): a `motion-safe` half-pixel-rem lift with a grown shadow that settles back on `:active`; the two arrow CTAs also nudge their arrow right via `group-hover`. Reduced-motion users keep the color-only hover.
 
@@ -76,7 +78,7 @@ Non-color tokens (radii, shadows, focus ring, motion durations with reduced-moti
 - Active nav item: chartreuse→cream gradient pill with dark `accent-content` text and `aria-current="page"`.
 - **On teal surfaces the focus ring is `accent`, never `primary`** (the global primary ring is invisible there — same rule as the public closing bands).
 - Muted text on teal uses `base-100/85` or stronger (`/70` fails AA — computed); disabled nav items are `base-100/60`, `aria-disabled` (axe-exempt), held to a self-imposed ≥ 3:1.
-- The sidebar carries no interactive elements outside the nav (the bottom quote card is static).
+- The sidebar carries no interactive elements outside the nav (the bottom quote card is static). White leaf line-art (`white-leaves-navbar.png`, round 4) anchors to its bottom-left behind the quote card — the card is positioned so it paints above.
 - Dashboards: white `surface` stat cards with filled tone icon circles; the role chip renders once, in the topbar.
 - A breathing dot field sits fixed in the viewport's bottom-right corner behind all content (visual pass 2026-07-18) — negative z-index, visible only through transparent cream areas; the sidebar's static dot cluster is retired.
 

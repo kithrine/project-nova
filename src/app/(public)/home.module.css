@@ -228,22 +228,21 @@
   height: min(32rem, 70vh);
 }
 
-.leafSprig {
+/* Photographic leaf line-art (round 4, replacing the hand-drawn sprig):
+   anchored to the value section's bottom-right, behind the cards (their
+   wrapper is relative). Faint by design — line work, not a photo. */
+.valueLeaves {
   position: absolute;
+  right: 0;
+  bottom: 0;
+  width: min(46rem, 72%);
+  height: auto;
+  opacity: 0.22;
   pointer-events: none;
-  color: var(--color-secondary);
-  opacity: 0.45;
-  width: 5rem;
-}
-
-.leafSprigBottom {
-  bottom: 2rem;
-  right: 4%;
 }
 
 @media (max-width: 40rem) {
-  .blobTeal,
-  .leafSprigBottom {
+  .blobTeal {
     display: none;
   }
 }
@@ -258,13 +257,15 @@
 }
 
 .heroImage {
+  --hero-tilt: 2deg;
   width: 100%;
   height: auto;
   border-radius: 1rem;
   /* Same playful tilt as the mockup card. The shadow is a soft diffuse
      veil matched to the mockup reference — wide blur, low alpha, never
-     a hard dark under-edge. */
-  transform: rotate(2deg);
+     a hard dark under-edge. The tilt is a var so the float keyframes can
+     re-state it (transform is all-or-nothing in keyframes). */
+  transform: rotate(var(--hero-tilt));
   box-shadow:
     0 25px 70px -10px rgb(11 23 18 / 0.28),
     0 10px 30px -6px rgb(11 23 18 / 0.14);
@@ -272,7 +273,25 @@
 
 @media (max-width: 40rem) {
   .heroImage {
-    transform: rotate(1deg);
+    --hero-tilt: 1deg;
+  }
+}
+
+/* Perpetual gentle float (round 4): starts after the heroArtRise
+   entrance settles; compositor-only, alternate so it drifts up and
+   sinks back forever. */
+@media (prefers-reduced-motion: no-preference) {
+  .heroImage {
+    animation: heroFloat 6.5s ease-in-out 2.2s infinite alternate;
+  }
+}
+
+@keyframes heroFloat {
+  from {
+    transform: rotate(var(--hero-tilt)) translateY(0);
+  }
+  to {
+    transform: rotate(var(--hero-tilt)) translateY(-8px);
   }
 }
 
@@ -434,9 +453,16 @@
 
 /* --- Value cards ---------------------------------------------------------- */
 
+/* Card tone system (round 4): each card carries a .valueCard* tone class
+   that sets its icon ink plus a super-low-opacity wash of that SAME color
+   for the card background and icon circle — one palette voice per card.
+   The wash layers over a white base (gradient-over-color) so the cards
+   keep their lift off the cream page. */
 .valueCard {
   border: 1px solid rgb(11 23 18 / 0.1);
-  background: rgb(255 255 255 / 0.72);
+  background:
+    linear-gradient(var(--card-tint, transparent), var(--card-tint, transparent))
+    rgb(255 255 255 / 0.72);
   backdrop-filter: blur(2px);
   box-shadow: 0 1px 2px rgb(11 23 18 / 0.04);
   border-radius: 1rem;
@@ -454,15 +480,46 @@
 @media (prefers-reduced-motion: no-preference) {
   .valueCard:hover {
     transform: translateY(-3px);
-    border-color: rgb(15 107 92 / 0.4);
+    border-color: var(--tone-strong, rgb(15 107 92 / 0.4));
     box-shadow: 0 12px 32px -14px rgb(11 23 18 / 0.2);
   }
 }
 
-/* Layout only — every circle carries an explicit tone class below.
-   (Replaced the old .valueCard:nth-child(even) alternation, which never
-   matched: each card is the only child of its Reveal wrapper, so it was
-   always :nth-child(1). Explicit classes survive wrapper changes.) */
+/* The tone quartet — Kit's four: bright teal, chartreuse, the dark teal
+   used everywhere, and a golden yellow. Chartreuse ink is deepened to
+   olive (#7a840f): raw #d9e021 is invisible on light surfaces and is
+   never an ink there (visual-design-reference.md); the card wash keeps
+   the true chartreuse. */
+.valueCardBrightTeal {
+  --card-ink: #0d9488;
+  --card-tint: rgb(13 148 136 / 0.06);
+  --icon-tint: rgb(13 148 136 / 0.12);
+  --tone-strong: rgb(13 148 136 / 0.45);
+}
+
+.valueCardChartreuse {
+  --card-ink: #7a840f;
+  --card-tint: rgb(217 224 33 / 0.14);
+  --icon-tint: rgb(217 224 33 / 0.3);
+  --tone-strong: rgb(122 132 15 / 0.45);
+}
+
+.valueCardDarkTeal {
+  --card-ink: var(--color-primary);
+  --card-tint: rgb(15 107 92 / 0.06);
+  --icon-tint: rgb(15 107 92 / 0.12);
+  --tone-strong: rgb(15 107 92 / 0.45);
+}
+
+.valueCardYellow {
+  --card-ink: #ca8a04;
+  --card-tint: rgb(202 138 4 / 0.07);
+  --icon-tint: rgb(202 138 4 / 0.14);
+  --tone-strong: rgb(202 138 4 / 0.45);
+}
+
+/* The circle inherits its card's tone vars (round 4) — a stronger wash
+   of the same color, so it still reads as a badge on the tinted card. */
 .valueIcon {
   display: flex;
   align-items: center;
@@ -470,34 +527,9 @@
   width: 3rem;
   height: 3rem;
   border-radius: 9999px;
-  border: 1px solid transparent;
-}
-
-/* The tone quartet (styling round 3): one palette voice per card. All
-   icon inks are the contrast-vetted deep tokens; chartreuse appears only
-   as a background tint, never an ink (visual-design-reference.md). */
-.valueIconTeal {
-  background: rgb(15 107 92 / 0.1);
-  border-color: rgb(15 107 92 / 0.25);
-  color: var(--color-primary);
-}
-
-.valueIconChartreuse {
-  background: rgb(217 224 33 / 0.28);
-  border-color: rgb(15 107 92 / 0.2);
-  color: var(--color-primary);
-}
-
-.valueIconInfo {
-  background: rgb(30 90 138 / 0.1);
-  border-color: rgb(30 90 138 / 0.3);
-  color: var(--color-info);
-}
-
-.valueIconAmber {
-  background: rgb(154 69 7 / 0.1);
-  border-color: rgb(154 69 7 / 0.3);
-  color: var(--color-warning);
+  border: 1px solid var(--tone-strong, rgb(15 107 92 / 0.25));
+  background: var(--icon-tint, rgb(15 107 92 / 0.1));
+  color: var(--card-ink, var(--color-primary));
 }
 
 /* --- Closing band ---------------------------------------------------------- */

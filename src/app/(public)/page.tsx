@@ -25,26 +25,6 @@ function Blob({ className }: { className?: string }) {
   );
 }
 
-/** Leaf sprig — decorative only. */
-function LeafSprig({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 60 80"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={className}
-    >
-      <path d="M30 76C28 52 30 28 38 8" />
-      <path d="M34 22c-8-2-14-8-16-16 8 0 15 6 16 16Z" fill="currentColor" stroke="none" />
-      <path d="M35 40c-9 1-17-3-21-11 9-2 17 3 21 11Z" fill="currentColor" stroke="none" />
-      <path d="M32 56c-8 3-17 1-23-6 8-4 17-1 23 6Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 /** Hand-drawn underline flourish for the script word — decorative only. */
 function UnderlineFlourish({ className }: { className?: string }) {
   return (
@@ -78,98 +58,89 @@ function Paw({ className }: { className?: string }) {
 }
 
 /*
- * Value-card glyph quartet (styling round 3) — four custom hand-drawn
- * icons in the LeafSprig/DrawnHeart stroke idiom, one per card, each
- * tinted by its own tone circle (see .valueIcon* in home.module.css).
- * All decorative (aria-hidden), currentColor so the circle sets the ink.
+ * Value-card icon quartet (styling round 4) — Lucide-derived paths
+ * (ISC license) inlined as local components: dependency-free, decorative
+ * (aria-hidden), currentColor ink so each card's tone class colors them
+ * (see .valueCard* vars in home.module.css).
  */
 
-/** Person with a rising sparkle — Participant-Centered. */
-function PersonSparkle({ className }: { className?: string }) {
+/** Hand cradling a heart — Participant-Centered (Lucide "hand-heart"). */
+function HandHeart({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
     >
-      <circle cx="10.5" cy="8.5" r="3.4" />
-      <path d="M4.5 20c.6-3.9 3-6 6-6s5.4 2.1 6 6" />
-      <path d="M18.5 3.5v4M16.5 5.5h4" />
+      <path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" />
+      <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 15 6 6" />
+      <path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z" />
     </svg>
   );
 }
 
-/** Paw inside a drawn heart — Shelter Partnerships. */
-function PawHeart({ className }: { className?: string }) {
+/** Paw print — Shelter Partnerships (Lucide "paw-print"). */
+function PawPrint({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      className={className}
-    >
-      <path d="M12 20.4C6.8 16 2.5 12.4 2.3 8.3 2.2 5.4 4.4 3.4 7 3.4c2 0 3.7 1.2 5 3.2 1.3-2 3-3.2 5-3.2 2.6 0 4.8 2 4.7 4.9-.2 4.1-4.5 7.7-9.7 12.1Z" />
-      <g fill="currentColor" stroke="none">
-        <ellipse cx="9.7" cy="9" rx="0.95" ry="1.15" transform="rotate(-14 9.7 9)" />
-        <ellipse cx="12" cy="8.2" rx="0.95" ry="1.15" />
-        <ellipse cx="14.3" cy="9" rx="0.95" ry="1.15" transform="rotate(14 14.3 9)" />
-        <path d="M12 10.6c1.7 0 3.2 1.3 3.2 2.9 0 1.4-1 2.2-2 2.2-.5 0-.8-.2-1.2-.2s-.7.2-1.2.2c-1 0-2-.8-2-2.2 0-1.6 1.5-2.9 3.2-2.9z" />
-      </g>
-    </svg>
-  );
-}
-
-/** Clipboard with a check flowing into an arrow — Workflow-Driven. */
-function ClipboardFlow({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M9 4.5H7.2A1.7 1.7 0 0 0 5.5 6.2v13.1A1.7 1.7 0 0 0 7.2 21h9.6a1.7 1.7 0 0 0 1.7-1.7V6.2a1.7 1.7 0 0 0-1.7-1.7H15" />
-      <rect x="9" y="3" width="6" height="3.4" rx="1.2" />
-      <path d="M8.7 12l2 2 4.4-4.4" />
-      <path d="M8.7 17.2h4.6M11.5 15.4l2.4 1.8-2.4 1.8" />
+      <circle cx="11" cy="4" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <circle cx="20" cy="16" r="2" />
+      <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" />
     </svg>
   );
 }
 
-/** Rising bars with a sparkle — Data That Drives Change. */
-function BarsStar({ className }: { className?: string }) {
+/** Connected step nodes — Workflow-Driven (Lucide "workflow"). */
+function WorkflowNodes({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M4.5 20.5h15" />
-      <path d="M7 20.5v-4.5" strokeWidth="2.4" />
-      <path d="M11.5 20.5v-8" strokeWidth="2.4" />
-      <path d="M16 20.5V9" strokeWidth="2.4" />
-      <path
-        d="M18.6 3.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6Z"
-        fill="currentColor"
-        stroke="none"
-      />
+      <rect width="8" height="8" x="3" y="3" rx="2" />
+      <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+      <rect width="8" height="8" x="13" y="13" rx="2" />
+    </svg>
+  );
+}
+
+/** Rising line chart — Data That Drives Change (Lucide "chart-line"). */
+function ChartLine({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="m19 9-5 5-4-4-3 3" />
     </svg>
   );
 }
@@ -270,37 +241,38 @@ const VALUE_PROPS = [
   {
     title: "Participant-Centered",
     body: "Track progress, celebrate growth, and remove barriers on the way to meaningful employment.",
-    icon: <PersonSparkle className="size-6" />,
-    tone: "teal",
+    icon: <HandHeart className="size-6" />,
+    tone: "brightTeal",
   },
   {
     title: "Shelter Partnerships",
     body: "Streamline placements and stay in step with the shelters you rely on.",
-    icon: <PawHeart className="size-6" />,
+    icon: <PawPrint className="size-6" />,
     tone: "chartreuse",
   },
   {
     title: "Workflow-Driven",
     body: "Every step has a next step — tasks, approvals, and records that keep the program moving forward.",
-    icon: <ClipboardFlow className="size-6" />,
-    tone: "info",
+    icon: <WorkflowNodes className="size-6" />,
+    tone: "darkTeal",
   },
   {
     title: "Data That Drives Change",
     body: "Measure outcomes, prove impact, and support the funding your community deserves.",
-    icon: <BarsStar className="size-6" />,
-    tone: "amber",
+    icon: <ChartLine className="size-6" />,
+    tone: "yellow",
   },
 ] as const;
 
-/* Explicit per-card tone classes — NOT a structural selector. (The old
-   .valueCard:nth-child(even) rule silently never matched: each card is
-   the only child of its Reveal wrapper, so it was always :nth-child(1).) */
-const VALUE_ICON_TONE = {
-  teal: styles.valueIconTeal,
-  chartreuse: styles.valueIconChartreuse,
-  info: styles.valueIconInfo,
-  amber: styles.valueIconAmber,
+/* Tone class goes on the CARD (styling round 4): each sets the icon ink
+   plus a super-low-opacity wash of that same color for the card
+   background and icon circle (CSS vars in home.module.css). Explicit
+   per-card classes — never structural selectors (the round-3 lesson). */
+const VALUE_CARD_TONE = {
+  brightTeal: styles.valueCardBrightTeal,
+  chartreuse: styles.valueCardChartreuse,
+  darkTeal: styles.valueCardDarkTeal,
+  yellow: styles.valueCardYellow,
 } as const;
 
 const TRUST_CATEGORIES = [
@@ -415,8 +387,18 @@ export default function HomePage() {
           className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-20"
         >
           <Blob className={styles.blobChartreuse} />
-          <LeafSprig className={`${styles.leafSprig} ${styles.leafSprigBottom}`} />
-          <div className="flex flex-col gap-10">
+          {/* Photographic leaf line-art (round 4, replacing the hand-drawn
+              sprig): anchored to the section's bottom-right, behind the
+              cards — decorative, faint, non-interactive. */}
+          <Image
+            src="/images/teal-leaves.png"
+            alt=""
+            width={1536}
+            height={1024}
+            aria-hidden="true"
+            className={styles.valueLeaves}
+          />
+          <div className="relative flex flex-col gap-10">
             <div className="flex max-w-2xl flex-col gap-3">
               <h2 className={`${styles.display} text-3xl font-semibold sm:text-4xl`} id="value-heading">
                 Why programs choose Project Nova
@@ -434,10 +416,8 @@ export default function HomePage() {
                   delayMs={index * 90}
                   from={index < 2 ? "left" : "right"}
                 >
-                  <div className={styles.valueCard}>
-                    <span className={`${styles.valueIcon} ${VALUE_ICON_TONE[prop.tone]}`}>
-                      {prop.icon}
-                    </span>
+                  <div className={`${styles.valueCard} ${VALUE_CARD_TONE[prop.tone]}`}>
+                    <span className={styles.valueIcon}>{prop.icon}</span>
                     <h3 className="text-base font-semibold">{prop.title}</h3>
                     <p className="text-sm leading-relaxed text-base-content/70">{prop.body}</p>
                   </div>
