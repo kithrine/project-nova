@@ -38,8 +38,10 @@ function UnderlineFlourish({ className }: { className?: string }) {
       preserveAspectRatio="none"
       className={className}
     >
-      <path d="M6 15C48 8 100 6 214 12" />
-      <path d="M28 20c56-7 118-8 168-5" strokeWidth="4" opacity="0.65" />
+      {/* pathLength=1 normalizes both strokes so the CSS marker-draw
+          (dasharray/dashoffset 1 -> 0) needs no measured lengths. */}
+      <path d="M6 15C48 8 100 6 214 12" pathLength={1} />
+      <path d="M28 20c56-7 118-8 168-5" strokeWidth="4" opacity="0.65" pathLength={1} />
     </svg>
   );
 }
@@ -307,7 +309,9 @@ export default function HomePage() {
               <h1 className={`${styles.display} ${styles.heroTitle} text-balance`}>
                 Stronger futures start with{" "}
                 <span className={styles.scriptWord}>
-                  opportunity.
+                  {/* Inner span: the write-on wipe clips THIS box only, so
+                      the accessible name ("…opportunity.") never changes. */}
+                  <span className={styles.scriptWordText}>opportunity.</span>
                   <UnderlineFlourish className={styles.scriptUnderline} />
                 </span>
               </h1>
