@@ -54,7 +54,7 @@ export function PublicHeader() {
           </Link>
           <Link
             href="/sign-up"
-            className="rounded-full bg-accent px-4 py-1.5 font-semibold text-accent-content transition-colors hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="rounded-full bg-accent px-4 py-1.5 font-semibold text-accent-content transition-[color,background-color,box-shadow,transform] hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
           >
             Apply Now
           </Link>

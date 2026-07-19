@@ -77,6 +77,103 @@ function Paw({ className }: { className?: string }) {
   );
 }
 
+/*
+ * Value-card glyph quartet (styling round 3) — four custom hand-drawn
+ * icons in the LeafSprig/DrawnHeart stroke idiom, one per card, each
+ * tinted by its own tone circle (see .valueIcon* in home.module.css).
+ * All decorative (aria-hidden), currentColor so the circle sets the ink.
+ */
+
+/** Person with a rising sparkle — Participant-Centered. */
+function PersonSparkle({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="10.5" cy="8.5" r="3.4" />
+      <path d="M4.5 20c.6-3.9 3-6 6-6s5.4 2.1 6 6" />
+      <path d="M18.5 3.5v4M16.5 5.5h4" />
+    </svg>
+  );
+}
+
+/** Paw inside a drawn heart — Shelter Partnerships. */
+function PawHeart({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      className={className}
+    >
+      <path d="M12 20.4C6.8 16 2.5 12.4 2.3 8.3 2.2 5.4 4.4 3.4 7 3.4c2 0 3.7 1.2 5 3.2 1.3-2 3-3.2 5-3.2 2.6 0 4.8 2 4.7 4.9-.2 4.1-4.5 7.7-9.7 12.1Z" />
+      <g fill="currentColor" stroke="none">
+        <ellipse cx="9.7" cy="9" rx="0.95" ry="1.15" transform="rotate(-14 9.7 9)" />
+        <ellipse cx="12" cy="8.2" rx="0.95" ry="1.15" />
+        <ellipse cx="14.3" cy="9" rx="0.95" ry="1.15" transform="rotate(14 14.3 9)" />
+        <path d="M12 10.6c1.7 0 3.2 1.3 3.2 2.9 0 1.4-1 2.2-2 2.2-.5 0-.8-.2-1.2-.2s-.7.2-1.2.2c-1 0-2-.8-2-2.2 0-1.6 1.5-2.9 3.2-2.9z" />
+      </g>
+    </svg>
+  );
+}
+
+/** Clipboard with a check flowing into an arrow — Workflow-Driven. */
+function ClipboardFlow({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M9 4.5H7.2A1.7 1.7 0 0 0 5.5 6.2v13.1A1.7 1.7 0 0 0 7.2 21h9.6a1.7 1.7 0 0 0 1.7-1.7V6.2a1.7 1.7 0 0 0-1.7-1.7H15" />
+      <rect x="9" y="3" width="6" height="3.4" rx="1.2" />
+      <path d="M8.7 12l2 2 4.4-4.4" />
+      <path d="M8.7 17.2h4.6M11.5 15.4l2.4 1.8-2.4 1.8" />
+    </svg>
+  );
+}
+
+/** Rising bars with a sparkle — Data That Drives Change. */
+function BarsStar({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4.5 20.5h15" />
+      <path d="M7 20.5v-4.5" strokeWidth="2.4" />
+      <path d="M11.5 20.5v-8" strokeWidth="2.4" />
+      <path d="M16 20.5V9" strokeWidth="2.4" />
+      <path
+        d="M18.6 3.6l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6Z"
+        fill="currentColor"
+        stroke="none"
+      />
+    </svg>
+  );
+}
+
 /** Full-width organic wave divider into the closing band — decorative. */
 function Wave({ className }: { className?: string }) {
   return (
@@ -173,24 +270,38 @@ const VALUE_PROPS = [
   {
     title: "Participant-Centered",
     body: "Track progress, celebrate growth, and remove barriers on the way to meaningful employment.",
-    icon: <NavIcon name="user" className="size-6" />,
+    icon: <PersonSparkle className="size-6" />,
+    tone: "teal",
   },
   {
     title: "Shelter Partnerships",
     body: "Streamline placements and stay in step with the shelters you rely on.",
-    icon: <Paw className="size-6" />,
+    icon: <PawHeart className="size-6" />,
+    tone: "chartreuse",
   },
   {
     title: "Workflow-Driven",
     body: "Every step has a next step — tasks, approvals, and records that keep the program moving forward.",
-    icon: <NavIcon name="clipboard" className="size-6" />,
+    icon: <ClipboardFlow className="size-6" />,
+    tone: "info",
   },
   {
     title: "Data That Drives Change",
     body: "Measure outcomes, prove impact, and support the funding your community deserves.",
-    icon: <NavIcon name="chart" className="size-6" />,
+    icon: <BarsStar className="size-6" />,
+    tone: "amber",
   },
 ] as const;
+
+/* Explicit per-card tone classes — NOT a structural selector. (The old
+   .valueCard:nth-child(even) rule silently never matched: each card is
+   the only child of its Reveal wrapper, so it was always :nth-child(1).) */
+const VALUE_ICON_TONE = {
+  teal: styles.valueIconTeal,
+  chartreuse: styles.valueIconChartreuse,
+  info: styles.valueIconInfo,
+  amber: styles.valueIconAmber,
+} as const;
 
 const TRUST_CATEGORIES = [
   { label: "Animal Shelters", icon: <Paw className={`size-5 ${styles.trustIcon}`} /> },
@@ -236,7 +347,7 @@ export default function HomePage() {
               <div className="flex flex-wrap items-center gap-4">
                 <a
                   href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-content transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-content transition-[color,background-color,box-shadow,transform] hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
                 >
                   See How It Works
                   <svg
@@ -247,14 +358,14 @@ export default function HomePage() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-4"
+                    className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
                   >
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </a>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center rounded-full border border-primary/40 px-6 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="inline-flex items-center rounded-full border border-primary/40 px-6 py-3 text-sm font-semibold text-primary transition-[color,background-color,border-color,box-shadow,transform] hover:border-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
                 >
                   Start Your Application
                 </Link>
@@ -317,9 +428,16 @@ export default function HomePage() {
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {VALUE_PROPS.map((prop, index) => (
-                <Reveal key={prop.title} className={styles.reveal} delayMs={index * 90}>
+                <Reveal
+                  key={prop.title}
+                  className={styles.reveal}
+                  delayMs={index * 90}
+                  from={index < 2 ? "left" : "right"}
+                >
                   <div className={styles.valueCard}>
-                    <span className={styles.valueIcon}>{prop.icon}</span>
+                    <span className={`${styles.valueIcon} ${VALUE_ICON_TONE[prop.tone]}`}>
+                      {prop.icon}
+                    </span>
                     <h3 className="text-base font-semibold">{prop.title}</h3>
                     <p className="text-sm leading-relaxed text-base-content/70">{prop.body}</p>
                   </div>

@@ -30,14 +30,14 @@ function Paw({ className }: { className?: string }) {
 /** Ground trot for the ball chase. Positions/rotations are static inline
  *  styles — only opacity animates, so they can never conflict. */
 const CHASE_PAWS = [
-  { left: "4%", bottom: 36, size: 24, rotate: 84, color: "var(--color-secondary)" },
-  { left: "14%", bottom: 20, size: 25, rotate: 98, color: "var(--color-accent)" },
-  { left: "24%", bottom: 35, size: 24, rotate: 80, color: "var(--color-secondary)" },
-  { left: "34%", bottom: 21, size: 26, rotate: 100, color: "var(--color-accent)" },
-  { left: "44%", bottom: 36, size: 25, rotate: 84, color: "var(--color-secondary)" },
-  { left: "54%", bottom: 20, size: 26, rotate: 96, color: "var(--color-accent)" },
-  { left: "64%", bottom: 35, size: 25, rotate: 82, color: "var(--color-secondary)" },
-  { left: "74%", bottom: 21, size: 28, rotate: 98, color: "var(--color-accent)" },
+  { left: "4%", bottom: 36, size: 31, rotate: 84, color: "var(--color-secondary)" },
+  { left: "14%", bottom: 20, size: 32, rotate: 98, color: "var(--color-accent)" },
+  { left: "24%", bottom: 35, size: 31, rotate: 80, color: "var(--color-secondary)" },
+  { left: "34%", bottom: 21, size: 34, rotate: 100, color: "var(--color-accent)" },
+  { left: "44%", bottom: 36, size: 32, rotate: 84, color: "var(--color-secondary)" },
+  { left: "54%", bottom: 20, size: 34, rotate: 96, color: "var(--color-accent)" },
+  { left: "64%", bottom: 35, size: 32, rotate: 82, color: "var(--color-secondary)" },
+  { left: "74%", bottom: 21, size: 36, rotate: 98, color: "var(--color-accent)" },
 ];
 
 const JOURNEY_STEPS = [
@@ -85,7 +85,10 @@ export default function HowItWorksPage() {
             className={styles.heroBandImage}
           />
           <div className={styles.heroScrim} aria-hidden="true" />
-          <div className="relative mx-auto w-full max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
+          {/* max-w-7xl (round 3): the wider container starts the copy well
+              left of center, keeping the people and dogs — the image's
+              focal point — in the clear. */}
+          <div className="relative mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 sm:py-28">
             <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
               <p className={`${styles.eyebrow} ${styles.eyebrowOnImage}`}>
                 <NovaLogo className="size-3.5" />
@@ -104,7 +107,7 @@ export default function HowItWorksPage() {
               <div className="flex flex-wrap items-center gap-4">
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="group inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-[color,background-color,box-shadow,transform] hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-sm"
                 >
                   Start Your Application
                   <svg
@@ -115,7 +118,7 @@ export default function HowItWorksPage() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-4"
+                    className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
                   >
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
@@ -235,7 +238,11 @@ export default function HowItWorksPage() {
                 >
                   {index + 1}
                 </div>
-                <Reveal className={`${styles.reveal} min-w-0 flex-1`} delayMs={80}>
+                <Reveal
+                  className={`${styles.reveal} min-w-0 flex-1`}
+                  delayMs={80}
+                  from={index % 2 ? "right" : "left"}
+                >
                   <div className={`${styles.stepCard} rounded-lg p-5 sm:p-6`}>
                     <h3 className={`${styles.display} text-xl font-semibold`}>{step.title}</h3>
                     <p className="mt-2 max-w-prose text-sm leading-relaxed text-base-content/75 sm:text-base">
@@ -263,7 +270,7 @@ export default function HowItWorksPage() {
             </h2>
           </Reveal>
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Reveal className={styles.reveal}>
+            <Reveal className={styles.reveal} from="left">
               <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
                 <h3 className="text-lg font-semibold">What you bring</h3>
                 <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
@@ -282,7 +289,7 @@ export default function HowItWorksPage() {
                 </ul>
               </div>
             </Reveal>
-            <Reveal className={styles.reveal} delayMs={120}>
+            <Reveal className={styles.reveal} delayMs={120} from="right">
               <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
                 <h3 className="text-lg font-semibold">What we bring</h3>
                 <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
@@ -333,7 +340,7 @@ export default function HowItWorksPage() {
             </p>
             <Link
               href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-[color,background-color,border-color,box-shadow,transform] hover:border-base-100/70 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
             >
               Create Your Account
             </Link>

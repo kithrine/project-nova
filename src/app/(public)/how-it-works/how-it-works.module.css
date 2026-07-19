@@ -78,11 +78,14 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Falloff pulled left (round 3): the copy now lives in the far-left
+     dark zone (max-w-7xl container), so the scrim can release the image
+     — and its center-right focal point — sooner. */
   background: linear-gradient(
     to right,
     rgb(11 23 18 / 0.72) 0%,
-    rgb(11 23 18 / 0.55) 42%,
-    rgb(11 23 18 / 0.12) 78%,
+    rgb(11 23 18 / 0.55) 32%,
+    rgb(11 23 18 / 0.12) 68%,
     transparent 100%
   );
 }
@@ -323,6 +326,19 @@
        exited through the top hides upward, or the observer oscillates. */
     .reveal[data-exit="top"] {
       transform: translateY(-22px);
+    }
+
+    /* Horizontal variants (styling round 3). Source order is load-bearing:
+       these sit AFTER the data-exit rule at equal specificity, so a
+       left/right reveal always hides toward its own side regardless of
+       which edge it exited through (sideways motion can't oscillate the
+       observer, so no exit-edge logic is needed). */
+    .reveal[data-from="left"] {
+      transform: translateX(-30px);
+    }
+
+    .reveal[data-from="right"] {
+      transform: translateX(30px);
     }
 
     .reveal[data-visible="true"] {
