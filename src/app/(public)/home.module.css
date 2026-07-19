@@ -78,6 +78,53 @@
   color: var(--color-accent);
 }
 
+/* Write-on sequence (round 5): the script word wipes on left-to-right as
+   if being handwritten (starts after the h1's rise settles ~1.25s), then
+   the marker underline strokes itself. Hidden START states live only
+   inside the no-preference query (the .trailPaw precedent): reduced-
+   motion users see word + underline fully drawn; `both` fill keeps
+   things hidden through the delays. */
+@media (prefers-reduced-motion: no-preference) {
+  .scriptWordText {
+    display: inline-block;
+    /* Negative vertical insets: Caveat's ascenders/descenders overhang
+       the em box and must never be clipped by the wipe. */
+    animation: writeOn 1.2s cubic-bezier(0.5, 0, 0.4, 1) 1.45s both;
+  }
+
+  .scriptUnderline path {
+    /* Pairs with pathLength=1. Gap of 2 (not 1) + the 1.02 overshoot in
+       the keyframes: with round linecaps, an exactly-aligned dash
+       boundary paints a cap dot at the path start before the draw
+       begins — the margin keeps the dash fully off-path until it runs. */
+    stroke-dasharray: 1 2;
+    animation: drawStroke 0.55s ease-out 2.65s both;
+  }
+
+  /* The echo stroke chases the main one. */
+  .scriptUnderline path + path {
+    animation-delay: 2.8s;
+  }
+}
+
+@keyframes writeOn {
+  from {
+    clip-path: inset(-20% 100% -25% 0);
+  }
+  to {
+    clip-path: inset(-20% -6% -25% 0);
+  }
+}
+
+@keyframes drawStroke {
+  from {
+    stroke-dashoffset: 1.02;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .bandScript {
   font-family: var(--font-script), "Segoe Script", cursive;
   font-size: clamp(1.6rem, 4vw, 2.4rem);

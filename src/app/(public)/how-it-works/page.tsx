@@ -27,18 +27,135 @@ function Paw({ className }: { className?: string }) {
   );
 }
 
+/*
+ * Card icons (round 5) — Lucide-derived paths (ISC license) inlined as
+ * local aria-hidden components, the same idiom as the homepage quartet.
+ */
+
+/** Hand offering coins — "Real paid work" (Lucide "hand-coins"). */
+function HandCoins({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
+      <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 16 6 6" />
+      <circle cx="16" cy="9" r="2.9" />
+      <circle cx="6" cy="5" r="3" />
+    </svg>
+  );
+}
+
+/** Heart with clasped hands — "Support that stays" (Lucide "heart-handshake"). */
+function HeartHandshake({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
+      <path d="m18 15-2-2" />
+      <path d="m15 18-2-2" />
+    </svg>
+  );
+}
+
+/** Backpack — "What you bring" (Lucide "backpack"). */
+function Backpack({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5" />
+      <path d="M8 10h8" />
+    </svg>
+  );
+}
+
+/** Life buoy — "What we bring" (Lucide "life-buoy"). */
+function LifeBuoy({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.93 4.93 4.24 4.24" />
+      <path d="m14.83 9.17 4.24-4.24" />
+      <path d="m14.83 14.83 4.24 4.24" />
+      <path d="m9.17 14.83-4.24 4.24" />
+      <circle cx="12" cy="12" r="4" />
+    </svg>
+  );
+}
+
 /** Ground trot for the ball chase. Positions/rotations are static inline
- *  styles — only opacity animates, so they can never conflict. */
-const CHASE_PAWS = [
-  { left: "4%", bottom: 36, size: 31, rotate: 84, color: "var(--color-secondary)" },
-  { left: "14%", bottom: 20, size: 32, rotate: 98, color: "var(--color-accent)" },
-  { left: "24%", bottom: 35, size: 31, rotate: 80, color: "var(--color-secondary)" },
-  { left: "34%", bottom: 21, size: 34, rotate: 100, color: "var(--color-accent)" },
-  { left: "44%", bottom: 36, size: 32, rotate: 84, color: "var(--color-secondary)" },
-  { left: "54%", bottom: 20, size: 34, rotate: 96, color: "var(--color-accent)" },
-  { left: "64%", bottom: 35, size: 32, rotate: 82, color: "var(--color-secondary)" },
-  { left: "74%", bottom: 21, size: 36, rotate: 98, color: "var(--color-accent)" },
+ *  styles — only opacity animates, so they can never conflict. Trail paws
+ *  are %-positioned (they spread with the viewport); the final THREE are
+ *  pixel-anchored from the right, like the ball's resting spot, so the
+ *  trot reaches the ball at every viewport width (round 5 — the gap Kit
+ *  saw on a 32" monitor grew with width because % vs px anchoring).
+ *  mobileHidden thins the trot on phones so ~6 paws never crowd. */
+const CHASE_PAWS: ReadonlyArray<{
+  left?: string;
+  right?: number;
+  bottom: number;
+  size: number;
+  rotate: number;
+  color: string;
+  mobileHidden?: boolean;
+}> = [
+  { left: "4%", bottom: 36, size: 36, rotate: 84, color: "var(--color-secondary)" },
+  { left: "13%", bottom: 20, size: 37, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
+  { left: "22%", bottom: 35, size: 36, rotate: 80, color: "var(--color-secondary)" },
+  { left: "31%", bottom: 21, size: 38, rotate: 100, color: "var(--color-accent)", mobileHidden: true },
+  { left: "40%", bottom: 36, size: 37, rotate: 84, color: "var(--color-secondary)" },
+  { left: "50%", bottom: 20, size: 39, rotate: 96, color: "var(--color-accent)", mobileHidden: true },
+  { left: "60%", bottom: 35, size: 38, rotate: 82, color: "var(--color-secondary)" },
+  { right: 190, bottom: 21, size: 40, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
+  { right: 122, bottom: 35, size: 40, rotate: 84, color: "var(--color-secondary)" },
+  { right: 58, bottom: 20, size: 42, rotate: 96, color: "var(--color-accent)" },
 ];
+
+/* Card tone classes (round 5) — the same CSS-var contract as the
+   homepage quartet (ink + low-opacity washes of one color); explicit
+   per-card classes, never structural selectors. */
+const CARD_TONE = {
+  brightTeal: styles.toneBrightTeal,
+  chartreuse: styles.toneChartreuse,
+  darkTeal: styles.toneDarkTeal,
+  yellow: styles.toneYellow,
+} as const;
 
 const JOURNEY_STEPS = [
   {
@@ -148,19 +265,22 @@ export default function HowItWorksPage() {
             (Tailwind sizing cannot constrain an inner SVG's coordinate
             system — the bug that broke the old trail). Reduced motion:
             ball at rest with its contact shadow and a faded trail. */}
-        <div aria-hidden="true" className={`${styles.chase} hidden w-full sm:block`}>
+        {/* Runs on every viewport (round 5) — mobileHidden thins the trot
+            on phones instead of hiding the whole scene. */}
+        <div aria-hidden="true" className={`${styles.chase} w-full`}>
           <div className={styles.ballTrack}>
             <div className={styles.ballBounce}>
               <div className={styles.ball} />
             </div>
             <div className={styles.ballShadow} />
           </div>
-          {CHASE_PAWS.map((paw) => (
+          {CHASE_PAWS.map((paw, index) => (
             <span
-              key={paw.left}
-              className={styles.chasePaw}
+              key={index}
+              className={`${styles.chasePaw}${paw.mobileHidden ? " max-sm:hidden" : ""}`}
               style={{
                 left: paw.left,
+                right: paw.right,
                 bottom: paw.bottom,
                 width: paw.size,
                 height: paw.size,
@@ -185,21 +305,27 @@ export default function HowItWorksPage() {
               {
                 title: "Real paid work",
                 body: "A transitional placement at a partner animal shelter — real responsibilities, real wages, real experience for your résumé.",
+                icon: <HandCoins className="size-5" />,
+                tone: "brightTeal" as const,
               },
               {
                 title: "Training that counts",
                 body: "Hands-on training and certifications in animal care that you keep, whatever comes next.",
+                icon: <Paw className="size-5" />,
+                tone: "chartreuse" as const,
               },
               {
                 title: "Support that stays",
                 body: "A coordinator who knows you and a supervisor on site — people whose job is to help you succeed.",
+                icon: <HeartHandshake className="size-5" />,
+                tone: "yellow" as const,
               },
             ].map((card, index) => (
               <Reveal key={card.title} className={styles.reveal} delayMs={index * 120}>
-                <div className={`${styles.stepCard} flex h-full flex-col gap-3 rounded-lg p-6`}>
-                  <div className={styles.cardIcon}>
-                    <Paw className="size-5" />
-                  </div>
+                <div
+                  className={`${styles.stepCard} ${CARD_TONE[card.tone]} flex h-full flex-col gap-3 rounded-lg p-6`}
+                >
+                  <div className={styles.cardIcon}>{card.icon}</div>
                   <h3 className="text-lg font-semibold">{card.title}</h3>
                   <p className="text-sm leading-relaxed text-base-content/75">{card.body}</p>
                 </div>
@@ -244,7 +370,9 @@ export default function HowItWorksPage() {
                   from={index % 2 ? "right" : "left"}
                 >
                   <div className={`${styles.stepCard} rounded-lg p-5 sm:p-6`}>
-                    <h3 className={`${styles.display} text-xl font-semibold`}>{step.title}</h3>
+                    <h3 className={`${styles.display} text-xl font-semibold text-primary`}>
+                      {step.title}
+                    </h3>
                     <p className="mt-2 max-w-prose text-sm leading-relaxed text-base-content/75 sm:text-base">
                       {step.body}
                     </p>
@@ -271,38 +399,52 @@ export default function HowItWorksPage() {
           </Reveal>
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Reveal className={styles.reveal} from="left">
-              <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
-                <h3 className="text-lg font-semibold">What you bring</h3>
-                <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
+              <div
+                className={`${styles.stepCard} ${styles.expectCard} ${CARD_TONE.chartreuse} h-full rounded-lg p-6`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={styles.cardIcon}>
+                    <Backpack className="size-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold">What you bring</h3>
+                </div>
+                <ul className="mt-4 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Showing up — for your schedule, your team, and the animals
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Willingness to learn, even when it’s new or hard
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Care — animals depend on the people around them
                   </li>
                 </ul>
               </div>
             </Reveal>
             <Reveal className={styles.reveal} delayMs={120} from="right">
-              <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
-                <h3 className="text-lg font-semibold">What we bring</h3>
-                <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
+              <div
+                className={`${styles.stepCard} ${styles.expectCard} ${CARD_TONE.darkTeal} h-full rounded-lg p-6`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={styles.cardIcon}>
+                    <LifeBuoy className="size-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold">What we bring</h3>
+                </div>
+                <ul className="mt-4 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Paid transitional work and training that leads to certifications
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     A coordinator and an on-site supervisor who want you to succeed
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Honest communication about where you are and what’s next
                   </li>
                 </ul>
@@ -326,24 +468,37 @@ export default function HowItWorksPage() {
 
         {/* ------------------------------------------------------- Closing */}
         <section aria-labelledby="closing-heading" className={styles.closing}>
-          <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-5 px-4 py-16 sm:px-6 sm:py-20">
-            <Paw className="size-8 text-accent/80" />
-            <h2
-              id="closing-heading"
-              className={`${styles.display} max-w-xl text-3xl font-semibold sm:text-4xl`}
-            >
-              Ready when you are.
-            </h2>
-            <p className="max-w-prose text-base leading-relaxed text-base-100/90">
-              Creating your account is the first step — the application itself is plain
-              questions, at your pace, saved as you go.
-            </p>
-            <Link
-              href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-[color,background-color,border-color,box-shadow,transform] hover:border-base-100/70 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
-            >
-              Create Your Account
-            </Link>
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-16 sm:px-6 sm:py-20 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col items-start gap-5">
+              <Paw className="size-8 text-accent/80" />
+              <h2
+                id="closing-heading"
+                className={`${styles.display} max-w-xl text-3xl font-semibold sm:text-4xl`}
+              >
+                Ready when you are.
+              </h2>
+              <p className="max-w-prose text-base leading-relaxed text-base-100/90">
+                Creating your account is the first step — the application itself is plain
+                questions, at your pace, saved as you go.
+              </p>
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-[color,background-color,border-color,box-shadow,transform] hover:border-base-100/70 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
+              >
+                Create Your Account
+              </Link>
+            </div>
+            {/* Heart-masked photo (round 5): decorative, non-interactive —
+                the closing band's no-focusables rule holds. */}
+            <div className={styles.heartWrap} aria-hidden="true">
+              <Image
+                src="/images/dog-kiss.png"
+                alt=""
+                width={1672}
+                height={941}
+                className={styles.heartImage}
+              />
+            </div>
           </div>
         </section>
       </div>

@@ -151,6 +151,10 @@
   align-self: flex-start;
 }
 
+/* The icon circle consumes its card's tone vars (round 5); fallbacks
+   equal the pre-tone values so untinted cards render exactly as before.
+   (The old .reveal:nth-child(even) alternation is superseded by the
+   explicit tone classes below.) */
 .cardIcon {
   display: flex;
   align-items: center;
@@ -158,16 +162,53 @@
   width: 3rem;
   height: 3rem;
   border-radius: 9999px;
-  background: rgb(15 107 92 / 0.1);
-  border: 1px solid rgb(15 107 92 / 0.25);
-  color: var(--color-primary);
+  background: var(--icon-tint, rgb(15 107 92 / 0.1));
+  border: 1px solid var(--tone-strong, rgb(15 107 92 / 0.25));
+  color: var(--card-ink, var(--color-primary));
+  flex-shrink: 0;
 }
 
-/* Alternate the icon wash to chartreuse on even cards (homepage idiom;
-   the grid's direct children are the Reveal wrappers). */
-.reveal:nth-child(even) .cardIcon {
-  background: rgb(217 224 33 / 0.25);
-  border-color: rgb(15 107 92 / 0.2);
+/* Card tone classes (round 5) — the same CSS-var contract and values as
+   the homepage quartet (.valueCard* in home.module.css): each sets its
+   icon ink plus super-low-opacity washes of the same color. Chartreuse
+   ink is the deepened olive; raw #d9e021 is never an ink on light. */
+.toneBrightTeal {
+  --card-ink: #0d9488;
+  --card-tint: rgb(13 148 136 / 0.06);
+  --icon-tint: rgb(13 148 136 / 0.12);
+  --tone-strong: rgb(13 148 136 / 0.45);
+}
+
+.toneChartreuse {
+  --card-ink: #7a840f;
+  --card-tint: rgb(217 224 33 / 0.14);
+  --icon-tint: rgb(217 224 33 / 0.3);
+  --tone-strong: rgb(122 132 15 / 0.45);
+}
+
+.toneDarkTeal {
+  --card-ink: var(--color-primary);
+  --card-tint: rgb(15 107 92 / 0.06);
+  --icon-tint: rgb(15 107 92 / 0.12);
+  --tone-strong: rgb(15 107 92 / 0.45);
+}
+
+.toneYellow {
+  --card-ink: #ca8a04;
+  --card-tint: rgb(202 138 4 / 0.07);
+  --icon-tint: rgb(202 138 4 / 0.14);
+  --tone-strong: rgb(202 138 4 / 0.45);
+}
+
+/* Paw bullets (and other small marks) inked in the card's tone. */
+.toneInk {
+  color: var(--card-ink, var(--color-secondary));
+  opacity: 0.72;
+}
+
+/* Expectations cards: a tonal marker along the top (round 5). */
+.expectCard {
+  border-top: 3px solid var(--tone-strong, rgb(15 107 92 / 0.4));
 }
 
 /* --- The ball chase (visual pass 2026-07-18) ---------------------------
@@ -308,6 +349,12 @@
   .chasePaw:nth-of-type(8) {
     animation-delay: 5.2s;
   }
+  .chasePaw:nth-of-type(9) {
+    animation-delay: 5.8s;
+  }
+  .chasePaw:nth-of-type(10) {
+    animation-delay: 6.4s; /* fades by ~8.7s — inside the 9s cycle */
+  }
 
   /* Scroll-triggered reveals (data-visible applied by the Reveal helper).
      Hidden ONLY when scripting is available — no-JS visitors (and browsers
@@ -354,6 +401,54 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* --- Heart-masked photo in the closing band (round 5) ------------------
+   dog-kiss.png cropped to a heart via an inline-SVG mask; the wiggle is
+   a gentle side-to-side sway, motion-gated, static heart otherwise. */
+
+.heartWrap {
+  width: min(19rem, 68vw);
+  flex-shrink: 0;
+}
+
+.heartImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  /* The kiss sits just left of the frame's center. */
+  object-position: 52% 45%;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+
+/* No mask support -> keep the photo but soften it to a rounded card
+   rather than showing a hard rectangle. */
+@supports not (mask-image: url("data:image/svg+xml,")) {
+  .heartImage {
+    border-radius: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .heartWrap {
+    animation: heartWiggle 3s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes heartWiggle {
+  from {
+    transform: translateX(-5px) rotate(-3deg);
+  }
+  to {
+    transform: translateX(5px) rotate(3deg);
   }
 }
 
@@ -584,7 +679,11 @@
 
 .stepCard {
   border: 1px solid rgb(11 23 18 / 0.1);
-  background: rgb(255 255 255 / 0.72);
+  /* Tone wash over the white base (round 5) — transparent fallback keeps
+     untinted cards (the journey steps) byte-identical to before. */
+  background:
+    linear-gradient(var(--card-tint, transparent), var(--card-tint, transparent))
+    rgb(255 255 255 / 0.72);
   backdrop-filter: blur(2px);
   box-shadow: 0 1px 2px rgb(11 23 18 / 0.04);
   transition:
