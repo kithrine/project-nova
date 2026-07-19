@@ -101,9 +101,13 @@ describe("HomePage", () => {
 
   it("renders the photographic hero as decorative (empty alt)", () => {
     const { container } = renderHomePage();
-    const hero = container.querySelector('img[alt=""]');
-    expect(hero).not.toBeNull();
-    expect(hero?.getAttribute("src")).toContain("nova-homepage-hero");
+    // Several decorative images exist (brand logos, band lockup) — find
+    // the hero photo among them and assert its decorative stance.
+    const decorativeImages = Array.from(container.querySelectorAll('img[alt=""]'));
+    const hero = decorativeImages.find((img) =>
+      img.getAttribute("src")?.includes("nova-homepage-hero"),
+    );
+    expect(hero).toBeDefined();
   });
 
   it("uses respectful, person-first language everywhere", () => {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
+import { BreathingDots } from "@/components/decor/breathing-dots";
 import { NovaLogo } from "@/components/layout/nova-logo";
 
 import styles from "./how-it-works.module.css";
@@ -28,14 +30,14 @@ function Paw({ className }: { className?: string }) {
 /** Ground trot for the ball chase. Positions/rotations are static inline
  *  styles — only opacity animates, so they can never conflict. */
 const CHASE_PAWS = [
-  { left: "4%", bottom: 34, size: 17, rotate: 84, color: "var(--color-secondary)" },
-  { left: "14%", bottom: 20, size: 18, rotate: 98, color: "rgb(168 77 8 / 0.85)" },
-  { left: "24%", bottom: 33, size: 17, rotate: 80, color: "var(--color-secondary)" },
-  { left: "34%", bottom: 21, size: 19, rotate: 100, color: "rgb(168 77 8 / 0.85)" },
-  { left: "44%", bottom: 34, size: 18, rotate: 84, color: "var(--color-secondary)" },
-  { left: "54%", bottom: 20, size: 19, rotate: 96, color: "rgb(168 77 8 / 0.85)" },
-  { left: "64%", bottom: 33, size: 18, rotate: 82, color: "var(--color-secondary)" },
-  { left: "74%", bottom: 21, size: 20, rotate: 98, color: "rgb(168 77 8 / 0.85)" },
+  { left: "4%", bottom: 36, size: 24, rotate: 84, color: "var(--color-secondary)" },
+  { left: "14%", bottom: 20, size: 25, rotate: 98, color: "var(--color-accent)" },
+  { left: "24%", bottom: 35, size: 24, rotate: 80, color: "var(--color-secondary)" },
+  { left: "34%", bottom: 21, size: 26, rotate: 100, color: "var(--color-accent)" },
+  { left: "44%", bottom: 36, size: 25, rotate: 84, color: "var(--color-secondary)" },
+  { left: "54%", bottom: 20, size: 26, rotate: 96, color: "var(--color-accent)" },
+  { left: "64%", bottom: 35, size: 25, rotate: 82, color: "var(--color-secondary)" },
+  { left: "74%", bottom: 21, size: 28, rotate: 98, color: "var(--color-accent)" },
 ];
 
 const JOURNEY_STEPS = [
@@ -69,90 +71,104 @@ export default function HowItWorksPage() {
   return (
     <main id="main-content" className={`${styles.page} flex flex-1 flex-col`}>
       <div className={styles.content}>
-        {/* ---------------------------------------------------------- Hero */}
-        <section className="mx-auto w-full max-w-5xl px-4 pt-14 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
-          <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
-            <p className={styles.eyebrow}>
-              <NovaLogo className="size-3.5" />
-              Paid transitional work at animal shelters
-            </p>
-            <h1 className={`${styles.display} ${styles.heroTitle}`}>
-              Good work, real pay,{" "}
-              <span className={styles.heroTitleAccent}>and a team that shows up</span>{" "}
-              for you.
-            </h1>
-            <p className="max-w-prose text-lg leading-relaxed text-base-content/80">
-              Project Nova helps people returning from incarceration step into paid,
-              meaningful work caring for shelter animals — with training, steady support,
-              and a clear path toward lasting employment.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                Start Your Application
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-4"
+        {/* Full-bleed photo hero (styling round 2, 2026-07-18): the image
+            spans the viewport; a left-weighted scrim keeps the (unchanged)
+            hero copy readable, so the text flips to cream with the accent
+            phrase in chartreuse italic — permitted on dark surfaces. */}
+        <section className={styles.heroBand}>
+          <Image
+            src="/images/how-it-works-hero.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className={styles.heroBandImage}
+          />
+          <div className={styles.heroScrim} aria-hidden="true" />
+          <div className="relative mx-auto w-full max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
+            <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
+              <p className={`${styles.eyebrow} ${styles.eyebrowOnImage}`}>
+                <NovaLogo className="size-3.5" />
+                Paid transitional work at animal shelters
+              </p>
+              <h1 className={`${styles.display} ${styles.heroTitle} ${styles.heroBandTitle}`}>
+                Good work, real pay,{" "}
+                <span className={styles.heroBandAccent}>and a team that shows up</span>{" "}
+                for you.
+              </h1>
+              <p className={`${styles.heroBandText} max-w-prose text-lg leading-relaxed`}>
+                Project Nova helps people returning from incarceration step into paid,
+                meaningful work caring for shelter animals — with training, steady support,
+                and a clear path toward lasting employment.
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </Link>
-              <a
-                href="#journey"
-                className="text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                See the journey
-              </a>
-            </div>
-            <p className="text-sm text-base-content/60">
-              Free to start. Create an account, answer at your own pace, and save your
-              progress anytime.
-            </p>
-          </div>
-
-          {/* The ball chase (visual pass 2026-07-18): a red toy ball
-              bounces in from the left and settles at the right; small paw
-              prints trot after it before the scene clears and loops. One
-              master 9s cycle — every element animates at the same
-              duration, paw offsets via animation-delay, so phases can
-              never drift. Paws are HTML-positioned spans, NOT nested in
-              one big SVG viewBox (Tailwind sizing cannot constrain an
-              inner SVG's coordinate system — the bug that broke the old
-              trail). Reduced motion: ball at rest with its contact shadow
-              and a faded complete trail. */}
-          <div aria-hidden="true" className={`${styles.chase} mt-4 hidden w-full max-w-3xl sm:block`}>
-            <div className={styles.ballTrack}>
-              <div className={styles.ballBounce}>
-                <div className={styles.ball} />
+                  Start Your Application
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+                <a
+                  href="#journey"
+                  className={`${styles.heroBandText} text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+                >
+                  See the journey
+                </a>
               </div>
-              <div className={styles.ballShadow} />
+              <p className={`${styles.heroBandFaint} text-sm`}>
+                Free to start. Create an account, answer at your own pace, and save your
+                progress anytime.
+              </p>
             </div>
-            {CHASE_PAWS.map((paw) => (
-              <span
-                key={paw.left}
-                className={styles.chasePaw}
-                style={{
-                  left: paw.left,
-                  bottom: paw.bottom,
-                  width: paw.size,
-                  height: paw.size,
-                  color: paw.color,
-                  transform: `rotate(${paw.rotate}deg)`,
-                }}
-              >
-                <Paw className={styles.chasePawIcon} />
-              </span>
-            ))}
           </div>
         </section>
+
+        {/* The ball chase (visual pass 2026-07-18; widened full-bleed with
+            bigger chartreuse/teal paws in styling round 2): a red toy ball
+            bounces in from the left and settles at the right; paw prints
+            trot after it before the scene clears and loops. One master 9s
+            cycle — every element animates at the same duration, paw
+            offsets via animation-delay, so phases can never drift. Paws
+            are HTML-positioned spans, NOT nested in one big SVG viewBox
+            (Tailwind sizing cannot constrain an inner SVG's coordinate
+            system — the bug that broke the old trail). Reduced motion:
+            ball at rest with its contact shadow and a faded trail. */}
+        <div aria-hidden="true" className={`${styles.chase} hidden w-full sm:block`}>
+          <div className={styles.ballTrack}>
+            <div className={styles.ballBounce}>
+              <div className={styles.ball} />
+            </div>
+            <div className={styles.ballShadow} />
+          </div>
+          {CHASE_PAWS.map((paw) => (
+            <span
+              key={paw.left}
+              className={styles.chasePaw}
+              style={{
+                left: paw.left,
+                bottom: paw.bottom,
+                width: paw.size,
+                height: paw.size,
+                color: paw.color,
+                transform: `rotate(${paw.rotate}deg)`,
+              }}
+            >
+              <Paw className={styles.chasePawIcon} />
+            </span>
+          ))}
+        </div>
 
         {/* ------------------------------------------------- What this is */}
         <section aria-labelledby="what-heading" className="mx-auto w-full max-w-5xl px-4 pb-20 sm:px-6">
@@ -190,11 +206,16 @@ export default function HowItWorksPage() {
         </section>
 
         {/* ---------------------------------------------------- The journey */}
-        <section
-          id="journey"
-          aria-labelledby="journey-heading"
-          className="mx-auto w-full max-w-5xl scroll-mt-8 px-4 pb-20 sm:px-6"
-        >
+        {/* The band wrapper anchors the half-circle breathing dot field to
+            the VIEWPORT's left edge at the stepper's height (Kit's doodle);
+            the section markup inside is unchanged. */}
+        <div className={styles.journeyBand}>
+          <BreathingDots anchor="left-center" className={styles.journeyDots} />
+          <section
+            id="journey"
+            aria-labelledby="journey-heading"
+            className="relative mx-auto w-full max-w-5xl scroll-mt-8 px-4 pb-20 sm:px-6"
+          >
           <Reveal className={styles.reveal}>
             <h2 id="journey-heading" className={`${styles.display} text-3xl font-semibold sm:text-4xl`}>
               How the journey works
@@ -225,7 +246,8 @@ export default function HowItWorksPage() {
               </li>
             ))}
           </ol>
-        </section>
+          </section>
+        </div>
 
         {/* -------------------------------------------------- Expectations */}
         <section
