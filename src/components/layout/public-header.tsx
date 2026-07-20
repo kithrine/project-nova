@@ -1,22 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { PublicNav } from "@/components/layout/public-nav";
+
 /**
- * Public site header (Story 2.1; brand refresh 2026-07-15). Minimal
- * navigation for the public pages that exist today — links are added as
- * their pages are built (no dead links). The chartreuse "Apply Now" CTA
- * is deliberately NOT named "Start Your Application": each public page
- * owns exactly one link with that name (asserted by the page suites).
- * flex-wrap keeps the row from ever forcing horizontal scroll at 360px.
+ * Public site header (Story 2.1; brand refresh 2026-07-15; mobile nav
+ * pass 2026-07-20). Minimal navigation for the public pages that exist
+ * today — links are added as their pages are built (no dead links). The
+ * chartreuse "Apply Now" CTA is deliberately NOT named "Start Your
+ * Application": each public page owns exactly one link with that name
+ * (asserted by the page suites). Below md the links live behind a
+ * hamburger disclosure (PublicNav); relative + z-40 anchors its overlay
+ * panel ABOVE the homepage content wrapper (z-index 1) while staying
+ * under the skip link (z-index 50).
  * Brand mark: the official raster logo (styling round 2, 2026-07-18) —
  * decorative (empty alt), the brand NAME is always the adjacent text.
  */
 export function PublicHeader() {
   return (
-    <header className="border-b border-base-300/70 bg-base-100/85 backdrop-blur">
+    <header className="relative z-40 border-b border-base-300/70 bg-base-100/85 backdrop-blur">
       <nav
         aria-label="Public"
-        className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6"
+        className="mx-auto flex w-full max-w-6xl items-center justify-between gap-x-4 px-4 py-2 sm:px-6 md:py-3"
       >
         <Link
           href="/"
@@ -31,34 +36,7 @@ export function PublicHeader() {
           />
           Project Nova
         </Link>
-        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-          <div className="flex items-center gap-1 rounded-full border border-base-300 bg-base-100/70 p-1">
-            <Link
-              href="/"
-              className="rounded-full px-3 py-1.5 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              Home
-            </Link>
-            <Link
-              href="/how-it-works"
-              className="rounded-full px-3 py-1.5 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              How It Works
-            </Link>
-          </div>
-          <Link
-            href="/sign-in"
-            className="rounded-full px-3 py-1.5 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            Log In
-          </Link>
-          <Link
-            href="/sign-up"
-            className="rounded-full bg-accent px-4 py-1.5 font-semibold text-accent-content transition-[color,background-color,box-shadow,transform] hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
-          >
-            Apply Now
-          </Link>
-        </div>
+        <PublicNav />
       </nav>
     </header>
   );

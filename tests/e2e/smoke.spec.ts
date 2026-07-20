@@ -21,6 +21,40 @@ test("landing page is mobile-first with no horizontal scroll at 360px", async ({
 });
 
 /**
+ * Mobile nav pass (2026-07-20) — below md the header links collapse
+ * behind a hamburger disclosure; opening it reveals the links, and a
+ * client-side navigation closes it again (the public layout — and the
+ * menu's state — survives route changes).
+ */
+test("mobile nav collapses to a hamburger that reveals the links at 360px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/");
+
+  const nav = page.getByRole("navigation", { name: "Public" });
+  const menuButton = nav.getByRole("button", { name: "Menu" });
+  await expect(menuButton).toBeVisible();
+  await expect(nav.getByRole("link", { name: "How It Works" })).toBeHidden();
+
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute("aria-expanded", "true");
+  await expect(nav.getByRole("link", { name: "How It Works" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "How It Works" }).click();
+  await page.waitForURL(/\/how-it-works/, { timeout: 15_000 });
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+});
+
+test("desktop keeps the inline nav with no hamburger", async ({ page }) => {
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Public" });
+  await expect(nav.getByRole("button", { name: "Menu" })).toBeHidden();
+  await expect(nav.getByRole("link", { name: "How It Works" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Apply Now" })).toBeVisible();
+});
+
+/**
  * Story 2.1 — an anonymous visitor can read How It Works and the single
  * primary call to action leads into applicant account onboarding.
  */
