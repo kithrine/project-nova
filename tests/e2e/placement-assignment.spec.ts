@@ -51,13 +51,27 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   await clerk.signOut({ page });
   await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
   await page.goto("/shelter");
+  // Settle on the approvals dashboard before probing — isVisible() ignores
+  // its timeout option (deprecated no-wait check), so an ungated probe
+  // races hydration.
+  await expect(
+    page.getByRole("heading", { name: "Placement approvals" }),
+  ).toBeVisible({ timeout: 20_000 });
   const reviewLink = page.getByRole("link", {
     name: /Review package: Casey Synthetic-Assign/,
   });
-  if (await reviewLink.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await reviewLink.isVisible().catch(() => false)) {
     await reviewLink.click();
+    // Settle on the package workspace before touching its controls: while
+    // the navigation is in flight this context is still on /shelter, where
+    // the matching proposal rows carry their own "Request Changes" buttons —
+    // an early page-scoped click once landed on Parker's match row and
+    // poisoned the matching fixtures mid-suite.
+    await expect(
+      page.getByRole("heading", { name: /Casey Synthetic-Assign/ }),
+    ).toBeVisible({ timeout: 20_000 });
     const requestChanges = page.getByRole("button", { name: "Request Changes" });
-    if (await requestChanges.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    if (await requestChanges.isVisible().catch(() => false)) {
       await requestChanges.click();
       await page
         .getByLabel("Note for the coordinator (required)")
@@ -95,8 +109,12 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   await clerk.signOut({ page });
   await signIn(page, E2E_SHELTER_MANAGER_USER_EMAIL);
   await page.goto("/shelter/placements/e2e_placement_assign");
+  // Settle before the no-wait probe (hydration rule; see phase 2).
+  await expect(
+    page.getByRole("heading", { name: /Casey Synthetic-Assign/ }),
+  ).toBeVisible({ timeout: 20_000 });
   const approve = page.getByRole("button", { name: "Approve Package" });
-  if (await approve.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await approve.isVisible().catch(() => false)) {
     await approve.click();
     await page.getByRole("button", { name: "Yes, Approve Package" }).click();
   }
@@ -122,8 +140,12 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   await clerk.signOut({ page });
   await signIn(page, E2E_OPS_USER_EMAIL);
   await page.goto(WORKSPACE);
+  // Settle before the no-wait probe (hydration rule; see phase 2).
+  await expect(
+    page.getByRole("heading", { name: /Casey Synthetic-Assign/ }),
+  ).toBeVisible({ timeout: 20_000 });
   const startOnboarding = page.getByRole("button", { name: "Start Onboarding" });
-  if (await startOnboarding.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await startOnboarding.isVisible().catch(() => false)) {
     await page
       .getByLabel(/The package is approved and the site is ready/)
       .check();
@@ -210,8 +232,12 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
     });
 
     await page.goto(`${WORKSPACE}?tab=funding`);
+    // Settle before the no-wait probe (hydration rule; see phase 2).
+    await expect(
+      page.getByRole("heading", { name: /Casey Synthetic-Assign/ }),
+    ).toBeVisible({ timeout: 20_000 });
     const sourceSelect = page.getByLabel("Funding source");
-    if (await sourceSelect.isVisible({ timeout: 20_000 }).catch(() => false)) {
+    if (await sourceSelect.isVisible().catch(() => false)) {
       await sourceSelect.selectOption({ label: "E2E Grant Fund (Synthetic)" });
       await page.getByLabel("Effective start date").fill("2026-08-01");
       await page.getByRole("button", { name: "Assign Funding" }).click();
@@ -246,8 +272,12 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   // Active simply runs another cycle — history accumulates, never
   // overwrites (AC3), so the matchers take .first().
   await page.goto(WORKSPACE);
+  // Settle before the no-wait probe (hydration rule; see phase 2).
+  await expect(
+    page.getByRole("heading", { name: /Casey Synthetic-Assign/ }),
+  ).toBeVisible({ timeout: 20_000 });
   const pauseOpen = page.getByRole("button", { name: "Pause Placement…" });
-  if (await pauseOpen.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await pauseOpen.isVisible().catch(() => false)) {
     await pauseOpen.click();
     await page
       .getByLabel("Reason (required)")
@@ -265,7 +295,7 @@ test("the package is assigned, reviewed, revised, and approved (Story 5.2)", asy
   }
 
   const resumeOpen = page.getByRole("button", { name: "Resume Placement…" });
-  if (await resumeOpen.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  if (await resumeOpen.isVisible().catch(() => false)) {
     await resumeOpen.click();
     await page.getByRole("button", { name: "Yes, Resume Placement" }).click();
   }
