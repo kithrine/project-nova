@@ -1,23 +1,13 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_OPS_USER_EMAIL, E2E_PARTICIPANT_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Certifications (Story 3.5). The coordinator records a credential with a
  * real attached document through the presigned private-store flow; the
  * participant identity sees their own fixture certification read-only.
  */
-
-async function signIn(page: Page, email: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier: email } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
 
 test("a coordinator records a certification and attaches its document", async ({
   page,

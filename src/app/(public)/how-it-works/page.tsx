@@ -216,7 +216,7 @@ export default function HowItWorksPage() {
             <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
               <p className={`${styles.eyebrow} ${styles.eyebrowOnImage}`}>
                 <NovaLogo className="size-3.5" />
-                Paid transitional work at animal shelters
+                Workforce impact. Community change.
               </p>
               <h1 className={`${styles.display} ${styles.heroTitle} ${styles.heroBandTitle}`}>
                 Good work, real pay,{" "}

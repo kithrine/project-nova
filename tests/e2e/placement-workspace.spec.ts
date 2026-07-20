@@ -199,7 +199,9 @@ test("a Grant Administrator assigns, ends, and replaces funding (Story 5.3)", as
   }
 
   // Phase 3 — replace: exactly one active again, history keeps the ended one.
-  if (await sourceSelect.isVisible({ timeout: 20_000 }).catch(() => false)) {
+  // isVisible() ignores its timeout option — this is a no-wait probe; the
+  // funding list assertions above have already settled this render.
+  if (await sourceSelect.isVisible().catch(() => false)) {
     await sourceSelect.selectOption({ label: "E2E Grant Fund (Synthetic)" });
     await page.getByLabel("Effective start date").fill("2026-10-01");
     await page.getByRole("button", { name: "Assign Funding" }).click();

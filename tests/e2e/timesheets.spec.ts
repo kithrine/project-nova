@@ -383,3 +383,42 @@ test("a coordinator locks the approved week (Story 6.7)", async ({ page }) => {
   await expect(page.getByText("Add a work day")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Submit Hours/ })).toHaveCount(0);
 });
+
+/**
+ * Placed-state home: Harper's enrollment is READY_FOR_MATCHING with an
+ * ACTIVE placement, so the dashboard shows placement-centric tiles —
+ * never the applicant welcome card. Read-only, so it composes with the
+ * serial timesheet journeys regardless of their progress.
+ */
+test("a placed participant's home is placement-centric, not applicant copy", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await signIn(page, E2E_HOURS_USER_EMAIL);
+  await page.goto("/participant");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Welcome back, Harper!" }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // The four placed tiles, each linking to the surface that owns the data.
+  // exact: the site name also appears inside the encouragement callout.
+  await expect(page.getByText("Your site")).toBeVisible();
+  await expect(
+    page.getByText("Main Site (Synthetic)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Review Placement" })).toHaveAttribute(
+    "href",
+    "/participant/placement",
+  );
+  await expect(
+    page.getByRole("link", { name: "Add or review hours" }),
+  ).toHaveAttribute("href", "/participant/hours");
+  await expect(
+    page.getByRole("link", { name: "See what's on record" }),
+  ).toHaveAttribute("href", "/participant/certifications");
+
+  // The applicant welcome card never renders for a placed participant.
+  await expect(page.getByText(/your account is set up/)).toHaveCount(0);
+  await expect(page.getByText(/application is the next step/)).toHaveCount(0);
+});

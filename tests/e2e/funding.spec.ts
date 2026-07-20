@@ -1,27 +1,17 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_GRANT_ADMIN_USER_EMAIL, E2E_OPS_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Funding-source administration (Story 1.8). Rows created here carry the
  * "E2E Synthetic" prefix and are cleaned by the next run's global setup.
  */
 
-async function signInAs(page: Page, identifier: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
-
 test("a Grant Administrator can create, see, and deactivate a funding source", async ({
   page,
 }) => {
-  await signInAs(page, E2E_GRANT_ADMIN_USER_EMAIL);
+  await signIn(page, E2E_GRANT_ADMIN_USER_EMAIL);
 
   await page.goto("/operations/administration/funding-sources");
   await expect(page.getByRole("heading", { level: 1, name: "Funding sources" })).toBeVisible();
@@ -52,7 +42,7 @@ test("a Grant Administrator can create, see, and deactivate a funding source", a
 test("a Program Coordinator is denied funding administration server-side", async ({
   page,
 }) => {
-  await signInAs(page, E2E_OPS_USER_EMAIL);
+  await signIn(page, E2E_OPS_USER_EMAIL);
 
   await page.goto("/operations/administration/funding-sources");
   await expect(

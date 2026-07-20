@@ -1,7 +1,8 @@
 import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_OPS_USER_EMAIL, E2E_RRS_USER_EMAIL, E2E_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Operations applications queue + workspace (Story 2.7). Read-only against
@@ -10,16 +11,6 @@ import { E2E_OPS_USER_EMAIL, E2E_RRS_USER_EMAIL, E2E_USER_EMAIL } from "./test-u
  * both sides: a coordinator (no restricted permission) and a Restricted
  * Review Specialist.
  */
-
-async function signIn(page: Page, identifier: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
 
 test("a coordinator works the queue; background stays restricted even by direct URL", async ({
   page,

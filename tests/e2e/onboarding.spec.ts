@@ -1,7 +1,7 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_APPLICANT_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Applicant account onboarding (Story 2.2). This user exists only in Clerk
@@ -12,23 +12,10 @@ import { E2E_APPLICANT_USER_EMAIL } from "./test-user";
  */
 test.describe.configure({ mode: "serial" });
 
-async function signInAsApplicant(page: Page) {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_APPLICANT_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
-
 test("a brand-new sign-in is provisioned and routed to account onboarding", async ({
   page,
 }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_APPLICANT_USER_EMAIL);
 
   await page.goto("/dashboard");
   await page.waitForURL(/\/participant\/onboarding/, { timeout: 20_000 });
@@ -38,7 +25,7 @@ test("a brand-new sign-in is provisioned and routed to account onboarding", asyn
 });
 
 test("invalid submissions show accessible field errors and allow retry", async ({ page }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_APPLICANT_USER_EMAIL);
   await page.goto("/participant/onboarding");
 
   // Submit with everything empty (the form disables native validation).
@@ -53,7 +40,7 @@ test("invalid submissions show accessible field errors and allow retry", async (
 });
 
 test("completing onboarding lands the applicant on their dashboard", async ({ page }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_APPLICANT_USER_EMAIL);
   await page.goto("/participant/onboarding");
 
   await page.getByLabel("Legal first name").fill("Synthetic");

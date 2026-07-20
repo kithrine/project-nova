@@ -1,7 +1,7 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_PARTICIPANT_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Participant onboarding tasks (Story 3.3). Uses the persistent participant
@@ -11,23 +11,10 @@ import { E2E_PARTICIPANT_USER_EMAIL } from "./test-user";
  * task already completed and still converges on the same final state.
  */
 
-async function signInAsParticipant(page: Page) {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_PARTICIPANT_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
-
 test("the dashboard shows onboarding progress and completing an own task updates it live", async ({
   page,
 }) => {
-  await signInAsParticipant(page);
+  await signIn(page, E2E_PARTICIPANT_USER_EMAIL);
   await page.goto("/participant");
 
   await expect(
