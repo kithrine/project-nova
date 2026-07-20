@@ -106,6 +106,16 @@ body {
   outline-offset: var(--focus-ring-offset);
 }
 
+/* The public marketing header is sticky (public-header.tsx). Offset
+   EVERY scroll-into-view — fragment jumps AND the browser's automatic
+   scrolling when keyboard focus moves to an off-screen element (WCAG
+   2.4.11 Focus Not Obscured) — so nothing lands behind the pinned bar.
+   Scoped via :has so the authenticated shell (static header, tuned
+   scroll-mt offsets) is untouched. 5rem clears the 61-67px bar. */
+html:has(.public-site-header) {
+  scroll-padding-top: 5rem;
+}
+
 /* Skip link for keyboard and screen-reader users */
 .skip-link {
   position: absolute;

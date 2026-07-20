@@ -55,6 +55,63 @@ test("desktop keeps the inline nav with no hamburger", async ({ page }) => {
 });
 
 /**
+ * Sticky header (2026-07-20) — the public header pins to the viewport
+ * top while scrolling, stays usable there (hamburger opens mid-page),
+ * and in-page anchor jumps land BELOW the bar (scroll-mt compensation
+ * on #journey and main#main-content).
+ */
+test("public header stays pinned and usable while scrolled at 360px", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/");
+  await page.evaluate(() => window.scrollTo(0, 600));
+  const header = page.locator("header").first();
+  await expect
+    .poll(async () => header.evaluate((el) => Math.round(el.getBoundingClientRect().top)))
+    .toBe(0);
+
+  const nav = page.getByRole("navigation", { name: "Public" });
+  const menuButton = nav.getByRole("button", { name: "Menu" });
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute("aria-expanded", "true");
+  await expect(nav.getByRole("link", { name: "How It Works" })).toBeVisible();
+});
+
+test("focus-driven scrolling keeps the focused element clear of the sticky bar", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/");
+  const cta = page.getByRole("link", { name: "Start Your Application" });
+  // Park the CTA just above the viewport — the minimal-scroll case that
+  // would land it flush under the pinned bar without scroll-padding-top
+  // (WCAG 2.4.11), then let native focus() trigger the scroll-into-view.
+  await cta.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    window.scrollTo(0, window.scrollY + rect.bottom + 40);
+  });
+  await cta.focus();
+  const headerBottom = await page
+    .locator("header")
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().bottom);
+  const ctaTop = await cta.evaluate((el) => el.getBoundingClientRect().top);
+  expect(ctaTop).toBeGreaterThanOrEqual(headerBottom);
+});
+
+test("see-the-journey anchor jump lands below the sticky header", async ({ page }) => {
+  await page.goto("/how-it-works");
+  await page.getByRole("link", { name: "See the journey" }).click();
+  const headerBottom = await page
+    .locator("header")
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().bottom);
+  const journeyTop = await page
+    .locator("#journey")
+    .evaluate((el) => el.getBoundingClientRect().top);
+  expect(journeyTop).toBeGreaterThanOrEqual(headerBottom);
+});
+
+/**
  * Story 2.1 — an anonymous visitor can read How It Works and the single
  * primary call to action leads into applicant account onboarding.
  */
