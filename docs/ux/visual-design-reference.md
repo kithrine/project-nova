@@ -16,7 +16,7 @@
 - Calm green success
 - Amber warning
 - Muted red danger
-- Organic decoration (blobs, breathing dot fields, leaf sprigs, drawn flourishes) on public pages and as quiet ambient corners of the signed-in shell — always `aria-hidden`, never containing focusables
+- Organic decoration (blobs, breathing dot fields, photographic leaf line-art, drawn flourishes) on public pages and as quiet ambient corners of the signed-in shell — always `aria-hidden`, never containing focusables
 - Strong whitespace
 - Minimal shadows
 - Moderate radii
@@ -25,14 +25,18 @@
 ## Typography
 
 - **Inter** — the app-wide body face (highly readable sans-serif), loaded in the root layout.
-- **Fraunces** — the display serif for public pages (`--font-display`), with its SOFT/WONK variable axes used for warm, slightly wonky accents.
-- **Caveat** — the pen-drawn script (`--font-script`), public pages only, for single accent words and short taglines — never body copy, never in the signed-in app.
+- **Lora** — the display serif for public pages (`--font-display`), normal + italic (swapped from Fraunces 2026-07-18 — its wonky f/j letterforms read wrong at display sizes). The How It Works accent phrase is Lora italic in secondary teal.
+- **Caveat** — the pen-drawn script (`--font-script`), homepage only (the How It Works accent reverted to italic serif 2026-07-18), for single accent words and short taglines — never body copy, never in the signed-in app.
 
 ## Iconography
 
 Never use emojis in the interface. Use SVG icons — from an approved icon set or purpose-built, hand-authored SVGs — so every icon is crisp at any size, themeable through design tokens, and accessible. Give meaningful icons an accessible label; mark decorative icons as hidden from assistive technology. Never convey status by color or icon alone; always pair it with text.
 
-The brand mark is the compass star (`src/components/layout/nova-logo.tsx`); the paw remains the shelter-work decorative motif.
+The brand mark at lockups (public header/footer, signed-in sidebar and topbar) is the official compass-star raster (`public/images/logo-official.png`, transparent PNG, rendered decorative with the brand name as adjacent text) — rolled out styling round 2, 2026-07-18. The favicon (`src/app/icon.png` + `favicon.ico`) is generated from the same mark. The hand-drawn compass-star SVG (`src/components/layout/nova-logo.tsx`) remains for eyebrow chips and small decoration; the paw remains the shelter-work decorative motif. The full lockup art (`public/images/nova-logo.png`) appears once, centered in the homepage closing band.
+
+The homepage value cards carry a Lucide-derived icon quartet (styling round 4, 2026-07-19; ISC-licensed paths inlined as local components): hand-heart, paw-print, workflow, and chart-line. How It Works joined in round 5 with hand-coins ("Real paid work"), the hand-drawn paw ("Training that counts"), heart-handshake ("Support that stays"), backpack ("What you bring"), and life-buoy ("What we bring"); its trio and expectations cards share the SAME CSS-var tone contract (`.tone*` in `how-it-works.module.css` mirroring `.valueCard*` at home — bright teal / chartreuse / dark teal / yellow), the journey step titles are dark-teal Lora, and the expectations cards add a tonal top marker plus tone-inked paw bullets. Each card owns one palette voice — bright teal `#0d9488`, chartreuse, dark teal (primary), golden yellow `#ca8a04` — applied as the icon ink plus a super-low-opacity wash of the same color across the whole card and (stronger) its icon circle. The washes layer over a white base so cards keep their lift off the cream page. Chartreuse ink is deepened to olive `#7a840f` on light surfaces (raw `#d9e021` is invisible there and is never an ink); the card wash keeps the true chartreuse. Tones are CSS-var tone classes on the card (`.valueCard*` in `home.module.css`), never structural selectors — a `:nth-child` alternation silently dies when a wrapper (like `Reveal`) makes each card an only child.
+
+Photographic leaf line-art (styling round 4) supersedes the hand-drawn LeafSprig at two spots: `public/images/teal-leaves.png` anchors to the value section's bottom-right behind the cards (~0.2 opacity), and `public/images/white-leaves-navbar.png` anchors to the signed-in sidebar's bottom-left behind the quote card (~0.25 opacity). Both are decorative (empty alt + aria-hidden), transparent-background line work, pointer-events none.
 
 ## Signature component
 
@@ -40,12 +44,15 @@ The Journey Timeline is Project Nova's defining visual motif.
 
 ## Motion
 
-Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. The How It Works pawprint trail loops continuously (public-pages expressive motion) — opacity-only keyframes inside the `no-preference` block, with a static faded trail as the reduced-motion state.
+Motion communicates state. Use subtle transitions in the application and more expressive effects on public pages. Everything animated is gated behind `prefers-reduced-motion`. Below the How It Works hero runs the ball chase (visual pass 2026-07-18; round 5: ten paws at 36–42px, running on EVERY viewport with a thinned six-paw trot on phones): a red toy ball bounces in with five diminishing, squash-and-stretch bounces and a synced contact shadow, settles at the right, and paw prints trot after it in a moving window before the scene clears — one 9s master cycle, transform/opacity only, with a static resting pose (ball at rest, faded trail) as the reduced-motion state. Paw positions are width-adaptive: paw i sits at `calc(4% + (96% − 100px) × i/9)`, an even arithmetic walk whose final stride lands beside the ball's px-anchored resting spot — pure %-positions spread with the viewport and left a growing dead zone before a px-anchored finale on wide monitors (paws must interpolate % and px in one calc, not switch anchoring mid-trail). The How It Works hero itself is a full-bleed photo under a left-weighted spruce scrim with cream text (chartreuse italic accent — dark-surface use); its copy sits in a `max-w-7xl` container (round 3) so the text hugs the left and the image's center-right focal point stays clear. The How It Works journey stepper carries a left-edge half-circle breathing dot arc; the homepage hero entrance is deliberately slow (1.1s staggered), after which the hero photo floats gently forever (round 4: 6.5s ease-in-out alternate, −8px, transform-only, reduced-motion gated). The script word "opportunity." writes itself on after the h1 settles (round 5: a left-to-right clip-path wipe 1.45s→2.65s, then the chartreuse marker underline strokes on via `pathLength=1` dashoffset draw, echo stroke chasing +0.15s); every hidden start state lives inside the no-preference query, so reduced-motion users see it fully drawn. The How It Works closing band carries a heart-masked `dog-kiss.png` photo (inline-SVG `mask-image`) that sways gently side-to-side (3s alternate, motion-gated).
+
+Buttons and button-styled CTA links carry a hover micro-interaction (styling round 3): a `motion-safe` half-pixel-rem lift with a grown shadow that settles back on `:active`; the two arrow CTAs also nudge their arrow right via `group-hover`. Reduced-motion users keep the color-only hover.
 
 Since the visual pass (2026-07-18):
 
 - **Scroll reveals are reversible** — the `Reveal` helper toggles on both enter and leave, so content replays in either scroll direction. Exits drift toward the edge they left through (`data-exit`), which keeps the IntersectionObserver from oscillating at the boundary; stagger delays apply to entrances only.
-- **The breathing dot field** is the ambient motif: masked teal dot grids densest at an anchor corner (homepage top-right, signed-in shell bottom-right), fading across the page, breathing on counter-phased 9s/13s opacity/scale loops (compositor-only). Reduced motion shows the static mid-opacity field.
+- **Reveals are directional** (styling round 3): `from="up" | "left" | "right"` — headings keep the classic rise; the How It Works journey steps weave in from alternating sides, the expectations pair converges (left card from left, right card from right), and the homepage value cards converge toward center. Horizontal reveals ignore the exit edge — they re-hide toward their own side, which can never oscillate the observer — and both page modules' `overflow-x: clip` keeps the hidden offsets from widening 360px viewports.
+- **The breathing dot field** is the ambient motif: masked teal dot grids densest at an anchor corner (homepage top-right, signed-in shell bottom-right), fading across the page, breathing on counter-phased 9s/13s opacity/scale loops (compositor-only). Reduced motion shows the static mid-opacity field. It runs in two emphasis tiers (styling round 3): the public anchors (homepage top-right, How It Works journey arc) are deliberately louder — higher alpha, larger dots — while the dashboard bottom-right anchor stays quiet so work surfaces are never distracted.
 
 ## Dark mode
 
@@ -71,7 +78,7 @@ Non-color tokens (radii, shadows, focus ring, motion durations with reduced-moti
 - Active nav item: chartreuse→cream gradient pill with dark `accent-content` text and `aria-current="page"`.
 - **On teal surfaces the focus ring is `accent`, never `primary`** (the global primary ring is invisible there — same rule as the public closing bands).
 - Muted text on teal uses `base-100/85` or stronger (`/70` fails AA — computed); disabled nav items are `base-100/60`, `aria-disabled` (axe-exempt), held to a self-imposed ≥ 3:1.
-- The sidebar carries no interactive elements outside the nav (the bottom quote card is static).
+- The sidebar carries no interactive elements outside the nav (the bottom quote card is static). White leaf line-art (`white-leaves-navbar.png`, round 4) anchors to its bottom-left behind the quote card — the card is positioned so it paints above.
 - Dashboards: white `surface` stat cards with filled tone icon circles; the role chip renders once, in the topbar.
 - A breathing dot field sits fixed in the viewport's bottom-right corner behind all content (visual pass 2026-07-18) — negative z-index, visible only through transparent cream areas; the sidebar's static dot cluster is retired.
 

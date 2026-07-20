@@ -43,11 +43,13 @@
   opacity: 0.45;
 }
 
+/* Public anchors run louder than the dashboard one (styling round 3):
+   marketing pages want the field noticed; work surfaces keep it quiet. */
 .topRight {
   --dots-origin: 100% 0%;
-  --dots-color: rgb(15 107 92 / 0.4);
+  --dots-color: rgb(15 107 92 / 0.55);
   --dots-cell: 26px;
-  --dots-r: 1.6px;
+  --dots-r: 1.9px;
 }
 
 .bottomRight {
@@ -55,6 +57,15 @@
   --dots-color: rgb(15 107 92 / 0.32);
   --dots-cell: 24px;
   --dots-r: 1.4px;
+}
+
+/* Half-circle arc breathing out of the viewport's left edge (styling
+   round 2 — the How It Works journey stepper). */
+.leftCenter {
+  --dots-origin: 0% 50%;
+  --dots-color: rgb(15 107 92 / 0.5);
+  --dots-cell: 25px;
+  --dots-r: 1.8px;
 }
 
 /* No mask support -> no dots at all (an unmasked grid would be loud). */

@@ -11,7 +11,11 @@ export interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
 
 const baseClasses =
   "inline-flex items-center justify-center gap-2 rounded-md font-medium " +
-  "transition-colors duration-(--duration-fast) " +
+  "transition-[color,background-color,border-color,box-shadow,transform] duration-(--duration-fast) " +
+  // Hover lift + settle (styling round 3) — motion-safe only, so
+  // reduced-motion users keep the color-only hover.
+  "motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md " +
+  "motion-safe:active:translate-y-0 motion-safe:active:shadow-none " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary " +
   "disabled:pointer-events-none disabled:opacity-50";
 

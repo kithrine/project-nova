@@ -1,11 +1,11 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   E2E_OPS_USER_EMAIL,
   E2E_PARTICIPANT_USER_EMAIL,
   E2E_USER_EMAIL,
 } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Role-specific protected layouts (Story 1.7): each user lands on their
@@ -13,20 +13,10 @@ import {
  * Permission denied state.
  */
 
-async function signInAs(page: Page, identifier: string) {
-  await page.goto("/sign-in");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier } });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
-
 test("a shelter user lands on the shelter shell and is denied operations", async ({
   page,
 }) => {
-  await signInAs(page, E2E_USER_EMAIL);
+  await signIn(page, E2E_USER_EMAIL);
 
   await page.goto("/dashboard");
   await page.waitForURL(/\/shelter/, { timeout: 15_000 });
@@ -44,7 +34,7 @@ test("a shelter user lands on the shelter shell and is denied operations", async
 test("an operations user lands on the operations shell and is denied shelter", async ({
   page,
 }) => {
-  await signInAs(page, E2E_OPS_USER_EMAIL);
+  await signIn(page, E2E_OPS_USER_EMAIL);
 
   await page.goto("/dashboard");
   await page.waitForURL(/\/operations/, { timeout: 15_000 });
@@ -61,7 +51,7 @@ test("an operations user lands on the operations shell and is denied shelter", a
 test("a participant lands on the participant shell and is denied operations", async ({
   page,
 }) => {
-  await signInAs(page, E2E_PARTICIPANT_USER_EMAIL);
+  await signIn(page, E2E_PARTICIPANT_USER_EMAIL);
 
   await page.goto("/dashboard");
   await page.waitForURL(/\/participant/, { timeout: 15_000 });
@@ -78,7 +68,7 @@ test("a participant lands on the participant shell and is denied operations", as
 test("the mobile shell offers a collapsible menu with the primary action reachable", async ({
   page,
 }) => {
-  await signInAs(page, E2E_USER_EMAIL);
+  await signIn(page, E2E_USER_EMAIL);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/shelter");
 

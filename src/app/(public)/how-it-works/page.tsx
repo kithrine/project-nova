@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
+import { BreathingDots } from "@/components/decor/breathing-dots";
 import { NovaLogo } from "@/components/layout/nova-logo";
 
 import styles from "./how-it-works.module.css";
@@ -25,24 +27,142 @@ function Paw({ className }: { className?: string }) {
   );
 }
 
-/** Hand-drawn underline flourish for the script accent (decorative;
- *  duplicated from the homepage per the house local-helper pattern). */
-function UnderlineFlourish({ className }: { className?: string }) {
+/*
+ * Card icons (round 5) — Lucide-derived paths (ISC license) inlined as
+ * local aria-hidden components, the same idiom as the homepage quartet.
+ */
+
+/** Hand offering coins — "Real paid work" (Lucide "hand-coins"). */
+function HandCoins({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 220 14"
+      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="3.5"
+      strokeWidth="2"
       strokeLinecap="round"
-      preserveAspectRatio="none"
+      strokeLinejoin="round"
       className={className}
     >
-      <path d="M4 9c38-5 74-6 112-4 34 2 66 3 100 1" />
+      <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17" />
+      <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 16 6 6" />
+      <circle cx="16" cy="9" r="2.9" />
+      <circle cx="6" cy="5" r="3" />
     </svg>
   );
 }
+
+/** Heart with clasped hands — "Support that stays" (Lucide "heart-handshake"). */
+function HeartHandshake({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
+      <path d="m18 15-2-2" />
+      <path d="m15 18-2-2" />
+    </svg>
+  );
+}
+
+/** Backpack — "What you bring" (Lucide "backpack"). */
+function Backpack({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5" />
+      <path d="M8 10h8" />
+    </svg>
+  );
+}
+
+/** Life buoy — "What we bring" (Lucide "life-buoy"). */
+function LifeBuoy({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.93 4.93 4.24 4.24" />
+      <path d="m14.83 9.17 4.24-4.24" />
+      <path d="m14.83 14.83 4.24 4.24" />
+      <path d="m9.17 14.83-4.24 4.24" />
+      <circle cx="12" cy="12" r="4" />
+    </svg>
+  );
+}
+
+/** Ground trot for the ball chase. Positions/rotations are static inline
+ *  styles — only opacity animates, so they can never conflict.
+ *
+ *  Width-adaptive stride (round 5 follow-up): paw i sits at
+ *  calc(4% + (96% − 100px) × i/9) — an even arithmetic walk from the
+ *  left margin to the final paw, whose left resolves to 100% − 100px
+ *  (right: 58 + its 42px glyph), i.e. right beside the ball's
+ *  px-anchored resting spot. Mixing % and px in ONE calc per paw means
+ *  the stride interpolates smoothly at every viewport width — pure
+ *  %-positions left a growing dead zone before the px-anchored finale
+ *  on wide monitors (the corner-cluster Kit saw on a 32" screen).
+ *  mobileHidden thins the trot on phones so ~6 paws never crowd. */
+const pawLeft = (i: number) => `calc(4% + (96% - 100px) * ${i} / 9)`;
+
+const CHASE_PAWS: ReadonlyArray<{
+  left?: string;
+  right?: number;
+  bottom: number;
+  size: number;
+  rotate: number;
+  color: string;
+  mobileHidden?: boolean;
+}> = [
+  { left: pawLeft(0), bottom: 36, size: 36, rotate: 84, color: "var(--color-secondary)" },
+  { left: pawLeft(1), bottom: 20, size: 37, rotate: 98, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(2), bottom: 35, size: 36, rotate: 80, color: "var(--color-secondary)" },
+  { left: pawLeft(3), bottom: 21, size: 38, rotate: 100, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(4), bottom: 36, size: 37, rotate: 84, color: "var(--color-secondary)" },
+  { left: pawLeft(5), bottom: 20, size: 39, rotate: 96, color: "var(--color-accent)", mobileHidden: true },
+  { left: pawLeft(6), bottom: 35, size: 38, rotate: 82, color: "var(--color-secondary)" },
+  { left: pawLeft(7), bottom: 21, size: 40, rotate: 98, color: "var(--color-accent)" },
+  { left: pawLeft(8), bottom: 35, size: 40, rotate: 84, color: "var(--color-secondary)", mobileHidden: true },
+  { right: 58, bottom: 20, size: 42, rotate: 96, color: "var(--color-accent)" },
+];
+
+/* Card tone classes (round 5) — the same CSS-var contract as the
+   homepage quartet (ink + low-opacity washes of one color); explicit
+   per-card classes, never structural selectors. */
+const CARD_TONE = {
+  brightTeal: styles.toneBrightTeal,
+  chartreuse: styles.toneChartreuse,
+  darkTeal: styles.toneDarkTeal,
+  yellow: styles.toneYellow,
+} as const;
 
 const JOURNEY_STEPS = [
   {
@@ -75,103 +195,110 @@ export default function HowItWorksPage() {
   return (
     <main id="main-content" className={`${styles.page} flex flex-1 flex-col`}>
       <div className={styles.content}>
-        {/* ---------------------------------------------------------- Hero */}
-        <section className="mx-auto w-full max-w-5xl px-4 pt-14 pb-16 sm:px-6 sm:pt-20 sm:pb-24">
-          <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
-            <p className={styles.eyebrow}>
-              <NovaLogo className="size-3.5" />
-              Paid transitional work at animal shelters
-            </p>
-            <h1 className={`${styles.display} ${styles.heroTitle}`}>
-              Good work, real pay,{" "}
-              <span className={styles.scriptWord}>
-                and a team that shows up
-                <UnderlineFlourish className={styles.scriptUnderline} />
-              </span>{" "}
-              for you.
-            </h1>
-            <p className="max-w-prose text-lg leading-relaxed text-base-content/80">
-              Project Nova helps people returning from incarceration step into paid,
-              meaningful work caring for shelter animals — with training, steady support,
-              and a clear path toward lasting employment.
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                Start Your Application
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="size-4"
+        {/* Full-bleed photo hero (styling round 2, 2026-07-18): the image
+            spans the viewport; a left-weighted scrim keeps the (unchanged)
+            hero copy readable, so the text flips to cream with the accent
+            phrase in chartreuse italic — permitted on dark surfaces. */}
+        <section className={styles.heroBand}>
+          <Image
+            src="/images/how-it-works-hero.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className={styles.heroBandImage}
+          />
+          <div className={styles.heroScrim} aria-hidden="true" />
+          {/* max-w-7xl (round 3): the wider container starts the copy well
+              left of center, keeping the people and dogs — the image's
+              focal point — in the clear. */}
+          <div className="relative mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 sm:py-28">
+            <div className={`${styles.heroReveal} relative flex max-w-2xl flex-col gap-6`}>
+              <p className={`${styles.eyebrow} ${styles.eyebrowOnImage}`}>
+                <NovaLogo className="size-3.5" />
+                Workforce impact. Community change.
+              </p>
+              <h1 className={`${styles.display} ${styles.heroTitle} ${styles.heroBandTitle}`}>
+                Good work, real pay,{" "}
+                <span className={styles.heroBandAccent}>and a team that shows up</span>{" "}
+                for you.
+              </h1>
+              <p className={`${styles.heroBandText} max-w-prose text-lg leading-relaxed`}>
+                Project Nova helps people returning from incarceration step into paid,
+                meaningful work caring for shelter animals — with training, steady support,
+                and a clear path toward lasting employment.
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  href="/sign-up"
+                  className="group inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-content shadow-sm transition-[color,background-color,box-shadow,transform] hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-sm"
                 >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </Link>
-              <a
-                href="#journey"
-                className="text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                See the journey
-              </a>
+                  Start Your Application
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
+                  >
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+                <a
+                  href="#journey"
+                  className={`${styles.heroBandText} text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+                >
+                  See the journey
+                </a>
+              </div>
+              <p className={`${styles.heroBandFaint} text-sm`}>
+                Free to start. Create an account, answer at your own pace, and save your
+                progress anytime.
+              </p>
             </div>
-            <p className="text-sm text-base-content/60">
-              Free to start. Create an account, answer at your own pace, and save your
-              progress anytime.
-            </p>
           </div>
-
-          {/* The walked path: the line draws once, then the pawprints walk
-              it forever — each print lands ahead as the oldest fades behind
-              (brand pass 2026-07-16). Reduced motion: a static faded trail. */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 560 190"
-            fill="none"
-            className="mt-4 hidden w-full max-w-3xl sm:block"
-          >
-            <path
-              className={`${styles.trailPath} text-secondary`}
-              pathLength="1"
-              d="M8 170 C 120 150, 150 60, 265 78 S 470 140, 552 34"
-              stroke="currentColor"
-              strokeOpacity="0.5"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeDasharray="0.5 2"
-            />
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(52 152) rotate(28) scale(0.85)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(118 128) rotate(22) scale(0.9)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(182 92) rotate(10) scale(0.9)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(248 68) rotate(4) scale(0.95)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(318 82) rotate(-6)">
-              <Paw className="size-5" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(388 104) rotate(-10) scale(1.05)">
-              <Paw className="size-6" />
-            </g>
-            <g className={`${styles.trailPaw} text-primary/80`} transform="translate(458 96) rotate(-20) scale(1.1)">
-              <Paw className="size-6" />
-            </g>
-            <g className={`${styles.trailPaw} text-accent`} transform="translate(524 42) rotate(-30) scale(1.15)">
-              <Paw className="size-6" />
-            </g>
-          </svg>
         </section>
+
+        {/* The ball chase (visual pass 2026-07-18; widened full-bleed with
+            bigger chartreuse/teal paws in styling round 2): a red toy ball
+            bounces in from the left and settles at the right; paw prints
+            trot after it before the scene clears and loops. One master 9s
+            cycle — every element animates at the same duration, paw
+            offsets via animation-delay, so phases can never drift. Paws
+            are HTML-positioned spans, NOT nested in one big SVG viewBox
+            (Tailwind sizing cannot constrain an inner SVG's coordinate
+            system — the bug that broke the old trail). Reduced motion:
+            ball at rest with its contact shadow and a faded trail. */}
+        {/* Runs on every viewport (round 5) — mobileHidden thins the trot
+            on phones instead of hiding the whole scene. */}
+        <div aria-hidden="true" className={`${styles.chase} w-full`}>
+          <div className={styles.ballTrack}>
+            <div className={styles.ballBounce}>
+              <div className={styles.ball} />
+            </div>
+            <div className={styles.ballShadow} />
+          </div>
+          {CHASE_PAWS.map((paw, index) => (
+            <span
+              key={index}
+              className={`${styles.chasePaw}${paw.mobileHidden ? " max-sm:hidden" : ""}`}
+              style={{
+                left: paw.left,
+                right: paw.right,
+                bottom: paw.bottom,
+                width: paw.size,
+                height: paw.size,
+                color: paw.color,
+                transform: `rotate(${paw.rotate}deg)`,
+              }}
+            >
+              <Paw className={styles.chasePawIcon} />
+            </span>
+          ))}
+        </div>
 
         {/* ------------------------------------------------- What this is */}
         <section aria-labelledby="what-heading" className="mx-auto w-full max-w-5xl px-4 pb-20 sm:px-6">
@@ -185,21 +312,27 @@ export default function HowItWorksPage() {
               {
                 title: "Real paid work",
                 body: "A transitional placement at a partner animal shelter — real responsibilities, real wages, real experience for your résumé.",
+                icon: <HandCoins className="size-5" />,
+                tone: "brightTeal" as const,
               },
               {
                 title: "Training that counts",
                 body: "Hands-on training and certifications in animal care that you keep, whatever comes next.",
+                icon: <Paw className="size-5" />,
+                tone: "chartreuse" as const,
               },
               {
                 title: "Support that stays",
                 body: "A coordinator who knows you and a supervisor on site — people whose job is to help you succeed.",
+                icon: <HeartHandshake className="size-5" />,
+                tone: "yellow" as const,
               },
             ].map((card, index) => (
               <Reveal key={card.title} className={styles.reveal} delayMs={index * 120}>
-                <div className={`${styles.stepCard} flex h-full flex-col gap-3 rounded-lg p-6`}>
-                  <div className={styles.cardIcon}>
-                    <Paw className="size-5" />
-                  </div>
+                <div
+                  className={`${styles.stepCard} ${CARD_TONE[card.tone]} flex h-full flex-col gap-3 rounded-lg p-6`}
+                >
+                  <div className={styles.cardIcon}>{card.icon}</div>
                   <h3 className="text-lg font-semibold">{card.title}</h3>
                   <p className="text-sm leading-relaxed text-base-content/75">{card.body}</p>
                 </div>
@@ -209,11 +342,16 @@ export default function HowItWorksPage() {
         </section>
 
         {/* ---------------------------------------------------- The journey */}
-        <section
-          id="journey"
-          aria-labelledby="journey-heading"
-          className="mx-auto w-full max-w-5xl scroll-mt-8 px-4 pb-20 sm:px-6"
-        >
+        {/* The band wrapper anchors the half-circle breathing dot field to
+            the VIEWPORT's left edge at the stepper's height (Kit's doodle);
+            the section markup inside is unchanged. */}
+        <div className={styles.journeyBand}>
+          <BreathingDots anchor="left-center" className={styles.journeyDots} />
+          <section
+            id="journey"
+            aria-labelledby="journey-heading"
+            className="relative mx-auto w-full max-w-5xl scroll-mt-8 px-4 pb-20 sm:px-6"
+          >
           <Reveal className={styles.reveal}>
             <h2 id="journey-heading" className={`${styles.display} text-3xl font-semibold sm:text-4xl`}>
               How the journey works
@@ -233,9 +371,15 @@ export default function HowItWorksPage() {
                 >
                   {index + 1}
                 </div>
-                <Reveal className={`${styles.reveal} min-w-0 flex-1`} delayMs={80}>
+                <Reveal
+                  className={`${styles.reveal} min-w-0 flex-1`}
+                  delayMs={80}
+                  from={index % 2 ? "right" : "left"}
+                >
                   <div className={`${styles.stepCard} rounded-lg p-5 sm:p-6`}>
-                    <h3 className={`${styles.display} text-xl font-semibold`}>{step.title}</h3>
+                    <h3 className={`${styles.display} text-xl font-semibold text-primary`}>
+                      {step.title}
+                    </h3>
                     <p className="mt-2 max-w-prose text-sm leading-relaxed text-base-content/75 sm:text-base">
                       {step.body}
                     </p>
@@ -244,7 +388,8 @@ export default function HowItWorksPage() {
               </li>
             ))}
           </ol>
-        </section>
+          </section>
+        </div>
 
         {/* -------------------------------------------------- Expectations */}
         <section
@@ -260,39 +405,53 @@ export default function HowItWorksPage() {
             </h2>
           </Reveal>
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Reveal className={styles.reveal}>
-              <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
-                <h3 className="text-lg font-semibold">What you bring</h3>
-                <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
+            <Reveal className={styles.reveal} from="left">
+              <div
+                className={`${styles.stepCard} ${styles.expectCard} ${CARD_TONE.chartreuse} h-full rounded-lg p-6`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={styles.cardIcon}>
+                    <Backpack className="size-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold">What you bring</h3>
+                </div>
+                <ul className="mt-4 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Showing up — for your schedule, your team, and the animals
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Willingness to learn, even when it’s new or hard
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Care — animals depend on the people around them
                   </li>
                 </ul>
               </div>
             </Reveal>
-            <Reveal className={styles.reveal} delayMs={120}>
-              <div className={`${styles.stepCard} h-full rounded-lg p-6`}>
-                <h3 className="text-lg font-semibold">What we bring</h3>
-                <ul className="mt-3 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
+            <Reveal className={styles.reveal} delayMs={120} from="right">
+              <div
+                className={`${styles.stepCard} ${styles.expectCard} ${CARD_TONE.darkTeal} h-full rounded-lg p-6`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={styles.cardIcon}>
+                    <LifeBuoy className="size-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold">What we bring</h3>
+                </div>
+                <ul className="mt-4 flex list-none flex-col gap-2 text-sm leading-relaxed text-base-content/75">
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Paid transitional work and training that leads to certifications
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     A coordinator and an on-site supervisor who want you to succeed
                   </li>
                   <li className="flex gap-2">
-                    <Paw className="mt-0.5 size-4 shrink-0 text-secondary/60" />
+                    <Paw className={`${styles.toneInk} mt-0.5 size-4 shrink-0`} />
                     Honest communication about where you are and what’s next
                   </li>
                 </ul>
@@ -316,24 +475,37 @@ export default function HowItWorksPage() {
 
         {/* ------------------------------------------------------- Closing */}
         <section aria-labelledby="closing-heading" className={styles.closing}>
-          <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-5 px-4 py-16 sm:px-6 sm:py-20">
-            <Paw className="size-8 text-accent/80" />
-            <h2
-              id="closing-heading"
-              className={`${styles.display} max-w-xl text-3xl font-semibold sm:text-4xl`}
-            >
-              Ready when you are.
-            </h2>
-            <p className="max-w-prose text-base leading-relaxed text-base-100/90">
-              Creating your account is the first step — the application itself is plain
-              questions, at your pace, saved as you go.
-            </p>
-            <Link
-              href="/sign-up"
-              className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              Create Your Account
-            </Link>
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-16 sm:px-6 sm:py-20 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col items-start gap-5">
+              <Paw className="size-8 text-accent/80" />
+              <h2
+                id="closing-heading"
+                className={`${styles.display} max-w-xl text-3xl font-semibold sm:text-4xl`}
+              >
+                Ready when you are.
+              </h2>
+              <p className="max-w-prose text-base leading-relaxed text-base-100/90">
+                Creating your account is the first step — the application itself is plain
+                questions, at your pace, saved as you go.
+              </p>
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center gap-2 rounded-md border border-base-100/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-[color,background-color,border-color,box-shadow,transform] hover:border-base-100/70 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
+              >
+                Create Your Account
+              </Link>
+            </div>
+            {/* Heart-masked photo (round 5): decorative, non-interactive —
+                the closing band's no-focusables rule holds. */}
+            <div className={styles.heartWrap} aria-hidden="true">
+              <Image
+                src="/images/dog-kiss.png"
+                alt=""
+                width={1672}
+                height={941}
+                className={styles.heartImage}
+              />
+            </div>
           </div>
         </section>
       </div>

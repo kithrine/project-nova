@@ -48,32 +48,91 @@
 .heroTitle {
   font-size: clamp(2.6rem, 7.5vw, 4.75rem);
   line-height: 1.04;
-  font-weight: 620;
-  font-variation-settings: "SOFT" 60;
-}
-
-/* Brand-signature accent treatment (brand pass 2026-07-16) — the same
-   Caveat script + chartreuse flourish idiom as the homepage. */
-.scriptWord {
-  font-family: var(--font-script), "Segoe Script", cursive;
-  color: var(--color-primary);
-  font-size: 1.14em;
   font-weight: 600;
-  letter-spacing: 0;
-  position: relative;
-  display: inline-block;
-  white-space: nowrap;
-  padding-inline: 0.04em;
 }
 
-.scriptUnderline {
+/* The accent phrase — the pre-refresh treatment restored 2026-07-18 at
+   Kit's request: italic teal in the display face, no script, no
+   flourish (secondary on base-100 ≈ 5.07:1, AA). */
+.heroTitleAccent {
+  color: var(--color-secondary);
+  font-style: italic;
+}
+
+/* --- Full-bleed photo hero (styling round 2, 2026-07-18) ---------------
+   The image spans the viewport behind a left-weighted spruce scrim; the
+   hero copy flips to cream. Chartreuse italic is permitted here — dark
+   surface, decorative-large text (docs/ux/visual-design-reference.md). */
+
+.heroBand {
+  position: relative;
+  overflow: hidden;
+}
+
+.heroBandImage {
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroScrim {
   position: absolute;
-  left: -2%;
-  right: -2%;
-  bottom: -0.26em;
-  width: 104%;
-  height: 0.34em;
+  inset: 0;
+  pointer-events: none;
+  /* Falloff pulled left (round 3): the copy now lives in the far-left
+     dark zone (max-w-7xl container), so the scrim can release the image
+     — and its center-right focal point — sooner. */
+  background: linear-gradient(
+    to right,
+    rgb(11 23 18 / 0.72) 0%,
+    rgb(11 23 18 / 0.55) 32%,
+    rgb(11 23 18 / 0.12) 68%,
+    transparent 100%
+  );
+}
+
+/* The eyebrow chip's translucent chartreuse tint is unreadable over the
+   photo — on-image it goes dark glass with cream text. Compound selector:
+   must beat .eyebrow regardless of source order. */
+.eyebrow.eyebrowOnImage {
+  background: rgb(11 23 18 / 0.55);
+  border-color: rgb(250 246 236 / 0.35);
+  color: var(--color-base-100);
+  backdrop-filter: blur(2px);
+}
+
+.heroBandTitle {
+  color: var(--color-base-100);
+  text-shadow: 0 2px 18px rgb(11 23 18 / 0.45);
+}
+
+.heroBandAccent {
   color: var(--color-accent);
+  font-style: italic;
+}
+
+.heroBandText {
+  color: rgb(250 246 236 / 0.88);
+  text-shadow: 0 1px 10px rgb(11 23 18 / 0.4);
+}
+
+.heroBandFaint {
+  color: rgb(250 246 236 / 0.72);
+  text-shadow: 0 1px 10px rgb(11 23 18 / 0.4);
+}
+
+/* --- Journey band: the half-circle dot arc (styling round 2) ----------- */
+
+.journeyBand {
+  position: relative;
+}
+
+.journeyDots {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(24rem, 34vw);
+  height: min(44rem, 92%);
 }
 
 .eyebrow {
@@ -92,6 +151,10 @@
   align-self: flex-start;
 }
 
+/* The icon circle consumes its card's tone vars (round 5); fallbacks
+   equal the pre-tone values so untinted cards render exactly as before.
+   (The old .reveal:nth-child(even) alternation is superseded by the
+   explicit tone classes below.) */
 .cardIcon {
   display: flex;
   align-items: center;
@@ -99,22 +162,122 @@
   width: 3rem;
   height: 3rem;
   border-radius: 9999px;
-  background: rgb(15 107 92 / 0.1);
-  border: 1px solid rgb(15 107 92 / 0.25);
-  color: var(--color-primary);
+  background: var(--icon-tint, rgb(15 107 92 / 0.1));
+  border: 1px solid var(--tone-strong, rgb(15 107 92 / 0.25));
+  color: var(--card-ink, var(--color-primary));
+  flex-shrink: 0;
 }
 
-/* Alternate the icon wash to chartreuse on even cards (homepage idiom;
-   the grid's direct children are the Reveal wrappers). */
-.reveal:nth-child(even) .cardIcon {
-  background: rgb(217 224 33 / 0.25);
-  border-color: rgb(15 107 92 / 0.2);
+/* Card tone classes (round 5) — the same CSS-var contract and values as
+   the homepage quartet (.valueCard* in home.module.css): each sets its
+   icon ink plus super-low-opacity washes of the same color. Chartreuse
+   ink is the deepened olive; raw #d9e021 is never an ink on light. */
+.toneBrightTeal {
+  --card-ink: #0d9488;
+  --card-tint: rgb(13 148 136 / 0.06);
+  --icon-tint: rgb(13 148 136 / 0.12);
+  --tone-strong: rgb(13 148 136 / 0.45);
 }
 
-/* Reduced motion (and browsers without the media query): the whole trail
-   shows as a gently faded walked path. Overridden inside no-preference. */
-.trailPaw {
+.toneChartreuse {
+  --card-ink: #7a840f;
+  --card-tint: rgb(217 224 33 / 0.14);
+  --icon-tint: rgb(217 224 33 / 0.3);
+  --tone-strong: rgb(122 132 15 / 0.45);
+}
+
+.toneDarkTeal {
+  --card-ink: var(--color-primary);
+  --card-tint: rgb(15 107 92 / 0.06);
+  --icon-tint: rgb(15 107 92 / 0.12);
+  --tone-strong: rgb(15 107 92 / 0.45);
+}
+
+.toneYellow {
+  --card-ink: #ca8a04;
+  --card-tint: rgb(202 138 4 / 0.07);
+  --icon-tint: rgb(202 138 4 / 0.14);
+  --tone-strong: rgb(202 138 4 / 0.45);
+}
+
+/* Paw bullets (and other small marks) inked in the card's tone. */
+.toneInk {
+  color: var(--card-ink, var(--color-secondary));
+  opacity: 0.72;
+}
+
+/* Expectations cards: a tonal marker along the top (round 5). */
+.expectCard {
+  border-top: 3px solid var(--tone-strong, rgb(15 107 92 / 0.4));
+}
+
+/* --- The ball chase (visual pass 2026-07-18) ---------------------------
+   Everything here is the static resting pose (which doubles as the
+   reduced-motion state); motion is authored only inside
+   prefers-reduced-motion: no-preference, and globals.css backstops.
+   #d94134 is a decorative object color — never a text color. */
+
+.chase {
+  position: relative;
+  height: 160px;
+  /* Entering/exiting ball stays off-stage, and the scene can never
+     widen the page. */
+  overflow: clip;
+  pointer-events: none;
+}
+
+.ballTrack {
+  position: absolute;
+  /* Full strip width: translateX(100%) = one strip-width, so calc()
+     places the ball without any JS measurement. */
+  inset: 0;
+  transform: translateX(calc(100% - 52px)); /* resting: right end */
+}
+
+.ballBounce {
+  position: absolute;
+  left: 0;
+  bottom: 22px; /* the ground line */
+  width: 38px;
+  height: 38px;
+}
+
+.ball {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform-origin: 50% 100%; /* squash compresses into the ground */
+  background:
+    radial-gradient(
+      circle at 32% 28%,
+      rgb(255 255 255 / 0.9) 0%,
+      rgb(255 255 255 / 0.4) 8%,
+      rgb(255 255 255 / 0) 30%
+    ),
+    radial-gradient(circle at 36% 32%, #e8695b 0%, #d94134 52%, #9c2a20 100%);
+}
+
+.ballShadow {
+  position: absolute;
+  left: 4px;
+  bottom: 12px;
+  width: 30px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(11 23 18 / 0.45);
+  filter: blur(4px); /* static blur — never animated */
   opacity: 0.45;
+}
+
+.chasePaw {
+  position: absolute; /* left/bottom/size/color/rotate set inline */
+  opacity: 0.45; /* resting pose: the faded walked trail */
+}
+
+.chasePawIcon {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* Staggered hero entrance */
@@ -138,46 +301,59 @@
     animation-delay: 0.48s;
   }
 
-  /* The hero trail draws itself like a walked path */
-  .trailPath {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-    animation: draw 2s ease-out 0.5s forwards;
+  /* The ball chase in motion — every element runs the same 9s cycle. */
+  .ballTrack {
+    animation: chaseBallX 9s linear infinite;
+  }
+  .ballBounce {
+    animation: chaseBallY 9s linear infinite;
+  }
+  .ball {
+    animation: chaseBallSquash 9s linear infinite;
+  }
+  .ballShadow {
+    animation: chaseBallShadow 9s linear infinite;
   }
 
-  /* The infinite walk (brand pass 2026-07-16): each print lands, holds
-     while the walk advances, then fades behind — 8 paws, 0.55s stride,
-     cycle = 8 × 0.55 = 4.4s so the loop wraps seamlessly (~3.6 prints
-     visible at any moment). Opacity ONLY: a CSS transform would override
-     each paw's SVG transform attribute and pile them at the origin. */
-  .trailPaw {
+  /* Paw offsets: equal durations mean each delay is a permanent,
+     drift-free phase shift of the same keyframes. Stride 0.6s; each
+     print is visible ~2.3s, so ~4 are lit at once — a moving window
+     trotting after the ball. Before its first delay expires a paw shows
+     its base opacity, so start invisible here. */
+  .chasePaw {
     opacity: 0;
-    animation: pawStep 4.4s linear infinite;
+    animation: chasePawStep 9s linear infinite;
   }
 
-  .trailPaw:nth-of-type(1) {
-    animation-delay: 0.7s;
+  .chasePaw:nth-of-type(1) {
+    animation-delay: 1s;
   }
-  .trailPaw:nth-of-type(2) {
-    animation-delay: 1.25s;
+  .chasePaw:nth-of-type(2) {
+    animation-delay: 1.6s;
   }
-  .trailPaw:nth-of-type(3) {
-    animation-delay: 1.8s;
+  .chasePaw:nth-of-type(3) {
+    animation-delay: 2.2s;
   }
-  .trailPaw:nth-of-type(4) {
-    animation-delay: 2.35s;
+  .chasePaw:nth-of-type(4) {
+    animation-delay: 2.8s;
   }
-  .trailPaw:nth-of-type(5) {
-    animation-delay: 2.9s;
+  .chasePaw:nth-of-type(5) {
+    animation-delay: 3.4s;
   }
-  .trailPaw:nth-of-type(6) {
-    animation-delay: 3.45s;
-  }
-  .trailPaw:nth-of-type(7) {
+  .chasePaw:nth-of-type(6) {
     animation-delay: 4s;
   }
-  .trailPaw:nth-of-type(8) {
-    animation-delay: 4.55s;
+  .chasePaw:nth-of-type(7) {
+    animation-delay: 4.6s;
+  }
+  .chasePaw:nth-of-type(8) {
+    animation-delay: 5.2s;
+  }
+  .chasePaw:nth-of-type(9) {
+    animation-delay: 5.8s;
+  }
+  .chasePaw:nth-of-type(10) {
+    animation-delay: 6.4s; /* fades by ~8.7s — inside the 9s cycle */
   }
 
   /* Scroll-triggered reveals (data-visible applied by the Reveal helper).
@@ -199,6 +375,19 @@
       transform: translateY(-22px);
     }
 
+    /* Horizontal variants (styling round 3). Source order is load-bearing:
+       these sit AFTER the data-exit rule at equal specificity, so a
+       left/right reveal always hides toward its own side regardless of
+       which edge it exited through (sideways motion can't oscillate the
+       observer, so no exit-edge logic is needed). */
+    .reveal[data-from="left"] {
+      transform: translateX(-30px);
+    }
+
+    .reveal[data-from="right"] {
+      transform: translateX(30px);
+    }
+
     .reveal[data-visible="true"] {
       opacity: 1;
       transform: none;
@@ -215,26 +404,248 @@
   }
 }
 
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
+/* --- Heart-masked photo in the closing band (round 5) ------------------
+   dog-kiss.png cropped to a heart via an inline-SVG mask; the wiggle is
+   a gentle side-to-side sway, motion-gated, static heart otherwise. */
+
+.heartWrap {
+  width: min(19rem, 68vw);
+  flex-shrink: 0;
+}
+
+.heartImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  /* The kiss sits just left of the frame's center. */
+  object-position: 52% 45%;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+
+/* No mask support -> keep the photo but soften it to a rounded card
+   rather than showing a hard rectangle. */
+@supports not (mask-image: url("data:image/svg+xml,")) {
+  .heartImage {
+    border-radius: 1.25rem;
   }
 }
 
-/* One stride of the walking trail: land quickly, hold, fade behind. */
-@keyframes pawStep {
+@media (prefers-reduced-motion: no-preference) {
+  .heartWrap {
+    animation: heartWiggle 3s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes heartWiggle {
+  from {
+    transform: translateX(-5px) rotate(-3deg);
+  }
+  to {
+    transform: translateX(5px) rotate(3deg);
+  }
+}
+
+/* Ball flight across the strip: constant-ish speed that eases out as
+   bounce energy dies, then a resting hold and a fade so the stage is
+   clear when the cycle restarts. */
+@keyframes chaseBallX {
+  0% {
+    transform: translateX(-60px);
+    opacity: 0;
+  }
+  2% {
+    transform: translateX(-60px);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.25, 0.2, 0.45, 1);
+  }
+  40%,
+  90% {
+    transform: translateX(calc(100% - 52px));
+    opacity: 1;
+  }
+  97%,
+  100% {
+    transform: translateX(calc(100% - 52px));
+    opacity: 0;
+  }
+}
+
+/* Five diminishing bounces. Rising halves decelerate, falling halves
+   accelerate — the two cubic-bezier halves of a parabola. Contacts at
+   8 / 15 / 21 / 26 / 30%; segments shorten as heights shrink. */
+@keyframes chaseBallY {
+  0%,
+  2% {
+    transform: translateY(-110px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  8% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  11.5% {
+    transform: translateY(-60px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  15% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  18% {
+    transform: translateY(-36px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  21% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  23.5% {
+    transform: translateY(-18px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  26% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  28% {
+    transform: translateY(-8px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  30% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  31.5% {
+    transform: translateY(-3px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  33%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Squash at each contact (with a beat of stretch either side on the
+   fast early bounces), magnitude fading with the bounce energy. */
+@keyframes chaseBallSquash {
+  0%,
+  6.5% {
+    transform: scale(1);
+  }
+  7.6% {
+    transform: scaleX(0.94) scaleY(1.08);
+  }
+  8% {
+    transform: scaleX(1.18) scaleY(0.8);
+  }
+  8.9% {
+    transform: scaleX(0.95) scaleY(1.06);
+  }
+  10%,
+  14.2% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scaleX(1.13) scaleY(0.85);
+  }
+  15.8% {
+    transform: scaleX(0.97) scaleY(1.04);
+  }
+  17%,
+  20.4% {
+    transform: scale(1);
+  }
+  21% {
+    transform: scaleX(1.09) scaleY(0.9);
+  }
+  21.6%,
+  25.6% {
+    transform: scale(1);
+  }
+  26% {
+    transform: scaleX(1.05) scaleY(0.95);
+  }
+  26.5%,
+  29.7% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scaleX(1.02) scaleY(0.98);
+  }
+  30.4%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Contact shadow: tight and dark on the ground, wide and faint at each
+   apex. Keyframes align with chaseBallY's contacts; the carrier's
+   opacity fade (chaseBallX 90–97%) multiplies on top. */
+@keyframes chaseBallShadow {
+  0%,
+  2% {
+    transform: scale(1.9);
+    opacity: 0.1;
+  }
+  8% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  11.5% {
+    transform: scale(1.6);
+    opacity: 0.16;
+  }
+  15% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  18% {
+    transform: scale(1.4);
+    opacity: 0.24;
+  }
+  21% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  23.5% {
+    transform: scale(1.25);
+    opacity: 0.32;
+  }
+  26% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  28% {
+    transform: scale(1.1);
+    opacity: 0.4;
+  }
+  30%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+}
+
+/* One paw landing: pop in fast, hold, fade behind. With the 0.6s
+   stride this keeps ~4 prints visible as the window advances. */
+@keyframes chasePawStep {
   0% {
     opacity: 0;
   }
-  8% {
+  2.5% {
     opacity: 1;
   }
-  30% {
+  17% {
     opacity: 1;
   }
-  45% {
-    opacity: 0;
-  }
+  26%,
   100% {
     opacity: 0;
   }
@@ -268,7 +679,11 @@
 
 .stepCard {
   border: 1px solid rgb(11 23 18 / 0.1);
-  background: rgb(255 255 255 / 0.72);
+  /* Tone wash over the white base (round 5) — transparent fallback keeps
+     untinted cards (the journey steps) byte-identical to before. */
+  background:
+    linear-gradient(var(--card-tint, transparent), var(--card-tint, transparent))
+    rgb(255 255 255 / 0.72);
   backdrop-filter: blur(2px);
   box-shadow: 0 1px 2px rgb(11 23 18 / 0.04);
   transition:

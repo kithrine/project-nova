@@ -25,26 +25,6 @@ function Blob({ className }: { className?: string }) {
   );
 }
 
-/** Leaf sprig — decorative only. */
-function LeafSprig({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 60 80"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={className}
-    >
-      <path d="M30 76C28 52 30 28 38 8" />
-      <path d="M34 22c-8-2-14-8-16-16 8 0 15 6 16 16Z" fill="currentColor" stroke="none" />
-      <path d="M35 40c-9 1-17-3-21-11 9-2 17 3 21 11Z" fill="currentColor" stroke="none" />
-      <path d="M32 56c-8 3-17 1-23-6 8-4 17-1 23 6Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 /** Hand-drawn underline flourish for the script word — decorative only. */
 function UnderlineFlourish({ className }: { className?: string }) {
   return (
@@ -58,8 +38,10 @@ function UnderlineFlourish({ className }: { className?: string }) {
       preserveAspectRatio="none"
       className={className}
     >
-      <path d="M6 15C48 8 100 6 214 12" />
-      <path d="M28 20c56-7 118-8 168-5" strokeWidth="4" opacity="0.65" />
+      {/* pathLength=1 normalizes both strokes so the CSS marker-draw
+          (dasharray/dashoffset 1 -> 0) needs no measured lengths. */}
+      <path d="M6 15C48 8 100 6 214 12" pathLength={1} />
+      <path d="M28 20c56-7 118-8 168-5" strokeWidth="4" opacity="0.65" pathLength={1} />
     </svg>
   );
 }
@@ -73,6 +55,94 @@ function Paw({ className }: { className?: string }) {
       <ellipse cx="4.9" cy="9.6" rx="1.8" ry="2.3" transform="rotate(-20 4.9 9.6)" />
       <ellipse cx="19.1" cy="9.6" rx="1.8" ry="2.3" transform="rotate(20 19.1 9.6)" />
       <path d="M12 10.2c2.6 0 5.4 2.1 5.4 4.9 0 2.3-1.7 3.7-3.4 3.7-.8 0-1.4-.3-2-.3s-1.2.3-2 .3c-1.7 0-3.4-1.4-3.4-3.7 0-2.8 2.8-4.9 5.4-4.9z" />
+    </svg>
+  );
+}
+
+/*
+ * Value-card icon quartet (styling round 4) — Lucide-derived paths
+ * (ISC license) inlined as local components: dependency-free, decorative
+ * (aria-hidden), currentColor ink so each card's tone class colors them
+ * (see .valueCard* vars in home.module.css).
+ */
+
+/** Hand cradling a heart — Participant-Centered (Lucide "hand-heart"). */
+function HandHeart({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16" />
+      <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9" />
+      <path d="m2 15 6 6" />
+      <path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z" />
+    </svg>
+  );
+}
+
+/** Paw print — Shelter Partnerships (Lucide "paw-print"). */
+function PawPrint({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="11" cy="4" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <circle cx="20" cy="16" r="2" />
+      <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z" />
+    </svg>
+  );
+}
+
+/** Connected step nodes — Workflow-Driven (Lucide "workflow"). */
+function WorkflowNodes({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect width="8" height="8" x="3" y="3" rx="2" />
+      <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+      <rect width="8" height="8" x="13" y="13" rx="2" />
+    </svg>
+  );
+}
+
+/** Rising line chart — Data That Drives Change (Lucide "chart-line"). */
+function ChartLine({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="m19 9-5 5-4-4-3 3" />
     </svg>
   );
 }
@@ -173,24 +243,39 @@ const VALUE_PROPS = [
   {
     title: "Participant-Centered",
     body: "Track progress, celebrate growth, and remove barriers on the way to meaningful employment.",
-    icon: <NavIcon name="user" className="size-6" />,
+    icon: <HandHeart className="size-6" />,
+    tone: "brightTeal",
   },
   {
     title: "Shelter Partnerships",
     body: "Streamline placements and stay in step with the shelters you rely on.",
-    icon: <Paw className="size-6" />,
+    icon: <PawPrint className="size-6" />,
+    tone: "chartreuse",
   },
   {
     title: "Workflow-Driven",
     body: "Every step has a next step — tasks, approvals, and records that keep the program moving forward.",
-    icon: <NavIcon name="clipboard" className="size-6" />,
+    icon: <WorkflowNodes className="size-6" />,
+    tone: "darkTeal",
   },
   {
     title: "Data That Drives Change",
     body: "Measure outcomes, prove impact, and support the funding your community deserves.",
-    icon: <NavIcon name="chart" className="size-6" />,
+    icon: <ChartLine className="size-6" />,
+    tone: "yellow",
   },
 ] as const;
+
+/* Tone class goes on the CARD (styling round 4): each sets the icon ink
+   plus a super-low-opacity wash of that same color for the card
+   background and icon circle (CSS vars in home.module.css). Explicit
+   per-card classes — never structural selectors (the round-3 lesson). */
+const VALUE_CARD_TONE = {
+  brightTeal: styles.valueCardBrightTeal,
+  chartreuse: styles.valueCardChartreuse,
+  darkTeal: styles.valueCardDarkTeal,
+  yellow: styles.valueCardYellow,
+} as const;
 
 const TRUST_CATEGORIES = [
   { label: "Animal Shelters", icon: <Paw className={`size-5 ${styles.trustIcon}`} /> },
@@ -219,12 +304,14 @@ export default function HomePage() {
             <div className={`${styles.heroReveal} flex flex-col items-start gap-6`}>
               <p className={styles.eyebrow}>
                 <NovaLogo className="size-3.5" />
-                Workforce impact. Community change.
+                Paid transitional work at animal shelters
               </p>
               <h1 className={`${styles.display} ${styles.heroTitle} text-balance`}>
                 Stronger futures start with{" "}
                 <span className={styles.scriptWord}>
-                  opportunity.
+                  {/* Inner span: the write-on wipe clips THIS box only, so
+                      the accessible name ("…opportunity.") never changes. */}
+                  <span className={styles.scriptWordText}>opportunity.</span>
                   <UnderlineFlourish className={styles.scriptUnderline} />
                 </span>
               </h1>
@@ -236,7 +323,7 @@ export default function HomePage() {
               <div className="flex flex-wrap items-center gap-4">
                 <a
                   href="/how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-content transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-content transition-[color,background-color,box-shadow,transform] hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
                 >
                   See How It Works
                   <svg
@@ -247,14 +334,14 @@ export default function HomePage() {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-4"
+                    className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
                   >
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </a>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center rounded-full border border-primary/40 px-6 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="inline-flex items-center rounded-full border border-primary/40 px-6 py-3 text-sm font-semibold text-primary transition-[color,background-color,border-color,box-shadow,transform] hover:border-primary hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
                 >
                   Start Your Application
                 </Link>
@@ -271,7 +358,7 @@ export default function HomePage() {
                 width={1535}
                 height={1024}
                 priority
-                sizes="(min-width: 1024px) 560px, 100vw"
+                sizes="(min-width: 1024px) 640px, 100vw"
                 className={styles.heroImage}
               />
             </div>
@@ -304,8 +391,18 @@ export default function HomePage() {
           className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-20"
         >
           <Blob className={styles.blobChartreuse} />
-          <LeafSprig className={`${styles.leafSprig} ${styles.leafSprigBottom}`} />
-          <div className="flex flex-col gap-10">
+          {/* Photographic leaf line-art (round 4, replacing the hand-drawn
+              sprig): anchored to the section's bottom-right, behind the
+              cards — decorative, faint, non-interactive. */}
+          <Image
+            src="/images/teal-leaves.png"
+            alt=""
+            width={1536}
+            height={1024}
+            aria-hidden="true"
+            className={styles.valueLeaves}
+          />
+          <div className="relative flex flex-col gap-10">
             <div className="flex max-w-2xl flex-col gap-3">
               <h2 className={`${styles.display} text-3xl font-semibold sm:text-4xl`} id="value-heading">
                 Why programs choose Project Nova
@@ -317,8 +414,13 @@ export default function HomePage() {
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {VALUE_PROPS.map((prop, index) => (
-                <Reveal key={prop.title} className={styles.reveal} delayMs={index * 90}>
-                  <div className={styles.valueCard}>
+                <Reveal
+                  key={prop.title}
+                  className={styles.reveal}
+                  delayMs={index * 90}
+                  from={index < 2 ? "left" : "right"}
+                >
+                  <div className={`${styles.valueCard} ${VALUE_CARD_TONE[prop.tone]}`}>
                     <span className={styles.valueIcon}>{prop.icon}</span>
                     <h3 className="text-base font-semibold">{prop.title}</h3>
                     <p className="text-sm leading-relaxed text-base-content/70">{prop.body}</p>
@@ -335,7 +437,15 @@ export default function HomePage() {
         </div>
         <section aria-label="Our mission" className={styles.band}>
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-4 pt-6 pb-16 text-center sm:px-6">
-            <NovaLogo className="size-8 text-accent/80" />
+            {/* The full brand lockup (styling round 2) — transparent PNG,
+                decorative; the tagline below carries the words. */}
+            <Image
+              src="/images/nova-logo.png"
+              alt=""
+              width={1254}
+              height={1254}
+              className={styles.bandLogo}
+            />
             <p className={styles.bandScript}>
               Building pathways. Strengthening communities. Changing lives.
             </p>

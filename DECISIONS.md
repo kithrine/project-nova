@@ -25,3 +25,4 @@
 | ADR-021 | Provisional retention schedule (5y / 3y-from-final-report); exports ephemeral, never stored  | Accepted (working policy; counsel review gated at launch)    |
 | ADR-019 | Program jurisdiction is Colorado — corrects the Washington research assumption; citation map    | Accepted                                                     |
 | ADR-020 | Provisional grant reporting format — hours by funding source, LOCKED vs APPROVED distinguished | Accepted (working format; award validation gated at launch)  |
+| ADR-022 | Demo-day dataset and shared demo accounts on production — scoped, resettable ADR-006 exception | Accepted (demo-day window 2026-07)                           |

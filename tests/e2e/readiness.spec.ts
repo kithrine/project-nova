@@ -1,7 +1,7 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_OPS_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Matching readiness (Story 3.6): the coordinator watches the blocker list
@@ -10,24 +10,11 @@ import { E2E_OPS_USER_EMAIL } from "./test-user";
  * step skips itself if a prior flaky attempt already did it.
  */
 
-async function signInAsCoordinator(page: Page) {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_OPS_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
-
 test("the blocker list shrinks to the ready state as requirements complete", async ({
   page,
 }) => {
   test.setTimeout(120_000);
-  await signInAsCoordinator(page);
+  await signIn(page, E2E_OPS_USER_EMAIL);
   await page.goto("/operations/enrollments/e2e_enrollment_readiness");
 
   await expect(

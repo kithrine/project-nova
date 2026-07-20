@@ -2,7 +2,7 @@
 
 ## Foundation
 
-- Button
+- Button — implemented (`src/components/ui/button.tsx`): explicit variants, semantic `<button>`, `buttonClassName()` shares the vocabulary with Link CTAs. Hover micro-interaction (styling round 3): a `motion-safe` lift (`-translate-y-0.5` + `shadow-md`) that settles on `:active`; reduced-motion users keep the color-only hover. Button-styled public CTAs carry the same cluster, and the two arrow CTAs nudge their arrow right via `group-hover`
 - Link
 - Form Field
 - Input
@@ -54,12 +54,16 @@
 
 ## Public marketing (brand refresh 2026-07-15)
 
-- Nova Logo (compass star — `src/components/layout/nova-logo.tsx`; the brand name is always adjacent text)
+- Nova Logo — the official raster mark (`public/images/logo-official.png`) at brand lockups (header, footer, shell sidebar/topbar), favicon derived from it; the hand-drawn compass-star SVG (`src/components/layout/nova-logo.tsx`) stays for eyebrow chips. The brand name is always adjacent text
+- Photographic Hero (How It Works, styling round 2) — full-bleed image under a left-weighted scrim; hero copy flips to cream with a chartreuse italic accent (dark-surface use); text unchanged so all pins hold
 - Script Accent (Caveat word with drawn flourish — decorative styling over plain text)
-- Decorative Motifs (blob, leaf sprig, breathing dot field — always `aria-hidden`, never containing focusables). The breathing dot field (`src/components/decor/breathing-dots.tsx`) is the corner-anchored ambient motif (visual pass 2026-07-18): masked dot grids densest at the anchor corner, counter-phased opacity/scale breathing, `pointer-events: none`, reduced-motion shows the static field. The static dot-cluster rectangles are retired.
+- Decorative Motifs (blob, photographic leaf line-art, breathing dot field — always `aria-hidden`, never containing focusables). Leaf imagery (round 4): `teal-leaves.png` (value section, bottom-right) and `white-leaves-navbar.png` (signed-in sidebar, bottom-left, behind the quote card) replaced the hand-drawn LeafSprig components. The breathing dot field (`src/components/decor/breathing-dots.tsx`) is the corner-anchored ambient motif (visual pass 2026-07-18): masked dot grids densest at the anchor corner, counter-phased opacity/scale breathing, `pointer-events: none`, reduced-motion shows the static field. The static dot-cluster rectangles are retired.
 - Photographic Hero Image (2026-07-18: `public/images/nova-homepage-hero.png`, rounded 1rem with the card shadow, decorative — empty alt + `aria-hidden` wrapper). The Illustrative Dashboard Card (fictional, terminology-correct data; `aria-hidden`; nothing interactive inside) it replaced is commented out in `page.tsx` for potential return
+- Heart-Masked Photo (round 5: `dog-kiss.png` in the How It Works closing band — inline-SVG `mask-image` heart, gentle side-to-side sway, decorative and non-interactive so the closing-band no-focusables rule holds)
+- Script Word Draw-On (round 5: "opportunity." wipes on as if handwritten, then the marker underline strokes itself via `pathLength=1`; all hidden start states inside the no-preference query — reduced-motion sees it fully drawn)
 - Trust Strip (category marks, never fictional organizations)
-- Value Prop Card
+- Value Prop Card — Lucide-derived icon quartet (styling round 4: hand-heart, paw-print, workflow, chart-line as inlined local components) with one palette voice per card (bright teal / chartreuse / dark teal / golden yellow): the icon ink plus a super-low-opacity wash of the same color across the card background and icon circle, via CSS-var tone classes on the card (`.valueCard*`). Chartreuse ink deepens to olive on light surfaces. Explicit classes, never structural selectors. The section's bottom-right carries `teal-leaves.png` line-art behind the cards
+- Directional Reveal (`src/app/(public)/how-it-works/reveal.tsx`, styling round 3): `from="up" | "left" | "right"` — journey steps weave from alternating sides, the expectations pair and homepage value cards converge; horizontal reveals re-hide toward their own side (exit-edge logic is vertical-only)
 - Closing Band (teal; carries no interactive elements — the global focus ring is teal and would vanish)
 
 ## Engineering rules

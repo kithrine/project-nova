@@ -2,6 +2,7 @@ import { clerk } from "@clerk/testing/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_DRAFT_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Application journey, draft through submission (Stories 2.3, 2.5). Uses its
@@ -10,19 +11,6 @@ import { E2E_DRAFT_USER_EMAIL } from "./test-user";
  * continuous journey.
  */
 test.describe.configure({ mode: "serial" });
-
-async function signInAsApplicant(page: Page) {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_DRAFT_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
 
 /** Complete onboarding if this identity hasn't yet (idempotent across specs). */
 async function ensureOnboarded(page: Page) {
@@ -43,7 +31,7 @@ async function ensureOnboarded(page: Page) {
 }
 
 test("an applicant starts a draft and saves partial answers", async ({ page }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_DRAFT_USER_EMAIL);
   await ensureOnboarded(page);
 
   await expect(page.getByRole("heading", { level: 1, name: "My Application" })).toBeVisible();
@@ -72,7 +60,7 @@ test("an applicant starts a draft and saves partial answers", async ({ page }) =
 });
 
 test("uploading a required document updates the checklist (Story 2.4)", async ({ page }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_DRAFT_USER_EMAIL);
   await page.goto("/participant/application");
 
   // The required item starts missing.
@@ -96,7 +84,7 @@ test("uploading a required document updates the checklist (Story 2.4)", async ({
 });
 
 test("the draft survives sign-out and resumes on the next visit", async ({ page }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_DRAFT_USER_EMAIL);
   await page.goto("/participant/application");
 
   // Same draft, same saved answer — no duplicate started.
@@ -112,7 +100,7 @@ test("the draft survives sign-out and resumes on the next visit", async ({ page 
   await page.waitForURL(/sign-in/, { timeout: 20_000 });
 
   // Sign back in: the very same draft is waiting.
-  await signInAsApplicant(page);
+  await signIn(page, E2E_DRAFT_USER_EMAIL);
   await page.goto("/participant/application");
   await expect(page.getByLabel("Why do you want to join Project Nova?")).toHaveValue(
     "I want steady work and a team.",
@@ -123,7 +111,7 @@ test("the draft survives sign-out and resumes on the next visit", async ({ page 
 test("submit unlocks only when complete, then confirms and freezes (Story 2.5)", async ({
   page,
 }) => {
-  await signInAsApplicant(page);
+  await signIn(page, E2E_DRAFT_USER_EMAIL);
   await page.goto("/participant/application");
 
   // Four answers are still blank, so Submit is disabled — with the reason

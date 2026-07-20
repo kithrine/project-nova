@@ -1,6 +1,5 @@
+import Image from "next/image";
 import Link from "next/link";
-
-import { NovaLogo } from "@/components/layout/nova-logo";
 
 /**
  * Public site header (Story 2.1; brand refresh 2026-07-15). Minimal
@@ -9,6 +8,8 @@ import { NovaLogo } from "@/components/layout/nova-logo";
  * is deliberately NOT named "Start Your Application": each public page
  * owns exactly one link with that name (asserted by the page suites).
  * flex-wrap keeps the row from ever forcing horizontal scroll at 360px.
+ * Brand mark: the official raster logo (styling round 2, 2026-07-18) —
+ * decorative (empty alt), the brand NAME is always the adjacent text.
  */
 export function PublicHeader() {
   return (
@@ -21,11 +22,23 @@ export function PublicHeader() {
           href="/"
           className="flex items-center gap-2 text-base font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <NovaLogo className="size-7 text-primary" />
+          <Image
+            src="/images/logo-official.png"
+            alt=""
+            width={1069}
+            height={1074}
+            className="h-8 w-8 object-contain"
+          />
           Project Nova
         </Link>
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
           <div className="flex items-center gap-1 rounded-full border border-base-300 bg-base-100/70 p-1">
+            <Link
+              href="/"
+              className="rounded-full px-3 py-1.5 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Home
+            </Link>
             <Link
               href="/how-it-works"
               className="rounded-full px-3 py-1.5 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -41,7 +54,7 @@ export function PublicHeader() {
           </Link>
           <Link
             href="/sign-up"
-            className="rounded-full bg-accent px-4 py-1.5 font-semibold text-accent-content transition-colors hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="rounded-full bg-accent px-4 py-1.5 font-semibold text-accent-content transition-[color,background-color,box-shadow,transform] hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-md motion-safe:active:translate-y-0 motion-safe:active:shadow-none"
           >
             Apply Now
           </Link>
@@ -57,7 +70,13 @@ export function PublicFooter() {
     <footer className="border-t border-base-300/70 bg-base-200/50">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-1.5 px-4 py-8 text-sm text-base-content/60 sm:px-6">
         <p className="flex items-center gap-2 font-medium text-base-content/80">
-          <NovaLogo className="size-5 text-primary" />
+          <Image
+            src="/images/logo-official.png"
+            alt=""
+            width={1069}
+            height={1074}
+            className="h-6 w-6 object-contain"
+          />
           Project Nova
         </p>
         <p>Paid transitional work, real support, and a path toward lasting employment.</p>

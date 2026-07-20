@@ -1,7 +1,7 @@
-import { clerk } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 
 import { E2E_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Cross-organization authorization (Story 1.5). The E2E user is a Shelter
@@ -10,16 +10,7 @@ import { E2E_USER_EMAIL } from "./test-user";
  * it must be denied server-side.
  */
 test.beforeEach(async ({ page }) => {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
+  await signIn(page, E2E_USER_EMAIL);
 });
 
 test("a shelter user can read their own organization's summary", async ({ page }) => {

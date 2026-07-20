@@ -1,9 +1,9 @@
 import { UserButton } from "@clerk/nextjs";
+import Image from "next/image";
 
 import { BreathingDots } from "@/components/decor/breathing-dots";
 import { AppShellNav } from "@/components/layout/app-shell-nav";
 import { NavIcon } from "@/components/layout/nav-icons";
-import { NovaLogo } from "@/components/layout/nova-logo";
 import { EXPERIENCE_LABELS, NAV_BY_EXPERIENCE } from "@/components/layout/nav-model";
 import { Badge } from "@/components/ui/badge";
 import type { Experience } from "@/server/auth/experience";
@@ -21,26 +21,6 @@ import type { Experience } from "@/server/auth/experience";
  * content (visual pass 2026-07-18) — every signed-in page gets it via
  * this one mount.
  */
-
-/** Decorative leaf sprig for the sidebar's quiet space (aria-hidden). */
-function LeafSprig({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 48 64"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className={className}
-    >
-      <path d="M24 62C24 40 24 22 24 4" />
-      <path d="M24 18C17 16 11 10 10 3c7 1 13 7 14 15Z" fill="currentColor" stroke="none" />
-      <path d="M24 34c7-2 13-8 14-15-7 1-13 7-14 15Z" fill="currentColor" stroke="none" />
-      <path d="M24 48c-7-2-13-8-14-15 7 1 13 7 14 15Z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 /** Hand-drawn heart for the sidebar quote card (aria-hidden). */
 function DrawnHeart({ className }: { className?: string }) {
@@ -80,10 +60,20 @@ export function AppShell({
         anchor="bottom-right"
         className="fixed right-0 bottom-0 -z-10 h-[min(26rem,55vh)] w-[min(44rem,70vw)]"
       />
-      {/* Desktop: the full-height deep-teal sidebar */}
-      <aside className="hidden shrink-0 flex-col bg-primary text-base-100 md:flex md:w-64">
+      {/* Desktop: the full-height deep-teal sidebar. Relative + clipped so
+          the leaf art can anchor to its bottom-left corner. */}
+      <aside className="relative hidden shrink-0 flex-col overflow-hidden bg-primary text-base-100 md:flex md:w-64">
         <div className="flex items-center gap-2.5 px-5 pt-5 pb-2">
-          <NovaLogo className="size-8 shrink-0 text-base-100" />
+          {/* Official brand mark (styling round 2) — transparent PNG, its
+              chartreuse points pop on the teal rail; decorative (the brand
+              name is the adjacent text). */}
+          <Image
+            src="/images/logo-official.png"
+            alt=""
+            width={1069}
+            height={1074}
+            className="h-9 w-9 shrink-0 object-contain"
+          />
           <span className="text-sm font-semibold tracking-[0.14em] uppercase">
             Project Nova
           </span>
@@ -92,13 +82,23 @@ export function AppShell({
           <AppShellNav items={items} tone="sidebar" />
         </nav>
         <div className="mx-5 border-t border-base-100/15" />
-        <div className="relative flex-1 overflow-hidden">
-          <LeafSprig className="absolute bottom-2 left-4 h-16 w-12 text-base-100/20" />
-        </div>
+        <div className="flex-1" />
+        {/* Photographic leaf line-art (round 4, replacing the hand-drawn
+            sprig): anchored to the sidebar's bottom-left, BEHIND the quote
+            card — the card is positioned (relative) and later in the DOM,
+            so it paints above the absolutely-positioned image. */}
+        <Image
+          src="/images/white-leaves-navbar.png"
+          alt=""
+          width={1536}
+          height={1024}
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-0 w-full opacity-25"
+        />
         {/* Non-interactive by rule: the primary focus ring vanishes on teal.
             Full-opacity cream text: the card tint lightens the backdrop, so
             muted /85 text would dip below AA on the composite (axe-verified). */}
-        <div className="m-3 rounded-lg bg-base-100/10 p-4">
+        <div className="relative m-3 rounded-lg bg-base-100/10 p-4">
           <DrawnHeart className="size-6 text-accent" />
           <p className="mt-2 text-sm leading-relaxed text-base-100">
             Paid transitional work, real support, and a path toward lasting employment.
@@ -112,7 +112,13 @@ export function AppShell({
             <div className="flex items-center gap-3">
               {/* The sidebar owns the brand from md up. */}
               <span className="flex items-center gap-2 md:hidden">
-                <NovaLogo className="size-6 text-primary" />
+                <Image
+                  src="/images/logo-official.png"
+                  alt=""
+                  width={1069}
+                  height={1074}
+                  className="h-7 w-7 object-contain"
+                />
                 <span className="text-base font-semibold">Project Nova</span>
               </span>
               <Badge tone="accent">{EXPERIENCE_LABELS[experience]}</Badge>
