@@ -20,6 +20,7 @@ import {
   weekEndFor,
   weekLabel,
 } from "@/server/domain/timesheet";
+import { ACTIVE_PLACEMENT_STATUSES } from "@/server/domain/placement";
 import {
   hoursStringFromHundredths,
   shiftHourHundredths,
@@ -272,6 +273,58 @@ export async function getOrCreateOwnTimesheet(
     },
     siteName: placement.organizationSite.name,
     organizationName: placement.organizationSite.organization.name,
+  };
+}
+
+export interface OwnWeekHoursView {
+  weekLabel: string;
+  /** Decimal-shaped string; "0.00" until any hours exist for the week. */
+  totalHours: string;
+  /** Plain status label, or null when the week has no timesheet yet. */
+  statusLabel: string | null;
+}
+
+/**
+ * The dashboard's read-only this-week summary for the participant's own
+ * active-tier placement (the placed-state home). Never creates the
+ * weekly timesheet — opening My Hours (6.1) owns creation — and returns
+ * null when no active-tier placement exists, since there is no current
+ * week to summarize. Ownership resolves server-side through Person ->
+ * Participant, the same as every own-data read.
+ */
+export async function getOwnCurrentWeekHours(
+  ctx: AuthContext,
+): Promise<OwnWeekHoursView | null> {
+  const person = await prisma.person.findUnique({
+    where: { userId: ctx.userId },
+    select: { participant: { select: { id: true } } },
+  });
+  if (!person?.participant) return null;
+
+  // At most one active-tier placement exists (the partial unique index).
+  const placement = await prisma.placement.findFirst({
+    where: {
+      participantId: person.participant.id,
+      status: { in: [...ACTIVE_PLACEMENT_STATUSES] },
+    },
+    select: { id: true },
+  });
+  if (!placement) return null;
+
+  const weekStart = mondayOfWeek(new Date());
+  const timesheet = await prisma.timesheet.findUnique({
+    where: {
+      placementId_weekStartDate: {
+        placementId: placement.id,
+        weekStartDate: weekStart,
+      },
+    },
+    select: { status: true, totalHours: true },
+  });
+  return {
+    weekLabel: weekLabel(weekStart),
+    totalHours: timesheet ? timesheet.totalHours.toFixed(2) : "0.00",
+    statusLabel: timesheet ? TIMESHEET_STATUS_LABELS[timesheet.status] : null,
   };
 }
 

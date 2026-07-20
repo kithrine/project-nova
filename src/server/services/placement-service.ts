@@ -2109,15 +2109,37 @@ export interface ParticipantPlacementView {
   scheduleSummary: string | null;
   startDateLabel: string | null;
   supervisorName: string | null;
+  /**
+   * True while the placement occupies the active tier (Onboarding /
+   * Active / Paused). The participant home's placed state keys off this
+   * boolean — internal status names never enter the participant payload.
+   */
+  active: boolean;
   /** The participant's own placement-onboarding steps (Story 5.4). */
   mySteps: ParticipantStepView[];
 }
 
+/** Shared shape for both getOwnPlacement lookups (active-tier, fallback). */
+const OWN_PLACEMENT_INCLUDE = {
+  organizationSite: {
+    select: {
+      name: true,
+      city: true,
+      region: true,
+      organization: { select: { name: true } },
+    },
+  },
+  onboardingTasks: {
+    where: { participantCompletable: true },
+    orderBy: { sortOrder: "asc" },
+  },
+} satisfies Prisma.PlacementInclude;
+
 /**
- * The participant's own "My Placement" view (AC3): ownership-scoped, the
- * most recent placement, plain language — no case notes, no internal
- * blocker codes, no other participants' data (structurally impossible:
- * only their own record is queried).
+ * The participant's own "My Placement" view (AC3): ownership-scoped,
+ * plain language — no case notes, no internal blocker codes, no other
+ * participants' data (structurally impossible: only their own record is
+ * queried).
  */
 export async function getOwnPlacement(
   ctx: AuthContext,
@@ -2128,24 +2150,23 @@ export async function getOwnPlacement(
   });
   if (!person?.participant) return null;
 
-  const placement = await prisma.placement.findFirst({
-    where: { participantId: person.participant.id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      organizationSite: {
-        select: {
-          name: true,
-          city: true,
-          region: true,
-          organization: { select: { name: true } },
-        },
+  // The placement of record: the active-tier one when it exists (the
+  // one-active-placement partial unique index guarantees at most one),
+  // else the most recent — so a newer terminal record never hides a
+  // participant's live placement, and history stays readable after an end.
+  const placement =
+    (await prisma.placement.findFirst({
+      where: {
+        participantId: person.participant.id,
+        status: { in: [...ACTIVE_PLACEMENT_STATUSES] },
       },
-      onboardingTasks: {
-        where: { participantCompletable: true },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
+      include: OWN_PLACEMENT_INCLUDE,
+    })) ??
+    (await prisma.placement.findFirst({
+      where: { participantId: person.participant.id },
+      orderBy: { createdAt: "desc" },
+      include: OWN_PLACEMENT_INCLUDE,
+    }));
   if (!placement) return null;
 
   const supervisor = placement.supervisorId
@@ -2169,6 +2190,9 @@ export async function getOwnPlacement(
     scheduleSummary: placement.schedule,
     startDateLabel: formatDate(placement.startDate),
     supervisorName: supervisor?.displayName ?? null,
+    active: (ACTIVE_PLACEMENT_STATUSES as readonly PlacementStatus[]).includes(
+      placement.status,
+    ),
     mySteps:
       placement.status === PlacementStatus.APPROVED ||
       placement.status === PlacementStatus.ONBOARDING

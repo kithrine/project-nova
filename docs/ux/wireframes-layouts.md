@@ -49,10 +49,11 @@
 ## Participant dashboard
 
 - Welcome header with first name and decorative spark
-- Stat row: onboarding tasks, readiness items, program
+- Enrolled (onboarding) state — stat row: onboarding tasks, readiness items, program; Required tasks and readiness cards
+- Placed state (active-tier placement, enrollment past onboarding) — stat row: site, schedule (→ My Placement), this week's hours (→ My Hours), certifications (→ Certifications); header carries the placement's plain-language stage copy; never the applicant welcome card
+- Applicant state (no enrollment, no active placement) — welcome card pointing to My Application
 - Proposed placement / declined notice (when present)
-- Required tasks and readiness cards
-- Encouragement callout (chartreuse tint, static)
+- Encouragement callout (chartreuse tint, static; placed variant names the site)
 
 ## Shelter dashboard
 
