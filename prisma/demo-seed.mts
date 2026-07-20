@@ -541,10 +541,13 @@ try {
     update: {},
     create: { id: "demo_participant_katie", personId: katiePerson.id },
   });
-  // Katie's enrollment stays ONBOARDING (all tasks complete): the
-  // participant home's progress tiles only render for ONBOARDING
-  // enrollments today (getOwnOnboardingSummary filters on it), and her
-  // placement/hours pages read the placement directly regardless.
+  // Katie's enrollment stays ONBOARDING (all tasks complete) so her home
+  // shows the journey view: progress tiles + tasks card (the ONBOARDING
+  // branch takes precedence). Flipping her to READY_FOR_MATCHING would
+  // instead show the placed-state home (site / schedule / this week's
+  // hours / certifications tiles) now that it exists — a demo-narrative
+  // choice, deliberately left as-is. Placement/hours pages read the
+  // placement directly either way.
   await prisma.programEnrollment.upsert({
     where: { applicationId: "demo_app_katie" },
     update: { status: "ONBOARDING" },
