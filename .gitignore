@@ -50,3 +50,8 @@ next-env.d.ts
 
 # Machine-specific Claude Code launch config (absolute local paths)
 .claude/launch.json
+
+# Vercel CLI link artifacts (vercel link also tried to add `.env*`,
+# which is too broad — the env ignores above already cover secrets
+# without hiding committed templates like .env.example)
+.vercel

@@ -255,6 +255,37 @@ try {
   });
   const program = await prisma.program.findUniqueOrThrow({ where: { code: "NOVA-TE" } });
 
+  // Reference catalog (same rows prisma/seed.mts maintains; the 2026-07-20
+  // production census found none there, and Katie's training enrollments +
+  // any attendee-driven acceptance flow need them). Deliberately NOT
+  // isSynthetic — this is the program's real reference data.
+  const NOVA_TE_TASKS = [
+    { id: "nova_te_task_01", title: "Attend orientation session", description: "Join the Project Nova orientation and meet your coordinator.", required: true, participantCompletable: false, sortOrder: 1 },
+    { id: "nova_te_task_02", title: "Complete employment paperwork", description: "I-9 and W-4 forms, completed and verified with your coordinator.", required: true, participantCompletable: false, sortOrder: 2 },
+    { id: "nova_te_task_03", title: "Set up direct deposit or pay card", description: "Choose how you'd like to be paid.", required: true, participantCompletable: true, sortOrder: 3 },
+    { id: "nova_te_task_04", title: "Add an emergency contact", description: "Someone we can reach if anything comes up at a work site.", required: true, participantCompletable: true, sortOrder: 4 },
+    { id: "nova_te_task_05", title: "Review the program handbook", description: "The plain-language guide to how the program works.", required: true, participantCompletable: true, sortOrder: 5 },
+  ];
+  for (const task of NOVA_TE_TASKS) {
+    await prisma.onboardingTaskTemplate.upsert({
+      where: { id: task.id },
+      update: { ...task, programId: program.id },
+      create: { ...task, programId: program.id },
+    });
+  }
+  const NOVA_TE_TRAINING = [
+    { id: "nova_te_training_workplace_readiness", code: "WORKPLACE-READINESS", name: "Workplace Readiness and Communication", description: "Workplace expectations, communication, feedback, escalation, digital navigation, and requesting support.", requiredForMatching: true, sortOrder: 1 },
+    { id: "nova_te_training_animal_handling", code: "ANIMAL-HANDLING-FOUNDATIONS", name: "Animal Behavior, Humane Handling, and Bite Prevention Foundations", description: "Animal body language, safe handling foundations, bite prevention, and stop-and-get-help boundaries.", requiredForMatching: true, sortOrder: 2 },
+    { id: "nova_te_training_sanitation", code: "SHELTER-SANITATION-FOUNDATIONS", name: "Shelter Sanitation, Zoonoses, and PPE Foundations", description: "Hygiene, cleaning and disinfection, zoonotic-risk awareness, PPE concepts, and reporting.", requiredForMatching: true, sortOrder: 3 },
+  ];
+  for (const trainingProgram of NOVA_TE_TRAINING) {
+    await prisma.trainingProgram.upsert({
+      where: { id: trainingProgram.id },
+      update: { ...trainingProgram, programId: program.id },
+      create: { ...trainingProgram, programId: program.id },
+    });
+  }
+
   // ------------------------------------------------- Demo sign-in accounts
   for (const account of DEMO_ACCOUNTS) {
     const clerkUserId = await ensureClerkDemoUser(
