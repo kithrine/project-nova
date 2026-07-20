@@ -1,25 +1,12 @@
-import { clerk } from "@clerk/testing/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { E2E_OPS_USER_EMAIL } from "./test-user";
-
-async function signInAsCoordinator(page: Page) {
-  await page.goto("/sign-in");
-  await clerk.signIn({
-    page,
-    signInParams: { strategy: "email_code", identifier: E2E_OPS_USER_EMAIL },
-  });
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
-}
+import { signIn } from "./sign-in";
 
 test("a coordinator enrolls, starts, and completes portable training with evidence", async ({
   page,
 }) => {
-  await signInAsCoordinator(page);
+  await signIn(page, E2E_OPS_USER_EMAIL);
   await page.goto("/operations/enrollments/e2e_enrollment_training");
 
   await expect(
