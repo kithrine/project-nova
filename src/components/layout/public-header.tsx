@@ -10,15 +10,20 @@ import { PublicNav } from "@/components/layout/public-nav";
  * chartreuse "Apply Now" CTA is deliberately NOT named "Start Your
  * Application": each public page owns exactly one link with that name
  * (asserted by the page suites). Below md the links live behind a
- * hamburger disclosure (PublicNav); relative + z-40 anchors its overlay
- * panel ABOVE the homepage content wrapper (z-index 1) while staying
- * under the skip link (z-index 50).
+ * hamburger disclosure (PublicNav); sticky + z-40 pins the bar to the
+ * viewport top (the translucent bg + backdrop-blur is the scrolled-over
+ * treatment) and anchors the overlay panel ABOVE the homepage content
+ * wrapper (z-index 1) while staying under the skip link (z-index 50).
+ * The .public-site-header class is a hook for globals.css's scoped
+ * scroll-padding-top, which keeps EVERY scroll-into-view — fragment
+ * jumps and focus-triggered scrolls alike (WCAG 2.4.11) — clear of
+ * the pinned bar.
  * Brand mark: the official raster logo (styling round 2, 2026-07-18) —
  * decorative (empty alt), the brand NAME is always the adjacent text.
  */
 export function PublicHeader() {
   return (
-    <header className="relative z-40 border-b border-base-300/70 bg-base-100/85 backdrop-blur">
+    <header className="public-site-header sticky top-0 z-40 border-b border-base-300/70 bg-base-100/85 backdrop-blur">
       <nav
         aria-label="Public"
         className="mx-auto flex w-full max-w-6xl items-center justify-between gap-x-4 px-4 py-2 sm:px-6 md:py-3"
