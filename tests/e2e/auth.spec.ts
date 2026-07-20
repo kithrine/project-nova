@@ -1,7 +1,8 @@
-import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
+import { setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 
 import { E2E_USER_EMAIL } from "./test-user";
+import { signIn } from "./sign-in";
 
 /**
  * Authentication boundary (Story 1.2).
@@ -25,25 +26,10 @@ test("the sign-in page renders the authentication form", async ({ page }) => {
 });
 
 test("a user can sign in and reach the authenticated placeholder page", async ({ page }) => {
-  await page.goto("/sign-in");
   // This Clerk instance signs in via email code (password is not a first
   // factor). The +clerk_test address is a test-mode identity, so the dev
   // instance accepts the fixed verification code automatically.
-  await clerk.signIn({
-    page,
-    signInParams: {
-      strategy: "email_code",
-      identifier: E2E_USER_EMAIL,
-    },
-  });
-
-  // Wait until the client session actually exists before navigating —
-  // setActive finishes writing session cookies slightly after signIn resolves.
-  await page.waitForFunction(
-    () => Boolean((window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user),
-    undefined,
-    { timeout: 15_000 },
-  );
+  await signIn(page, E2E_USER_EMAIL);
 
   // /dashboard is the role router (Story 1.7): this user holds a shelter
   // membership, so it redirects to the shelter shell.
