@@ -299,9 +299,9 @@ export default function HomePage() {
       <BreathingDots anchor="top-right" className={styles.heroDots} />
       <div className={styles.content}>
         {/* --- Hero ------------------------------------------------------ */}
-        <section className="relative mx-auto w-full max-w-6xl px-4 pt-14 pb-16 sm:px-6 lg:pt-20 lg:pb-24">
+        <section className="relative mx-auto w-full max-w-6xl px-4 pt-8 pb-16 sm:px-6 sm:pt-14 lg:pt-20 lg:pb-24">
           <div className={styles.heroGrid}>
-            <div className={`${styles.heroReveal} flex flex-col items-start gap-6`}>
+            <div className={`${styles.heroReveal} flex flex-col items-start gap-5 sm:gap-6`}>
               <p className={styles.eyebrow}>
                 <NovaLogo className="size-3.5" />
                 Workforce impact. Community change.

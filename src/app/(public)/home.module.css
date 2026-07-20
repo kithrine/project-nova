@@ -219,6 +219,14 @@
   align-items: center;
 }
 
+/* Phones: tighter stack so the hero photo enters the first viewport
+   (mobile nav pass, 2026-07-20). */
+@media (max-width: 40rem) {
+  .heroGrid {
+    gap: 2rem;
+  }
+}
+
 @media (min-width: 64rem) {
   .heroGrid {
     /* Image column widened (styling round 2) — the photo leads. */
@@ -301,6 +309,14 @@
 .heroPhoto {
   position: relative;
   padding: 1.5rem 0.5rem 2rem;
+}
+
+/* Phones: shave the photo's top breathing room — 0.5rem still clears the
+   heroFloat -8px drift (mobile nav pass, 2026-07-20). */
+@media (max-width: 40rem) {
+  .heroPhoto {
+    padding: 0.5rem 0.5rem 1.5rem;
+  }
 }
 
 .heroImage {
