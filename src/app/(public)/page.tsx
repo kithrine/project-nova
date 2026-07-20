@@ -304,7 +304,7 @@ export default function HomePage() {
             <div className={`${styles.heroReveal} flex flex-col items-start gap-6`}>
               <p className={styles.eyebrow}>
                 <NovaLogo className="size-3.5" />
-                Workforce impact. Community change.
+                Paid transitional work at animal shelters
               </p>
               <h1 className={`${styles.display} ${styles.heroTitle} text-balance`}>
                 Stronger futures start with{" "}
