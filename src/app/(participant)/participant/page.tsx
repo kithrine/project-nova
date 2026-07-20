@@ -11,14 +11,18 @@ import {
   ParticipantDeclinedNotice,
   ParticipantProposedCard,
 } from "@/features/matching/proposed-placement-card";
+import { PlacementHomeTiles } from "@/features/placement/placement-home-tiles";
 import { getOrProvisionAuthContext } from "@/server/auth/context";
 import { getOwnPerson } from "@/server/services/applicant-onboarding";
+import { getOwnCertifications } from "@/server/services/certification-service";
 import { getOwnOnboardingSummary } from "@/server/services/enrollment-service";
 import {
   getOwnDeclinedPlacementNotice,
   getOwnProposedMatch,
 } from "@/server/services/matching-service";
+import { getOwnPlacement } from "@/server/services/placement-service";
 import { getOwnReadiness } from "@/server/services/readiness-service";
+import { getOwnCurrentWeekHours } from "@/server/services/timesheet-service";
 import { getOwnTrainingJourney } from "@/server/services/training-service";
 
 export const metadata = { title: "Dashboard" };
@@ -45,7 +49,10 @@ function AccentSpark({ className }: { className?: string }) {
  * Participant dashboard (Stories 1.7/2.2/3.3; brand pass 2026-07-16).
  * Applicants (no memberships) who haven't completed account onboarding
  * are sent there first. Once a person is enrolled (3.1), their live
- * progress appears as stat tiles and the Required tasks card.
+ * progress appears as stat tiles and the Required tasks card. Once they
+ * hold an active-tier placement (post-enrollment-onboarding), the home
+ * turns placement-centric: site, schedule, this week's hours, and
+ * certifications — never the applicant welcome card.
  */
 export default async function ParticipantDashboardPage() {
   const ctx = await getOrProvisionAuthContext();
@@ -71,6 +78,14 @@ export default async function ParticipantDashboardPage() {
       ? { ...readiness, items: readiness.items.filter((item) => item.kind !== "task") }
       : readiness;
 
+  // The placed state: once enrollment onboarding is behind them, a
+  // participant with an active-tier placement is working — the applicant
+  // welcome card would be wrong. Their home turns placement-centric.
+  const ownPlacement = ctx && person && !onboarding ? await getOwnPlacement(ctx) : null;
+  const placed = ownPlacement?.active ? ownPlacement : null;
+  const weekHours = ctx && placed ? await getOwnCurrentWeekHours(ctx) : null;
+  const certifications = ctx && placed ? await getOwnCertifications(ctx) : [];
+
   const title = person?.legalFirstName
     ? `Welcome back, ${person.legalFirstName}!`
     : "Welcome to Project Nova";
@@ -82,7 +97,8 @@ export default async function ParticipantDashboardPage() {
         description={
           onboarding
             ? `You're enrolled in ${onboarding.programName}. Your current step and next actions appear below, and you can ask your coordinator for support anytime.`
-            : undefined
+            : // The stage-vetted plain-language copy (5.1) frames the placed home.
+              (placed?.stageBody ?? undefined)
         }
       >
         <AccentSpark className="size-6 shrink-0 text-accent" />
@@ -112,6 +128,12 @@ export default async function ParticipantDashboardPage() {
             tone="accent"
           />
         </div>
+      ) : placed ? (
+        <PlacementHomeTiles
+          placement={placed}
+          weekHours={weekHours}
+          certificationCount={certifications.length}
+        />
       ) : null}
 
       {proposedMatch ? <ParticipantProposedCard match={proposedMatch} /> : null}
@@ -121,7 +143,8 @@ export default async function ParticipantDashboardPage() {
         trainingJourney?.stage === "ONBOARDING" ? (
           <>
             <ParticipantTasks summary={onboarding} />
-            {readinessForCard && !readinessForCard.ready &&
+            {readinessForCard &&
+            !readinessForCard.ready &&
             readinessForCard.items.length > 0 ? (
               <ReadinessCard readiness={readinessForCard} />
             ) : null}
@@ -134,11 +157,11 @@ export default async function ParticipantDashboardPage() {
         ) : (
           <ParticipantTasks summary={onboarding} />
         )
-      ) : person ? (
+      ) : placed ? null : person ? (
         <Card variant="surface" className="flex max-w-xl flex-col gap-4">
           <p className="text-base leading-relaxed text-base-content/80">
-            Thanks, {person.legalFirstName} — your account is set up. Your
-            application is the next step.
+            Thanks, {person.legalFirstName} — your account is set up. Your application is the
+            next step.
           </p>
           <a
             href="/participant/application"
@@ -168,9 +191,19 @@ export default async function ParticipantDashboardPage() {
             <path d="M12 19.2C7 15 2.6 11.4 2.4 7.4 2.3 4.6 4.4 2.6 6.9 2.6c2 0 3.8 1.2 5.1 3.2 1.3-2 3.1-3.2 5.1-3.2 2.5 0 4.6 2 4.5 4.8-.2 4-4.6 7.6-9.6 11.8Z" />
           </svg>
           <p className="text-sm leading-relaxed text-base-content">
-            <span className="font-semibold">Small steps add up.</span> Every task you
-            complete here builds toward real work with animals — and your coordinator
-            is in your corner the whole way.
+            {placed ? (
+              <>
+                <span className="font-semibold">You&apos;re part of the team.</span> The work
+                you&apos;re doing at {placed.siteName} matters — and your coordinator is in your
+                corner the whole way.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">Small steps add up.</span> Every task you
+                complete here builds toward real work with animals — and your coordinator is in
+                your corner the whole way.
+              </>
+            )}
           </p>
         </div>
       </Card>
