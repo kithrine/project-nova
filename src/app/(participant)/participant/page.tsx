@@ -123,7 +123,7 @@ export default async function ParticipantDashboardPage() {
           <StatCard
             label="Program"
             value={onboarding.programName}
-            sublabel="Transitional employment"
+            sublabel="Enrolled"
             icon={<NavIcon name="briefcase" className="size-5" />}
             tone="accent"
           />

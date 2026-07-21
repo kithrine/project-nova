@@ -33,6 +33,15 @@ export function StatCard({
   icon: ReactNode;
   tone?: StatTone;
 }) {
+  // The value slot must never outgrow the tile: KPI-style short values
+  // (counts, "5/5", "12.50") get the big treatment; phrase-length strings
+  // (program names, schedules, site names) step down and wrap inside the
+  // card instead of blowing past its bounds.
+  const valueClasses =
+    typeof value === "string" && value.length > 12
+      ? "text-xl leading-snug font-bold tracking-tight text-balance break-words"
+      : "text-3xl font-bold tracking-tight";
+
   return (
     <div className="flex items-start gap-4 rounded-lg border border-base-300/70 bg-surface p-5 shadow-(--shadow-sm)">
       <div
@@ -42,7 +51,7 @@ export function StatCard({
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-sm font-medium text-base-content/70">{label}</p>
-        <p className="text-3xl font-bold tracking-tight">{value}</p>
+        <p className={valueClasses}>{value}</p>
         {href && sublabel ? (
           <Link
             href={href}
