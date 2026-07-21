@@ -43,8 +43,9 @@
   opacity: 0.45;
 }
 
-/* Public anchors run louder than the dashboard one (styling round 3):
-   marketing pages want the field noticed; work surfaces keep it quiet. */
+/* The homepage hero anchor runs loudest; the dashboard corner matches
+   the How It Works presence (raised from its original whisper — Kit,
+   2026-07-21 — so signed-in screens read as deliberately dotted too). */
 .topRight {
   --dots-origin: 100% 0%;
   --dots-color: rgb(15 107 92 / 0.55);
@@ -54,9 +55,9 @@
 
 .bottomRight {
   --dots-origin: 100% 100%;
-  --dots-color: rgb(15 107 92 / 0.32);
+  --dots-color: rgb(15 107 92 / 0.5);
   --dots-cell: 24px;
-  --dots-r: 1.4px;
+  --dots-r: 1.8px;
 }
 
 /* Half-circle arc breathing out of the viewport's left edge (styling

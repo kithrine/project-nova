@@ -58,7 +58,7 @@ export function AppShell({
           background, so dots show only through transparent areas. */}
       <BreathingDots
         anchor="bottom-right"
-        className="fixed right-0 bottom-0 -z-10 h-[min(26rem,55vh)] w-[min(44rem,70vw)]"
+        className="fixed right-0 bottom-0 -z-10 h-[min(30rem,60vh)] w-[min(50rem,75vw)]"
       />
       {/* Desktop: the full-height deep-teal sidebar. Relative + clipped so
           the leaf art can anchor to its bottom-left corner. */}

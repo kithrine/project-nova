@@ -41,4 +41,23 @@ describe("StatCard", () => {
       expect(svg).toHaveAttribute("aria-hidden", "true");
     }
   });
+
+  it("steps phrase-length string values down from the KPI size so they stay inside the tile", () => {
+    render(
+      <StatCard
+        label="Program"
+        value="Transitional Employment Program"
+        sublabel="Enrolled"
+        icon={icon}
+        tone="accent"
+      />,
+    );
+    const value = screen.getByText("Transitional Employment Program");
+    expect(value).toBeInTheDocument();
+    expect(value).toHaveClass("text-xl");
+    expect(value).not.toHaveClass("text-3xl");
+    // Short KPI values keep the big treatment.
+    render(<StatCard label="Hours" value="12.50" icon={icon} tone="primary" />);
+    expect(screen.getByText("12.50")).toHaveClass("text-3xl");
+  });
 });
